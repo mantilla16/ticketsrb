@@ -6,7 +6,6 @@
 # ═══════════════════════════════════════════════════════
 set -e
 
-SERVER_IP="64.23.209.179"
 APP_DIR="/var/www/autotrack"
 REPO="https://github.com/bleinermorales-collab/SEGUIMIENTO-PROYECTO.git"
 DB_USER="autotrack"
@@ -40,16 +39,12 @@ echo "▶ Instalando Nginx..."
 apt-get install -y nginx -qq
 systemctl enable nginx
 
-# ── 5. PM2 ──
-echo "▶ Instalando PM2..."
-npm install -g pm2 -q
-
-# ── 6. Base de datos ──
+# ── 5. Base de datos ──
 echo "▶ Configurando base de datos PostgreSQL..."
 sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';" 2>/dev/null || echo "   (usuario ya existe)"
 sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>/dev/null || echo "   (base de datos ya existe)"
 
-# ── 7. Clonar repo ──
+# ── 6. Clonar repo ──
 echo "▶ Clonando repositorio..."
 mkdir -p $APP_DIR
 if [ -d "$APP_DIR/.git" ]; then
@@ -58,7 +53,7 @@ else
   git clone $REPO $APP_DIR
 fi
 
-# ── 8. Backend ──
+# ── 7. Backend ──
 echo "▶ Instalando dependencias del backend..."
 cd $APP_DIR/autotrack-backend
 npm install --omit=dev -q
@@ -77,7 +72,7 @@ sudo -u postgres psql -d $DB_NAME -f $APP_DIR/autotrack-backend/db/schema.sql
 echo "▶ Ejecutando seed de proyectos..."
 cd $APP_DIR/autotrack-backend && node scripts/seed.js
 
-# ── 9. Frontend ──
+# ── 8. Frontend ──
 echo "▶ Instalando dependencias del frontend..."
 cd $APP_DIR/autotrack-frontend
 npm install -q
@@ -89,7 +84,7 @@ echo "▶ Copiando build a nginx..."
 mkdir -p /var/www/html/autotrack
 cp -r $APP_DIR/autotrack-frontend/dist/* /var/www/html/autotrack/
 
-# ── 10. Nginx config ──
+# ── 9. Nginx config ──
 echo "▶ Configurando Nginx..."
 cat > /etc/nginx/sites-available/autotrack << 'NGINXEOF'
 server {
@@ -104,15 +99,21 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Backend API — proxy a Node.js
+    # Backend API — proxy a Node.js :3001
     location /api {
-        proxy_pass         http://localhost:3001;
-        proxy_http_version 1.1;
-        proxy_set_header   Upgrade $http_upgrade;
-        proxy_set_header   Connection 'upgrade';
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_cache_bypass $http_upgrade;
+        proxy_pass              http://127.0.0.1:3001;
+        proxy_http_version      1.1;
+        proxy_connect_timeout   1200s;
+        proxy_send_timeout      1200s;
+        proxy_read_timeout      1200s;
+        send_timeout            1200s;
+        proxy_set_header        Host $host;
+        proxy_set_header        X-Real-IP $remote_addr;
+        proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header        X-Forwarded-Proto $scheme;
+        proxy_set_header        Upgrade $http_upgrade;
+        proxy_set_header        Connection 'upgrade';
+        proxy_cache_bypass      $http_upgrade;
     }
 }
 NGINXEOF
@@ -121,13 +122,31 @@ ln -sf /etc/nginx/sites-available/autotrack /etc/nginx/sites-enabled/autotrack
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 
-# ── 11. PM2 ──
-echo "▶ Iniciando backend con PM2..."
-cd $APP_DIR/autotrack-backend
-pm2 delete autotrack-api 2>/dev/null || true
-pm2 start src/index.js --name autotrack-api
-pm2 startup systemd -u root --hp /root | tail -1 | bash
-pm2 save
+# ── 10. Servicio systemd ──
+echo "▶ Creando servicio systemd para el backend..."
+cat > /etc/systemd/system/autotrack.service << SVCEOF
+[Unit]
+Description=AutoTrack API (Node.js)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$APP_DIR/autotrack-backend
+ExecStart=/usr/bin/node src/index.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=autotrack
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+systemctl daemon-reload
+systemctl enable autotrack
+systemctl start autotrack
 
 echo ""
 echo "╔══════════════════════════════════════════╗"
@@ -136,7 +155,6 @@ echo "║                                          ║"
 echo "║  App:  http://64.23.209.179              ║"
 echo "║  API:  http://64.23.209.179/api          ║"
 echo "║                                          ║"
-echo "║  Usuario:   bleinermorales@americana...  ║"
 echo "║  Contraseña del equipo: americana2026    ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""

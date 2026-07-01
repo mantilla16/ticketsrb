@@ -1,15 +1,6 @@
-module.exports = {
-  apps: [{
-    name: 'autotrack-api',
-    script: './autotrack-backend/src/index.js',
-    cwd: '/var/www/autotrack',
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '300M',
-    env_production: {
-      NODE_ENV: 'production',
-      PORT: 3001,
-    },
-  }],
-};
+// Proceso gestionado por systemd — ver /etc/systemd/system/autotrack.service
+// Comandos útiles:
+//   systemctl status autotrack
+//   systemctl restart autotrack
+//   journalctl -u autotrack -f
+

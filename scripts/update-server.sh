@@ -25,7 +25,7 @@ echo "▶ Copiando build a nginx..."
 cp -r $APP_DIR/autotrack-frontend/dist/* /var/www/html/autotrack/
 
 echo "▶ Reiniciando backend..."
-pm2 restart autotrack-api
+systemctl restart autotrack
 
 echo ""
 echo "✅  Actualización completada — http://64.23.209.179"
