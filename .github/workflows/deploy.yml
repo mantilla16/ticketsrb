@@ -11,13 +11,39 @@ jobs:
       - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias frontend
+        run: |
+          cd autotrack-frontend
+          npm install
+
+      - name: Build frontend
+        run: |
+          cd autotrack-frontend
+          VITE_API_URL=/autotrack-api npx vite build --base=/autotrack/
+
+      - name: SCP — copiar dist al servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "autotrack-frontend/dist/*"
+          target: "/var/www/html/autotrack/autotrack-frontend/dist/"
+          strip_components: 2
+
+      - name: SSH — actualizar API y reiniciar servicio
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 2244
+          port: ${{ secrets.SSH_PORT }}
           script: |
             git config --global --add safe.directory /var/www/html/autotrack
             cd /var/www/html/autotrack
@@ -25,7 +51,4 @@ jobs:
             git reset --hard origin/master
             cd autotrack-backend
             npm install --omit=dev
-            cd ../autotrack-frontend
-            npm install
-            VITE_API_URL=/autotrack-api npx vite build --base=/autotrack/
             systemctl restart autotrack
