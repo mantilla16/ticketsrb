@@ -1,0 +1,36 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('at-token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+api.interceptors.response.use(
+  (res) => res.data,
+  (err) => Promise.reject(err.response?.data || { error: 'Error de conexión con el servidor' })
+);
+
+export const authAPI = {
+  register: (data) => api.post('/auth/register', data),
+  login: (data) => api.post('/auth/login', data),
+  me: () => api.get('/auth/me'),
+};
+
+export const projectsAPI = {
+  getAll: () => api.get('/projects'),
+  create: (data) => api.post('/projects', data),
+  update: (id, data) => api.put(`/projects/${id}`, data),
+  remove: (id) => api.delete(`/projects/${id}`),
+  addLog: (id, data) => api.post(`/projects/${id}/logs`, data),
+};
+
+export const usersAPI = {
+  getAll: () => api.get('/users'),
+};
+
+export default api;

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<!-- saved from url=(0049)file:///C:/Users/angie/Downloads/autotrack_1.html -->
+<html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoTrack — Gestión de Proyectos</title>
+<link href="./AutoTrack — Gestión de Proyectos_files/css2" rel="stylesheet">
+<script src="./AutoTrack — Gestión de Proyectos_files/html2canvas.min.js.descarga"></script>
+<script src="./AutoTrack — Gestión de Proyectos_files/jspdf.umd.min.js.descarga"></script>
+<style>
+:root{
+  --mist:#90AFC5;--stone:#336B87;--shadow:#2A3132;--foliage:#763626;
+  --white:#fff;--bg:#f6f8fa;--surface:#fff;--surface2:#f0f4f7;
+  --border:#d0dce4;--border2:#b8c9d4;
+  --text:#2A3132;--text2:#5a7d91;--text3:#90AFC5;--text4:#b0c4d0;
+  --green:#3d7a54;--green-bg:#dceee3;--stone-bg:#dce8f0;--foliage-bg:#e8ddd5;--shadow-bg:#e0e4e5;--mist-bg:#f0f4f7;
+  --radius:10px;--radius-sm:6px;
+  --font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace;
+  --sh:0 1px 3px rgba(42,49,50,0.06);--sh-md:0 4px 14px rgba(42,49,50,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh}
+
+.header{background:var(--surface);border-bottom:.5px solid var(--border);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100}
+.logo{font-size:16px;font-weight:600;letter-spacing:-.4px;color:var(--shadow)}
+.logo span{color:var(--text3);font-weight:300;font-size:14px}
+.nav{display:flex;gap:2px;background:var(--surface2);padding:3px;border-radius:var(--radius-sm);border:.5px solid var(--border)}
+.nav-btn{padding:5px 16px;border:none;background:0 0;cursor:pointer;border-radius:4px;font-size:13px;font-family:var(--font);color:var(--text2);font-weight:500;transition:.15s;white-space:nowrap}
+.nav-btn:hover{color:var(--text)}
+.nav-btn.active{background:var(--white);color:var(--text);box-shadow:var(--sh)}
+
+.main{padding:24px 28px;max-width:1600px;margin:0 auto}
+.section{display:none}.section.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.page-title{font-size:18px;font-weight:600;letter-spacing:-.3px;color:var(--shadow)}
+.page-subtitle{font-size:13px;color:var(--text3);margin-top:2px;font-weight:300}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);font-weight:500;cursor:pointer;border:none;transition:.15s;white-space:nowrap}
+.btn-primary{background:var(--stone);color:#fff}.btn-primary:hover{background:#2a5a73}
+.btn-ghost{background:0 0;border:.5px solid var(--border);color:var(--text2)}.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-danger{background:var(--foliage-bg);color:var(--foliage);border:none}.btn-danger:hover{background:#d4bfb3}
+.btn-export{background:var(--shadow);color:var(--mist)}.btn-export:hover{background:#3a4445}
+
+.kanban-board{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}
+.kanban-col{flex:0 0 235px;min-width:235px}
+.kanban-col-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 2px}
+.col-label{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2)}
+.col-dot{width:8px;height:8px;border-radius:50%}
+.col-count{font-size:12px;color:var(--text3);font-family:var(--mono)}
+.kanban-cards{display:flex;flex-direction:column;gap:8px;min-height:60px}
+
+.card{background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius);padding:13px 15px;cursor:pointer;transition:.15s;box-shadow:var(--sh)}
+.card:hover{border-color:var(--border2);box-shadow:var(--sh-md);transform:translateY(-1px)}
+.card-title{font-size:13px;font-weight:500;margin-bottom:4px;line-height:1.4;color:var(--shadow)}
+.card-client{font-size:11px;color:var(--text3);margin-bottom:8px}
+.card-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px}
+.avatar-xs{width:20px;height:20px;border-radius:50%;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff}
+.card-date{font-size:11px;font-family:var(--mono);color:var(--text3)}
+.card-date.overdue{color:var(--foliage);font-weight:500}
+.card-date.soon{color:#92400e}
+.progress-bar{height:3px;background:var(--surface2);border-radius:2px;margin-top:9px;overflow:hidden}
+.progress-fill{height:100%;border-radius:2px;background:var(--stone);transition:width .3s}.progress-fill.done{background:var(--green)}
+
+.add-card-btn{width:100%;padding:8px;border:1px dashed var(--border);background:0 0;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;color:var(--text4);font-family:var(--font);transition:.15s;margin-top:6px}
+.add-card-btn:hover{background:var(--surface);color:var(--text2);border-color:var(--border2)}
+
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.status-backlog{background:var(--mist-bg);color:var(--text2);border:.5px solid var(--border)}
+.status-progress{background:var(--stone-bg);color:var(--stone)}
+.status-standby{background:var(--foliage-bg);color:var(--foliage)}
+.status-testing{background:var(--shadow-bg);color:var(--shadow)}
+.status-done{background:var(--green-bg);color:var(--green)}
+
+.priority{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500}
+.priority-dot{width:6px;height:6px;border-radius:50%}
+.p-high{background:var(--foliage)}.pr-high{color:var(--foliage)}
+.p-mid{background:var(--stone)}.pr-mid{color:var(--stone)}
+.p-low{background:var(--mist)}.pr-low{color:var(--text3)}
+
+.team-board{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}
+.engineer-col{flex:0 0 230px;min-width:230px}
+.engineer-header{background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;box-shadow:var(--sh)}
+.avatar{width:34px;height:34px;border-radius:50%;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff}
+.eng-name{font-size:13px;font-weight:600;color:var(--shadow)}
+.eng-count{font-size:12px;color:var(--text3);font-weight:300}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(42,49,50,.3);z-index:1000;align-items:flex-start;justify-content:center;padding:50px 20px;overflow-y:auto;backdrop-filter:blur(2px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:14px;width:100%;max-width:540px;box-shadow:0 20px 60px rgba(42,49,50,.15);overflow:hidden;flex-shrink:0;margin:auto;border:.5px solid var(--border)}
+.modal-header{padding:20px 24px 16px;border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:16px;font-weight:600;color:var(--shadow)}
+.modal-close{width:30px;height:30px;border-radius:6px;border:none;background:0 0;cursor:pointer;font-size:18px;color:var(--text2);display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:var(--surface2)}
+.modal-body{padding:20px 24px}
+.modal-footer{padding:16px 24px;border-top:.5px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+.form-group{margin-bottom:16px}
+.form-label{font-size:11px;font-weight:500;color:var(--text2);margin-bottom:5px;display:block;text-transform:uppercase;letter-spacing:.4px}
+.form-input,.form-select,.form-textarea{width:100%;padding:8px 12px;border:.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--text);background:var(--surface);transition:.15s;outline:none}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--stone)}
+.form-textarea{resize:vertical;min-height:70px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.log-list{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto;padding-right:4px}
+.log-item{background:var(--surface2);border:.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px}
+.log-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.log-author{font-size:12px;font-weight:600;color:var(--shadow)}
+.log-date{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.log-text{font-size:13px;line-height:1.5;color:var(--text2)}
+.log-divider{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:8px;margin-top:16px}
+
+.gantt-wrap{overflow-x:auto}
+.gantt-table{width:100%;border-collapse:collapse}
+.gantt-table th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);font-weight:500;padding:10px 12px;text-align:left;border-bottom:.5px solid var(--border);white-space:nowrap;background:var(--surface)}
+.gantt-row{transition:.1s}.gantt-row:hover td{background:var(--surface2)}
+.gantt-row td{padding:10px 12px;border-bottom:.5px solid var(--border);font-size:13px;background:var(--surface);vertical-align:middle}
+.gantt-name{font-weight:500;max-width:180px;color:var(--shadow)}
+.gantt-bar-cell{min-width:320px;padding:10px 12px!important}
+.gantt-bar-wrap{position:relative;height:22px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.gantt-bar{position:absolute;height:22px;border-radius:4px;display:flex;align-items:center;padding:0 8px;font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;min-width:16px;color:#fff}
+
+.eng-c-0{background:var(--stone)}.eng-c-1{background:#5a8fa8}.eng-c-2{background:var(--shadow)}.eng-c-3{background:var(--foliage)}.eng-c-4{background:#6b8a9e}
+
+.detail-label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);margin-bottom:5px}
+.progress-big{height:6px;background:var(--surface2);border-radius:4px;margin-top:4px;overflow:hidden}
+.progress-big-fill{height:100%;border-radius:4px;background:var(--stone);transition:width .4s}.progress-big-fill.done{background:var(--green)}
+
+.empty{text-align:center;padding:28px 16px;color:var(--text4);font-size:13px;font-weight:300}
+
+.dash-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px}
+.dash-card{background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--sh);text-align:center}
+.dash-card .dash-num{font-size:28px;font-weight:700;font-family:var(--mono);color:var(--shadow);line-height:1.2}
+.dash-card .dash-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;margin-top:4px}
+.dash-card .dash-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.chart-box{background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--sh)}
+.chart-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--text2);margin-bottom:14px}
+.bar-h{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-h-label{width:90px;font-size:12px;color:var(--text2);text-align:right;flex-shrink:0}
+.bar-h-track{flex:1;height:22px;background:var(--surface2);border-radius:4px;overflow:hidden;position:relative}
+.bar-h-fill{height:100%;border-radius:4px;transition:width .4s}
+.bar-h-val{font-size:11px;font-family:var(--mono);color:var(--text2);min-width:28px;text-align:right}
+
+.eng-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:.5px solid var(--border)}
+.eng-row:last-child{border-bottom:none}
+.eng-proj-count{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--stone);min-width:20px;text-align:center}
+
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:0 0}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+input[type=range]{width:100%;accent-color:var(--stone)}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">AutoTrack <span>/ Equipo de Automatización</span></div>
+  <nav class="nav">
+    <button class="nav-btn" onclick="showSection(&#39;dashboard&#39;)">Dashboard</button>
+    <button class="nav-btn" onclick="showSection(&#39;my-kanban&#39;)">Mi kanban</button>
+    <button class="nav-btn" onclick="showSection(&#39;team-kanban&#39;)">Equipo</button>
+    <button class="nav-btn active" onclick="showSection(&#39;gantt&#39;)">Gantt</button>
+  </nav>
+</header>
+
+<main class="main">
+
+<!-- DASHBOARD -->
+<section id="dashboard" class="section">
+  <div class="page-header">
+    <div><div class="page-title">Dashboard ejecutivo</div><div class="page-subtitle">Resumen general del portafolio de automatización</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" onclick="exportDash(&#39;img&#39;)">Exportar imagen</button>
+      <button class="btn btn-export" onclick="exportDash(&#39;pdf&#39;)">Exportar PDF</button>
+    </div>
+  </div>
+  <div id="dash-content">
+    <div class="dash-grid" id="dash-grid"><div class="dash-card"><div class="dash-num" style="color:var(--stone)">8</div><div class="dash-lbl">Total proyectos</div></div><div class="dash-card"><div class="dash-num"><span class="dash-dot" style="background:#b0c4d0"></span>2</div><div class="dash-lbl">Por hacer</div></div><div class="dash-card"><div class="dash-num"><span class="dash-dot" style="background:#336B87"></span>4</div><div class="dash-lbl">En proceso</div></div><div class="dash-card"><div class="dash-num"><span class="dash-dot" style="background:#763626"></span>1</div><div class="dash-lbl">En standby</div></div><div class="dash-card"><div class="dash-num"><span class="dash-dot" style="background:#2A3132"></span>0</div><div class="dash-lbl">En testing</div></div><div class="dash-card"><div class="dash-num"><span class="dash-dot" style="background:#3d7a54"></span>1</div><div class="dash-lbl">Finalizado</div></div></div>
+    <div class="chart-row" id="chart-row">
+    <div class="chart-box"><div class="chart-title">Proyectos por estado</div>
+      <div class="bar-h"><div class="bar-h-label">Por hacer</div><div class="bar-h-track"><div class="bar-h-fill" style="width:50%;background:var(--text4)"></div></div><div class="bar-h-val">2</div></div><div class="bar-h"><div class="bar-h-label">En proceso</div><div class="bar-h-track"><div class="bar-h-fill" style="width:100%;background:var(--stone)"></div></div><div class="bar-h-val">4</div></div><div class="bar-h"><div class="bar-h-label">En standby</div><div class="bar-h-track"><div class="bar-h-fill" style="width:25%;background:var(--foliage)"></div></div><div class="bar-h-val">1</div></div><div class="bar-h"><div class="bar-h-label">En testing</div><div class="bar-h-track"><div class="bar-h-fill" style="width:0%;background:var(--shadow)"></div></div><div class="bar-h-val">0</div></div><div class="bar-h"><div class="bar-h-label">Finalizado</div><div class="bar-h-track"><div class="bar-h-fill" style="width:25%;background:var(--green)"></div></div><div class="bar-h-val">1</div></div>
+    </div>
+    <div class="chart-box"><div class="chart-title">Proyectos por prioridad</div>
+      <div class="bar-h"><div class="bar-h-label">Alta</div><div class="bar-h-track"><div class="bar-h-fill" style="width:50%;background:var(--foliage)"></div></div><div class="bar-h-val">2</div></div><div class="bar-h"><div class="bar-h-label">Media</div><div class="bar-h-track"><div class="bar-h-fill" style="width:100%;background:var(--stone)"></div></div><div class="bar-h-val">4</div></div><div class="bar-h"><div class="bar-h-label">Baja</div><div class="bar-h-track"><div class="bar-h-fill" style="width:50%;background:var(--mist)"></div></div><div class="bar-h-val">2</div></div>
+    </div></div>
+    <div id="eng-summary">
+    <div class="chart-box"><div class="chart-title">Carga por ingeniero</div>
+      <div class="eng-row"><div class="avatar eng-c-0" style="width:30px;height:30px;font-size:11px">AM</div><div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--shadow)">Alberto Mantilla</div><div style="font-size:11px;color:var(--text3)">1 activo de 2 totales</div></div><div class="eng-proj-count">2</div></div><div class="eng-row"><div class="avatar eng-c-1" style="width:30px;height:30px;font-size:11px">BM</div><div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--shadow)">Bleiner Morales</div><div style="font-size:11px;color:var(--text3)">1 activo de 1 total</div></div><div class="eng-proj-count">1</div></div><div class="eng-row"><div class="avatar eng-c-2" style="width:30px;height:30px;font-size:11px">BL</div><div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--shadow)">Brayan Lozano</div><div style="font-size:11px;color:var(--text3)">1 activo de 1 total</div></div><div class="eng-proj-count">1</div></div><div class="eng-row"><div class="avatar eng-c-3" style="width:30px;height:30px;font-size:11px">CC</div><div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--shadow)">Carlos Carrillo</div><div style="font-size:11px;color:var(--text3)">0 activos de 1 total</div></div><div class="eng-proj-count">1</div></div><div class="eng-row"><div class="avatar eng-c-4" style="width:30px;height:30px;font-size:11px">RF</div><div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--shadow)">Roger Florez</div><div style="font-size:11px;color:var(--text3)">1 activo de 2 totales</div></div><div class="eng-proj-count">2</div></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- MI KANBAN -->
+<section id="my-kanban" class="section">
+  <div class="page-header">
+    <div><div class="page-title">Mi kanban de proyectos</div><div class="page-subtitle">Vista personal — organiza tus proyectos por estado</div></div>
+    <button class="btn btn-primary" onclick="openNewProjectModal()">+ Nuevo proyecto</button>
+  </div>
+  <div class="kanban-board" id="my-kanban-board"><div class="kanban-col"><div class="kanban-col-header"><div class="col-label"><span class="col-dot" style="background:#b0c4d0"></span>Por hacer</div><span class="col-count">2</span></div><div class="kanban-cards"><div class="card" onclick="openDetail(&#39;mr0ypp327945&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Automatización onboarding RRHH</div><span class="badge status-backlog" style="font-size:10px;flex-shrink:0">Por hacer</span></div><div class="card-client">Recursos Humanos</div><div class="card-meta"><div style="display:flex;align-items:center;gap:4px"><div class="avatar-xs eng-c-4">RF</div><span style="font-size:11px;color:var(--text3)">Roger</span></div><div class="card-date ">09/08/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div></div><div class="card" onclick="openDetail(&#39;mr0ypp32f2vj&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Migración scripts legacy Python 2</div><span class="badge status-backlog" style="font-size:10px;flex-shrink:0">Por hacer</span></div><div class="card-client">TI Infraestructura</div><div class="card-meta"><span class="priority"><span class="priority-dot p-low"></span><span class="pr-low">Baja</span></span><div class="card-date ">29/08/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div></div></div><button class="add-card-btn" onclick="openNewProjectModal(null,&#39;backlog&#39;)">+ Agregar</button></div><div class="kanban-col"><div class="kanban-col-header"><div class="col-label"><span class="col-dot" style="background:#336B87"></span>En proceso</div><span class="col-count">4</span></div><div class="kanban-cards"><div class="card" onclick="openDetail(&#39;mr0ypp31tq5v&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Bot procesamiento facturas</div><span class="badge status-progress" style="font-size:10px;flex-shrink:0">En proceso</span></div><div class="card-client">Contabilidad</div><div class="card-meta"><div style="display:flex;align-items:center;gap:4px"><div class="avatar-xs eng-c-0">AM</div><span style="font-size:11px;color:var(--text3)">Alberto</span></div><div class="card-date ">10/07/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:65%"></div></div></div><div class="card" onclick="openDetail(&#39;mr0ypp32dw6s&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Integración API pagos PSE</div><span class="badge status-progress" style="font-size:10px;flex-shrink:0">En proceso</span></div><div class="card-client">Tesorería</div><div class="card-meta"><div style="display:flex;align-items:center;gap:4px"><div class="avatar-xs eng-c-1">BM</div><span style="font-size:11px;color:var(--text3)">Bleiner</span></div><div class="card-date soon">05/07/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:40%"></div></div></div><div class="card" onclick="openDetail(&#39;mr0ypp32m7m0&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Dashboard KPIs automatización</div><span class="badge status-progress" style="font-size:10px;flex-shrink:0">En proceso</span></div><div class="card-client">Operaciones</div><div class="card-meta"><div style="display:flex;align-items:center;gap:4px"><div class="avatar-xs eng-c-2">BL</div><span style="font-size:11px;color:var(--text3)">Brayan</span></div><div class="card-date soon">03/07/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:90%"></div></div></div><div class="card" onclick="openDetail(&#39;mr0ypp32kb6k&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Notificaciones automáticas pedidos</div><span class="badge status-progress" style="font-size:10px;flex-shrink:0">En proceso</span></div><div class="card-client">Ventas</div><div class="card-meta"><div style="display:flex;align-items:center;gap:4px"><div class="avatar-xs eng-c-4">RF</div><span style="font-size:11px;color:var(--text3)">Roger</span></div><div class="card-date ">15/07/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:35%"></div></div></div></div><button class="add-card-btn" onclick="openNewProjectModal(null,&#39;progress&#39;)">+ Agregar</button></div><div class="kanban-col"><div class="kanban-col-header"><div class="col-label"><span class="col-dot" style="background:#763626"></span>En standby</div><span class="col-count">1</span></div><div class="kanban-cards"><div class="card" onclick="openDetail(&#39;mr0ypp32ei67&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Scraper proveedores externos</div><span class="badge status-standby" style="font-size:10px;flex-shrink:0">En standby</span></div><div class="card-client">Compras</div><div class="card-meta"><div style="display:flex;align-items:center;gap:4px"><div class="avatar-xs eng-c-3">CC</div><span style="font-size:11px;color:var(--text3)">Carlos</span></div><div class="card-date ">25/07/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:20%"></div></div></div></div><button class="add-card-btn" onclick="openNewProjectModal(null,&#39;standby&#39;)">+ Agregar</button></div><div class="kanban-col"><div class="kanban-col-header"><div class="col-label"><span class="col-dot" style="background:#2A3132"></span>En testing</div><span class="col-count">0</span></div><div class="kanban-cards"><div class="empty">Sin proyectos</div></div><button class="add-card-btn" onclick="openNewProjectModal(null,&#39;testing&#39;)">+ Agregar</button></div><div class="kanban-col"><div class="kanban-col-header"><div class="col-label"><span class="col-dot" style="background:#3d7a54"></span>Finalizado</div><span class="col-count">1</span></div><div class="kanban-cards"><div class="card" onclick="openDetail(&#39;mr0ypp32iv0x&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Pruebas regresión inventario</div><span class="badge status-done" style="font-size:10px;flex-shrink:0">Finalizado</span></div><div class="card-client">Logística</div><div class="card-meta"><div style="display:flex;align-items:center;gap:4px"><div class="avatar-xs eng-c-0">AM</div><span style="font-size:11px;color:var(--text3)">Alberto</span></div><div class="card-date overdue">● 20/06/2026</div></div><div class="progress-bar"><div class="progress-fill done" style="width:100%"></div></div></div></div><button class="add-card-btn" onclick="openNewProjectModal(null,&#39;done&#39;)">+ Agregar</button></div></div>
+</section>
+
+<!-- EQUIPO -->
+<section id="team-kanban" class="section">
+  <div class="page-header">
+    <div><div class="page-title">Kanban del equipo</div><div class="page-subtitle">Proyectos asignados por ingeniero — ordenados por prioridad</div></div>
+    <button class="btn btn-primary" onclick="openNewProjectModal(&#39;team&#39;)">+ Asignar proyecto</button>
+  </div>
+  <div class="team-board" id="team-board"><div class="engineer-col"><div class="engineer-header"><div class="avatar eng-c-0">AM</div><div><div class="eng-name">Alberto</div><div class="eng-count">2 proyectos</div></div></div><div class="kanban-cards"><div class="card" onclick="openDetail(&#39;mr0ypp31tq5v&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Bot procesamiento facturas</div><span class="badge status-progress" style="font-size:10px;flex-shrink:0">En proceso</span></div><div class="card-client">Contabilidad</div><div class="card-meta"><span class="priority"><span class="priority-dot p-high"></span><span class="pr-high">Alta</span></span><div class="card-date ">10/07/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:65%"></div></div></div><div class="card" onclick="openDetail(&#39;mr0ypp32iv0x&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Pruebas regresión inventario</div><span class="badge status-done" style="font-size:10px;flex-shrink:0">Finalizado</span></div><div class="card-client">Logística</div><div class="card-meta"><span class="priority"><span class="priority-dot p-mid"></span><span class="pr-mid">Media</span></span><div class="card-date overdue">● 20/06/2026</div></div><div class="progress-bar"><div class="progress-fill done" style="width:100%"></div></div></div></div><button class="add-card-btn" onclick="openNewProjectModal(&#39;team&#39;,null,&#39;0&#39;)">+ Asignar</button></div><div class="engineer-col"><div class="engineer-header"><div class="avatar eng-c-1">BM</div><div><div class="eng-name">Bleiner</div><div class="eng-count">1 proyecto</div></div></div><div class="kanban-cards"><div class="card" onclick="openDetail(&#39;mr0ypp32dw6s&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Integración API pagos PSE</div><span class="badge status-progress" style="font-size:10px;flex-shrink:0">En proceso</span></div><div class="card-client">Tesorería</div><div class="card-meta"><span class="priority"><span class="priority-dot p-high"></span><span class="pr-high">Alta</span></span><div class="card-date soon">05/07/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:40%"></div></div></div></div><button class="add-card-btn" onclick="openNewProjectModal(&#39;team&#39;,null,&#39;1&#39;)">+ Asignar</button></div><div class="engineer-col"><div class="engineer-header"><div class="avatar eng-c-2">BL</div><div><div class="eng-name">Brayan</div><div class="eng-count">1 proyecto</div></div></div><div class="kanban-cards"><div class="card" onclick="openDetail(&#39;mr0ypp32m7m0&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Dashboard KPIs automatización</div><span class="badge status-progress" style="font-size:10px;flex-shrink:0">En proceso</span></div><div class="card-client">Operaciones</div><div class="card-meta"><span class="priority"><span class="priority-dot p-mid"></span><span class="pr-mid">Media</span></span><div class="card-date soon">03/07/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:90%"></div></div></div></div><button class="add-card-btn" onclick="openNewProjectModal(&#39;team&#39;,null,&#39;2&#39;)">+ Asignar</button></div><div class="engineer-col"><div class="engineer-header"><div class="avatar eng-c-3">CC</div><div><div class="eng-name">Carlos</div><div class="eng-count">1 proyecto</div></div></div><div class="kanban-cards"><div class="card" onclick="openDetail(&#39;mr0ypp32ei67&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Scraper proveedores externos</div><span class="badge status-standby" style="font-size:10px;flex-shrink:0">En standby</span></div><div class="card-client">Compras</div><div class="card-meta"><span class="priority"><span class="priority-dot p-mid"></span><span class="pr-mid">Media</span></span><div class="card-date ">25/07/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:20%"></div></div></div></div><button class="add-card-btn" onclick="openNewProjectModal(&#39;team&#39;,null,&#39;3&#39;)">+ Asignar</button></div><div class="engineer-col"><div class="engineer-header"><div class="avatar eng-c-4">RF</div><div><div class="eng-name">Roger</div><div class="eng-count">2 proyectos</div></div></div><div class="kanban-cards"><div class="card" onclick="openDetail(&#39;mr0ypp32kb6k&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Notificaciones automáticas pedidos</div><span class="badge status-progress" style="font-size:10px;flex-shrink:0">En proceso</span></div><div class="card-client">Ventas</div><div class="card-meta"><span class="priority"><span class="priority-dot p-mid"></span><span class="pr-mid">Media</span></span><div class="card-date ">15/07/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:35%"></div></div></div><div class="card" onclick="openDetail(&#39;mr0ypp327945&#39;)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">Automatización onboarding RRHH</div><span class="badge status-backlog" style="font-size:10px;flex-shrink:0">Por hacer</span></div><div class="card-client">Recursos Humanos</div><div class="card-meta"><span class="priority"><span class="priority-dot p-low"></span><span class="pr-low">Baja</span></span><div class="card-date ">09/08/2026</div></div><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div></div></div><button class="add-card-btn" onclick="openNewProjectModal(&#39;team&#39;,null,&#39;4&#39;)">+ Asignar</button></div></div>
+</section>
+
+<!-- GANTT -->
+<section id="gantt" class="section active">
+  <div class="page-header">
+    <div><div class="page-title">Diagrama de Gantt</div><div class="page-subtitle">Línea de tiempo y progreso de todos los proyectos</div></div>
+  </div>
+  <div style="background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--sh)">
+    <div class="gantt-wrap"><table class="gantt-table"><thead><tr>
+      <th style="min-width:170px">Proyecto</th><th style="min-width:120px">Ingeniero</th><th style="min-width:90px">Estado</th><th style="min-width:70px">Progreso</th><th style="min-width:85px">Inicio</th><th style="min-width:85px">Entrega</th><th class="gantt-bar-cell">Línea de tiempo</th>
+    </tr></thead><tbody id="gantt-body"><tr class="gantt-row" onclick="openDetail(&#39;mr0ypp32iv0x&#39;)" style="cursor:pointer"><td><div class="gantt-name">Pruebas regresión inventario</div></td><td><div style="display:flex;align-items:center;gap:6px"><div class="avatar-xs eng-c-0">AM</div><span style="font-size:12px;color:var(--text2)">Alberto</span></div></td><td><span class="badge status-done">Finalizado</span></td><td style="font-family:var(--mono);font-size:12px;color:var(--stone)">100%</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">16/05/2026</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">20/06/2026</td><td class="gantt-bar-cell"><div class="gantt-bar-wrap"><div style="position:absolute;left:41.84027777777778%;top:0;width:1.5px;height:100%;background:var(--foliage);opacity:.5;z-index:2"></div><div class="gantt-bar eng-c-0" style="left:4.166666666666666%;width:29.166666666666668%;"><span style="position:relative;z-index:1;text-overflow:ellipsis;overflow:hidden">Pruebas regresión inventario</span></div></div></td></tr><tr class="gantt-row" onclick="openDetail(&#39;mr0ypp32m7m0&#39;)" style="cursor:pointer"><td><div class="gantt-name">Dashboard KPIs automatización</div></td><td><div style="display:flex;align-items:center;gap:6px"><div class="avatar-xs eng-c-2">BL</div><span style="font-size:12px;color:var(--text2)">Brayan</span></div></td><td><span class="badge status-progress">En proceso</span></td><td style="font-family:var(--mono);font-size:12px;color:var(--stone)">90%</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">31/05/2026</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">03/07/2026</td><td class="gantt-bar-cell"><div class="gantt-bar-wrap"><div style="position:absolute;left:41.84027777777778%;top:0;width:1.5px;height:100%;background:var(--foliage);opacity:.5;z-index:2"></div><div class="gantt-bar eng-c-2" style="left:16.666666666666664%;width:27.500000000000004%;"><span style="position:relative;z-index:1;text-overflow:ellipsis;overflow:hidden">Dashboard KPIs automatización</span></div></div></td></tr><tr class="gantt-row" onclick="openDetail(&#39;mr0ypp31tq5v&#39;)" style="cursor:pointer"><td><div class="gantt-name">Bot procesamiento facturas</div></td><td><div style="display:flex;align-items:center;gap:6px"><div class="avatar-xs eng-c-0">AM</div><span style="font-size:12px;color:var(--text2)">Alberto</span></div></td><td><span class="badge status-progress">En proceso</span></td><td style="font-family:var(--mono);font-size:12px;color:var(--stone)">65%</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">10/06/2026</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">10/07/2026</td><td class="gantt-bar-cell"><div class="gantt-bar-wrap"><div style="position:absolute;left:41.84027777777778%;top:0;width:1.5px;height:100%;background:var(--foliage);opacity:.5;z-index:2"></div><div class="gantt-bar eng-c-0" style="left:25%;width:25%;"><span style="position:relative;z-index:1;text-overflow:ellipsis;overflow:hidden">Bot procesamiento facturas</span></div></div></td></tr><tr class="gantt-row" onclick="openDetail(&#39;mr0ypp32dw6s&#39;)" style="cursor:pointer"><td><div class="gantt-name">Integración API pagos PSE</div></td><td><div style="display:flex;align-items:center;gap:6px"><div class="avatar-xs eng-c-1">BM</div><span style="font-size:12px;color:var(--text2)">Bleiner</span></div></td><td><span class="badge status-progress">En proceso</span></td><td style="font-family:var(--mono);font-size:12px;color:var(--stone)">40%</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">15/06/2026</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">05/07/2026</td><td class="gantt-bar-cell"><div class="gantt-bar-wrap"><div style="position:absolute;left:41.84027777777778%;top:0;width:1.5px;height:100%;background:var(--foliage);opacity:.5;z-index:2"></div><div class="gantt-bar eng-c-1" style="left:29.166666666666668%;width:16.666666666666664%;"><span style="position:relative;z-index:1;text-overflow:ellipsis;overflow:hidden">Integración API pagos PSE</span></div></div></td></tr><tr class="gantt-row" onclick="openDetail(&#39;mr0ypp32kb6k&#39;)" style="cursor:pointer"><td><div class="gantt-name">Notificaciones automáticas pedidos</div></td><td><div style="display:flex;align-items:center;gap:6px"><div class="avatar-xs eng-c-4">RF</div><span style="font-size:12px;color:var(--text2)">Roger</span></div></td><td><span class="badge status-progress">En proceso</span></td><td style="font-family:var(--mono);font-size:12px;color:var(--stone)">35%</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">20/06/2026</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">15/07/2026</td><td class="gantt-bar-cell"><div class="gantt-bar-wrap"><div style="position:absolute;left:41.84027777777778%;top:0;width:1.5px;height:100%;background:var(--foliage);opacity:.5;z-index:2"></div><div class="gantt-bar eng-c-4" style="left:33.33333333333333%;width:20.833333333333336%;"><span style="position:relative;z-index:1;text-overflow:ellipsis;overflow:hidden">Notificaciones automáticas pedidos</span></div></div></td></tr><tr class="gantt-row" onclick="openDetail(&#39;mr0ypp32ei67&#39;)" style="cursor:pointer"><td><div class="gantt-name">Scraper proveedores externos</div></td><td><div style="display:flex;align-items:center;gap:6px"><div class="avatar-xs eng-c-3">CC</div><span style="font-size:12px;color:var(--text2)">Carlos</span></div></td><td><span class="badge status-standby">En standby</span></td><td style="font-family:var(--mono);font-size:12px;color:var(--stone)">20%</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">25/06/2026</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">25/07/2026</td><td class="gantt-bar-cell"><div class="gantt-bar-wrap"><div style="position:absolute;left:41.84027777777778%;top:0;width:1.5px;height:100%;background:var(--foliage);opacity:.5;z-index:2"></div><div class="gantt-bar eng-c-3" style="left:37.5%;width:25%;"><span style="position:relative;z-index:1;text-overflow:ellipsis;overflow:hidden">Scraper proveedores externos</span></div></div></td></tr><tr class="gantt-row" onclick="openDetail(&#39;mr0ypp327945&#39;)" style="cursor:pointer"><td><div class="gantt-name">Automatización onboarding RRHH</div></td><td><div style="display:flex;align-items:center;gap:6px"><div class="avatar-xs eng-c-4">RF</div><span style="font-size:12px;color:var(--text2)">Roger</span></div></td><td><span class="badge status-backlog">Por hacer</span></td><td style="font-family:var(--mono);font-size:12px;color:var(--stone)">0%</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">05/07/2026</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">09/08/2026</td><td class="gantt-bar-cell"><div class="gantt-bar-wrap"><div style="position:absolute;left:41.84027777777778%;top:0;width:1.5px;height:100%;background:var(--foliage);opacity:.5;z-index:2"></div><div class="gantt-bar eng-c-4" style="left:45.83333333333333%;width:29.166666666666668%;"><span style="position:relative;z-index:1;text-overflow:ellipsis;overflow:hidden">Automatización onboarding RRHH</span></div></div></td></tr><tr class="gantt-row" onclick="openDetail(&#39;mr0ypp32f2vj&#39;)" style="cursor:pointer"><td><div class="gantt-name">Migración scripts legacy Python 2</div></td><td><div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;color:var(--text4)">Sin asignar</span></div></td><td><span class="badge status-backlog">Por hacer</span></td><td style="font-family:var(--mono);font-size:12px;color:var(--stone)">0%</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">10/07/2026</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">29/08/2026</td><td class="gantt-bar-cell"><div class="gantt-bar-wrap"><div style="position:absolute;left:41.84027777777778%;top:0;width:1.5px;height:100%;background:var(--foliage);opacity:.5;z-index:2"></div><div class="gantt-bar eng-c-" style="left:50%;width:41.66666666666667%;background:#b0c4d0"><span style="position:relative;z-index:1;text-overflow:ellipsis;overflow:hidden">Migración scripts legacy Python 2</span></div></div></td></tr></tbody></table></div>
+  </div>
+  <div id="gantt-legend" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:14px"><div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)"><div style="width:12px;height:12px;border-radius:3px" class="eng-c-0"></div>Alberto Mantilla</div><div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)"><div style="width:12px;height:12px;border-radius:3px" class="eng-c-1"></div>Bleiner Morales</div><div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)"><div style="width:12px;height:12px;border-radius:3px" class="eng-c-2"></div>Brayan Lozano</div><div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)"><div style="width:12px;height:12px;border-radius:3px" class="eng-c-3"></div>Carlos Carrillo</div><div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)"><div style="width:12px;height:12px;border-radius:3px" class="eng-c-4"></div>Roger Florez</div><div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--foliage)"><div style="width:12px;height:2px;background:var(--foliage)"></div>Hoy</div></div>
+</section>
+
+</main>
+
+<!-- MODAL PROYECTO -->
+<div class="modal-overlay" id="project-modal" onclick="closeOnOverlay(event,&#39;project-modal&#39;)">
+<div class="modal"><div class="modal-header"><div class="modal-title" id="modal-title">Editar proyecto</div><button class="modal-close" onclick="closeModal(&#39;project-modal&#39;)">×</button></div>
+<div class="modal-body">
+  <input type="hidden" id="proj-id" value="mr0ypp32m7m0">
+  <div class="form-group"><label class="form-label">Nombre del proyecto *</label><input class="form-input" id="proj-name" placeholder="Ej. Automatización de facturación"></div>
+  <div class="form-group"><label class="form-label">Descripción</label><textarea class="form-textarea" id="proj-desc" placeholder="Breve descripción del alcance..." rows="2"></textarea></div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">Cliente / Área</label><input class="form-input" id="proj-client" placeholder="Ej. Contabilidad"></div>
+    <div class="form-group"><label class="form-label">Prioridad</label><select class="form-select" id="proj-priority"><option value="high">Alta</option><option value="mid" selected="">Media</option><option value="low">Baja</option></select></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">Estado</label><select class="form-select" id="proj-status"><option value="backlog">Por hacer</option><option value="progress">En proceso</option><option value="standby">En standby</option><option value="testing">En testing</option><option value="done">Finalizado</option></select></div>
+    <div class="form-group"><label class="form-label">Asignar a</label><select class="form-select" id="proj-assignee"><option value="">— Sin asignar —</option><option value="0">Alberto Mantilla</option><option value="1">Bleiner Morales</option><option value="2">Brayan Lozano</option><option value="3">Carlos Carrillo</option><option value="4">Roger Florez</option></select></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">Fecha de inicio</label><input class="form-input" type="date" id="proj-start"></div>
+    <div class="form-group"><label class="form-label">Fecha de entrega</label><input class="form-input" type="date" id="proj-due"></div>
+  </div>
+  <div class="form-group"><label class="form-label">Progreso: <span id="prog-label" style="font-family:var(--mono);color:var(--stone)">90%</span></label><input type="range" id="proj-progress" min="0" max="100" value="0" step="5" oninput="document.getElementById(&#39;prog-label&#39;).textContent=this.value+&#39;%&#39;"></div>
+</div>
+<div class="modal-footer"><button class="btn btn-danger btn-sm" id="delete-proj-btn" style="margin-right: auto; display: inline-flex;" onclick="deleteProject()">Eliminar</button><button class="btn btn-ghost" onclick="closeModal(&#39;project-modal&#39;)">Cancelar</button><button class="btn btn-primary" onclick="saveProject()">Guardar</button></div>
+</div></div>
+
+<!-- MODAL DETALLE -->
+<div class="modal-overlay" id="detail-modal" onclick="closeOnOverlay(event,&#39;detail-modal&#39;)">
+<div class="modal" style="max-width:600px"><div class="modal-header"><div><div class="modal-title" id="detail-title">Dashboard KPIs automatización</div><div style="font-size:12px;color:var(--text3);margin-top:2px;font-weight:300" id="detail-sub">Asignado a Brayan Lozano</div></div><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="editFromDetail()">Editar</button><button class="modal-close" onclick="closeModal(&#39;detail-modal&#39;)">×</button></div></div>
+<div class="modal-body" style="padding-bottom:8px">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px">
+    <div><div class="detail-label">Estado</div><div id="detail-status"><span class="badge status-testing">En testing</span></div></div>
+    <div><div class="detail-label">Prioridad</div><div id="detail-priority"><span class="priority"><span class="priority-dot p-mid"></span><span class="pr-mid">Media</span></span></div></div>
+    <div><div class="detail-label">Entrega</div><div id="detail-due" style="font-family: var(--mono); font-size: 13px; color: rgb(146, 64, 14);">03/07/2026</div></div>
+  </div>
+  <div id="detail-client-wrap" style="margin-bottom: 14px; display: block;"><div class="detail-label">Cliente / Área</div><div id="detail-client" style="font-size:14px;color:var(--text2)">Operaciones</div></div>
+  <div style="margin-bottom:18px"><div class="detail-label">Progreso</div><div style="display:flex;align-items:center;gap:10px"><div class="progress-big" style="flex:1"><div class="progress-big-fill" id="detail-prog-bar" style="width: 90%;"></div></div><span style="font-family:var(--mono);font-size:13px;min-width:34px;color:var(--stone)" id="detail-prog-pct">90%</span></div></div>
+  <div id="detail-desc-wrap" style="margin-bottom: 18px; display: block;"><div class="detail-label">Descripción</div><div id="detail-desc" style="font-size:13px;color:var(--text2);line-height:1.6">Panel de métricas del equipo de automatización.</div></div>
+  <div class="log-divider">Seguimiento semanal</div>
+  <div class="log-list" id="log-list"><div class="log-item"><div class="log-meta"><span class="log-author">Seguimiento semanal</span><span class="log-date">14/may/2026 · 90%</span></div><div class="log-text">Dashboard terminado. En pruebas con datos reales de producción.</div></div></div>
+  <div style="margin-top:14px;background:var(--surface2);border-radius:var(--radius-sm);padding:14px;border:.5px solid var(--border)">
+    <div style="margin-bottom:8px">
+      <label class="form-label">Actualizar progreso</label>
+      <input type="range" id="log-progress" min="0" max="100" step="5" value="0" oninput="document.getElementById(&#39;log-prog-lbl&#39;).textContent=this.value+&#39;%&#39;" style="margin-top:2px">
+      <div style="text-align:right;font-size:12px;font-family:var(--mono);color:var(--stone)" id="log-prog-lbl">90%</div>
+    </div>
+    <textarea class="form-textarea" id="log-text" placeholder="Registra el avance de la reunión semanal..." rows="2" style="margin-bottom:8px;font-size:13px"></textarea>
+    <button class="btn btn-primary btn-sm" style="width:100%" onclick="addLog()">Registrar avance semanal</button>
+  </div>
+</div>
+<div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal(&#39;detail-modal&#39;)">Cerrar</button></div>
+</div></div>
+
+<script>
+const ENG=[{name:'Alberto Mantilla',i:'AM'},{name:'Bleiner Morales',i:'BM'},{name:'Brayan Lozano',i:'BL'},{name:'Carlos Carrillo',i:'CC'},{name:'Roger Florez',i:'RF'}];
+const ST={backlog:{l:'Por hacer',dot:'#b0c4d0',c:'status-backlog'},progress:{l:'En proceso',dot:'#336B87',c:'status-progress'},standby:{l:'En standby',dot:'#763626',c:'status-standby'},testing:{l:'En testing',dot:'#2A3132',c:'status-testing'},done:{l:'Finalizado',dot:'#3d7a54',c:'status-done'}};
+const PR={high:{l:'Alta',d:'p-high',t:'pr-high'},mid:{l:'Media',d:'p-mid',t:'pr-mid'},low:{l:'Baja',d:'p-low',t:'pr-low'}};
+const PORD={high:0,mid:1,low:2};
+let projects=[],editingId=null,detailId=null;
+
+async function load(){try{const r=await window.storage.get('at-proj-v2');if(r&&r.value)projects=JSON.parse(r.value)}catch(e){projects=[]}}
+async function save(){try{await window.storage.set('at-proj-v2',JSON.stringify(projects))}catch(e){}}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function fmt(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`}
+function ds(due){if(!due)return'';const n=new Date;n.setHours(0,0,0,0);const diff=Math.ceil((new Date(due)-n)/864e5);return diff<0?'overdue':diff<=5?'soon':''}
+function sortP(a,b){return(PORD[a.priority]||1)-(PORD[b.priority]||1)}
+
+function showSection(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>{b.classList.toggle('active',['dashboard','my-kanban','team-kanban','gantt'][i]===id)});
+  if(id==='gantt')renderGantt();if(id==='dashboard')renderDash();
+}
+
+// ===== DASHBOARD =====
+function renderDash(){
+  const cnt={};Object.keys(ST).forEach(k=>cnt[k]=0);
+  projects.forEach(p=>cnt[p.status]=(cnt[p.status]||0)+1);
+  const total=projects.length;
+
+  document.getElementById('dash-grid').innerHTML=
+    `<div class="dash-card"><div class="dash-num" style="color:var(--stone)">${total}</div><div class="dash-lbl">Total proyectos</div></div>`+
+    Object.entries(ST).map(([k,v])=>`<div class="dash-card"><div class="dash-num"><span class="dash-dot" style="background:${v.dot}"></span>${cnt[k]}</div><div class="dash-lbl">${v.l}</div></div>`).join('');
+
+  const maxCnt=Math.max(1,...Object.values(cnt));
+  const colors={backlog:'var(--text4)',progress:'var(--stone)',standby:'var(--foliage)',testing:'var(--shadow)',done:'var(--green)'};
+
+  let prCnt={high:0,mid:0,low:0};projects.forEach(p=>prCnt[p.priority||'mid']++);
+  const maxPr=Math.max(1,...Object.values(prCnt));
+  const prColors={high:'var(--foliage)',mid:'var(--stone)',low:'var(--mist)'};
+
+  document.getElementById('chart-row').innerHTML=`
+    <div class="chart-box"><div class="chart-title">Proyectos por estado</div>
+      ${Object.entries(ST).map(([k,v])=>`<div class="bar-h"><div class="bar-h-label">${v.l}</div><div class="bar-h-track"><div class="bar-h-fill" style="width:${Math.round(cnt[k]/maxCnt*100)}%;background:${colors[k]}"></div></div><div class="bar-h-val">${cnt[k]}</div></div>`).join('')}
+    </div>
+    <div class="chart-box"><div class="chart-title">Proyectos por prioridad</div>
+      ${[['high','Alta'],['mid','Media'],['low','Baja']].map(([k,l])=>`<div class="bar-h"><div class="bar-h-label">${l}</div><div class="bar-h-track"><div class="bar-h-fill" style="width:${Math.round(prCnt[k]/maxPr*100)}%;background:${prColors[k]}"></div></div><div class="bar-h-val">${prCnt[k]}</div></div>`).join('')}
+    </div>`;
+
+  document.getElementById('eng-summary').innerHTML=`
+    <div class="chart-box"><div class="chart-title">Carga por ingeniero</div>
+      ${ENG.map((e,i)=>{
+        const ep=projects.filter(p=>p.assignee===String(i));
+        const active=ep.filter(p=>p.status==='progress'||p.status==='testing').length;
+        return`<div class="eng-row"><div class="avatar eng-c-${i}" style="width:30px;height:30px;font-size:11px">${e.i}</div><div style="flex:1"><div style="font-size:13px;font-weight:500;color:var(--shadow)">${e.name}</div><div style="font-size:11px;color:var(--text3)">${active} activo${active!==1?'s':''} de ${ep.length} total${ep.length!==1?'es':''}</div></div><div class="eng-proj-count">${ep.length}</div></div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function exportDash(type){
+  const el=document.getElementById('dash-content');
+  const canvas=await html2canvas(el,{backgroundColor:'#f6f8fa',scale:2,useCORS:true});
+  if(type==='img'){
+    const link=document.createElement('a');link.download='autotrack-dashboard.png';link.href=canvas.toDataURL('image/png');link.click();
+  } else {
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF('landscape','mm','a4');
+    const w=pdf.internal.pageSize.getWidth()-20;
+    const h=canvas.height*w/canvas.width;
+    pdf.addImage(canvas.toDataURL('image/png'),'PNG',10,10,w,h);
+    pdf.save('autotrack-dashboard.pdf');
+  }
+}
+
+// ===== MY KANBAN =====
+function renderMyKanban(){
+  const board=document.getElementById('my-kanban-board');
+  board.innerHTML=Object.entries(ST).map(([key,st])=>{
+    const cards=projects.filter(p=>p.status===key).sort(sortP);
+    return`<div class="kanban-col"><div class="kanban-col-header"><div class="col-label"><span class="col-dot" style="background:${st.dot}"></span>${st.l}</div><span class="col-count">${cards.length}</span></div><div class="kanban-cards">${cards.length?cards.map(p=>mkCard(p)).join(''):`<div class="empty">Sin proyectos</div>`}</div><button class="add-card-btn" onclick="openNewProjectModal(null,'${key}')">+ Agregar</button></div>`;
+  }).join('');
+}
+
+// ===== TEAM KANBAN =====
+function renderTeam(){
+  const board=document.getElementById('team-board');
+  board.innerHTML=ENG.map((eng,i)=>{
+    const cards=projects.filter(p=>p.assignee===String(i)).sort(sortP);
+    return`<div class="engineer-col"><div class="engineer-header"><div class="avatar eng-c-${i}">${eng.i}</div><div><div class="eng-name">${eng.name.split(' ')[0]}</div><div class="eng-count">${cards.length} proyecto${cards.length!==1?'s':''}</div></div></div><div class="kanban-cards">${cards.length?cards.map(p=>mkCard(p,true)).join(''):`<div class="empty" style="font-size:12px">Sin asignaciones</div>`}</div><button class="add-card-btn" onclick="openNewProjectModal('team',null,'${i}')">+ Asignar</button></div>`;
+  }).join('');
+}
+
+function mkCard(p,compact){
+  const st=ST[p.status],pr=PR[p.priority||'mid'],d=ds(p.due),pct=p.progress||0,eng=p.assignee!==''&&p.assignee!=null?ENG[parseInt(p.assignee)]:null,eI=p.assignee;
+  return`<div class="card" onclick="openDetail('${p.id}')"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px"><div class="card-title">${p.name}</div><span class="badge ${st.c}" style="font-size:10px;flex-shrink:0">${st.l}</span></div>${p.client?`<div class="card-client">${p.client}</div>`:''}<div class="card-meta">${eng&&!compact?`<div style="display:flex;align-items:center;gap:4px"><div class="avatar-xs eng-c-${eI}">${eng.i}</div><span style="font-size:11px;color:var(--text3)">${eng.name.split(' ')[0]}</span></div>`:`<span class="priority"><span class="priority-dot ${pr.d}"></span><span class="${pr.t}">${pr.l}</span></span>`}${p.due?`<div class="card-date ${d}">${d==='overdue'?'● ':''}${fmt(p.due)}</div>`:''}</div><div class="progress-bar"><div class="progress-fill${pct>=100?' done':''}" style="width:${pct}%"></div></div></div>`;
+}
+
+// ===== GANTT =====
+function renderGantt(){
+  const body=document.getElementById('gantt-body'),legend=document.getElementById('gantt-legend');
+  const sorted=[...projects].filter(p=>p.start&&p.due).sort((a,b)=>a.start.localeCompare(b.start));
+  const unsch=projects.filter(p=>!p.start||!p.due);
+  if(!sorted.length&&!unsch.length){body.innerHTML=`<tr><td colspan="7"><div class="empty">No hay proyectos con fechas definidas</div></td></tr>`;legend.innerHTML='';return}
+  const allD=sorted.flatMap(p=>[new Date(p.start),new Date(p.due)]);
+  const mn=new Date(Math.min(...allD)),mx=new Date(Math.max(...allD));
+  mn.setDate(mn.getDate()-5);mx.setDate(mx.getDate()+10);
+  const tot=Math.ceil((mx-mn)/864e5)||1;
+  const today=new Date;today.setHours(0,0,0,0);
+  const todayPct=Math.min(100,Math.max(0,((today-mn)/864e5)/tot*100));
+
+  body.innerHTML=sorted.map(p=>{
+    const st=ST[p.status],sD=new Date(p.start),dD=new Date(p.due);
+    const left=Math.max(0,(sD-mn)/864e5/tot*100),width=Math.max(2,(dD-sD)/864e5/tot*100),pct=p.progress||0;
+    const eI=p.assignee!==''&&p.assignee!=null?parseInt(p.assignee):-1,eng=eI>=0?ENG[eI]:null;
+    return`<tr class="gantt-row" onclick="openDetail('${p.id}')" style="cursor:pointer"><td><div class="gantt-name">${p.name}</div></td><td><div style="display:flex;align-items:center;gap:6px">${eng?`<div class="avatar-xs eng-c-${eI}">${eng.i}</div><span style="font-size:12px;color:var(--text2)">${eng.name.split(' ')[0]}</span>`:`<span style="font-size:12px;color:var(--text4)">Sin asignar</span>`}</div></td><td><span class="badge ${st.c}">${st.l}</span></td><td style="font-family:var(--mono);font-size:12px;color:var(--stone)">${pct}%</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">${fmt(p.start)}</td><td style="font-family:var(--mono);font-size:12px;color:var(--text2)">${fmt(p.due)}</td><td class="gantt-bar-cell"><div class="gantt-bar-wrap"><div style="position:absolute;left:${todayPct}%;top:0;width:1.5px;height:100%;background:var(--foliage);opacity:.5;z-index:2"></div><div class="gantt-bar eng-c-${eI>=0?eI:''}" style="left:${left}%;width:${width}%;${eI<0?'background:#b0c4d0':''}"><span style="position:relative;z-index:1;text-overflow:ellipsis;overflow:hidden">${p.name}</span></div></div></td></tr>`;
+  }).join('');
+  if(unsch.length)body.innerHTML+=`<tr><td colspan="7" style="padding:8px 12px;font-size:12px;color:var(--text3);background:var(--surface2)">${unsch.length} proyecto(s) sin fechas no aparecen en el Gantt</td></tr>`;
+  legend.innerHTML=ENG.map((e,i)=>`<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)"><div style="width:12px;height:12px;border-radius:3px" class="eng-c-${i}"></div>${e.name}</div>`).join('')+`<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--foliage)"><div style="width:12px;height:2px;background:var(--foliage)"></div>Hoy</div>`;
+}
+
+// ===== MODALS =====
+function openNewProjectModal(ctx,defStatus,defAssignee){
+  editingId=null;document.getElementById('modal-title').textContent='Nuevo proyecto';
+  ['proj-id','proj-name','proj-desc','proj-client'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('proj-status').value=defStatus||'backlog';document.getElementById('proj-priority').value='mid';
+  document.getElementById('proj-assignee').value=defAssignee!=null?defAssignee:'';
+  document.getElementById('proj-start').value='';document.getElementById('proj-due').value='';
+  document.getElementById('proj-progress').value=0;document.getElementById('prog-label').textContent='0%';
+  document.getElementById('delete-proj-btn').style.display='none';openModal('project-modal');
+}
+function openEditModal(id){
+  const p=projects.find(x=>x.id===id);if(!p)return;editingId=id;
+  document.getElementById('modal-title').textContent='Editar proyecto';
+  document.getElementById('proj-id').value=p.id;document.getElementById('proj-name').value=p.name;
+  document.getElementById('proj-desc').value=p.desc||'';document.getElementById('proj-client').value=p.client||'';
+  document.getElementById('proj-status').value=p.status;document.getElementById('proj-priority').value=p.priority||'mid';
+  document.getElementById('proj-assignee').value=p.assignee!=null?p.assignee:'';
+  document.getElementById('proj-start').value=p.start||'';document.getElementById('proj-due').value=p.due||'';
+  document.getElementById('proj-progress').value=p.progress||0;document.getElementById('prog-label').textContent=(p.progress||0)+'%';
+  document.getElementById('delete-proj-btn').style.display='inline-flex';openModal('project-modal');
+}
+function saveProject(){
+  const name=document.getElementById('proj-name').value.trim();if(!name){alert('El nombre es obligatorio');return}
+  const data={name,desc:document.getElementById('proj-desc').value.trim(),client:document.getElementById('proj-client').value.trim(),status:document.getElementById('proj-status').value,priority:document.getElementById('proj-priority').value,assignee:document.getElementById('proj-assignee').value,start:document.getElementById('proj-start').value,due:document.getElementById('proj-due').value,progress:parseInt(document.getElementById('proj-progress').value)||0,log:[]};
+  if(editingId){const idx=projects.findIndex(p=>p.id===editingId);if(idx>=0){data.log=projects[idx].log||[];projects[idx]={...projects[idx],...data}}}
+  else{data.id=uid();data.createdAt=new Date().toISOString().slice(0,10);projects.push(data)}
+  save();closeModal('project-modal');renderAll();
+}
+function deleteProject(){if(!editingId)return;if(!confirm('¿Eliminar este proyecto?'))return;projects=projects.filter(p=>p.id!==editingId);save();closeModal('project-modal');renderAll()}
+
+function openDetail(id){
+  const p=projects.find(x=>x.id===id);if(!p)return;detailId=id;
+  const st=ST[p.status],pr=PR[p.priority||'mid'],eng=p.assignee!==''&&p.assignee!=null?ENG[parseInt(p.assignee)]:null,pct=p.progress||0;
+  document.getElementById('detail-title').textContent=p.name;
+  document.getElementById('detail-sub').textContent=eng?`Asignado a ${eng.name}`:'Sin asignar';
+  document.getElementById('detail-status').innerHTML=`<span class="badge ${st.c}">${st.l}</span>`;
+  document.getElementById('detail-priority').innerHTML=`<span class="priority"><span class="priority-dot ${pr.d}"></span><span class="${pr.t}">${pr.l}</span></span>`;
+  const dSt=ds(p.due);document.getElementById('detail-due').textContent=p.due?fmt(p.due):'—';
+  document.getElementById('detail-due').style.color=dSt==='overdue'?'var(--foliage)':dSt==='soon'?'#92400e':'var(--text2)';
+  document.getElementById('detail-prog-bar').style.width=pct+'%';
+  document.getElementById('detail-prog-bar').className='progress-big-fill'+(pct>=100?' done':'');
+  document.getElementById('detail-prog-pct').textContent=pct+'%';
+  const cw=document.getElementById('detail-client-wrap');if(p.client){cw.style.display='block';document.getElementById('detail-client').textContent=p.client}else cw.style.display='none';
+  const dw=document.getElementById('detail-desc-wrap');if(p.desc){dw.style.display='block';document.getElementById('detail-desc').textContent=p.desc}else dw.style.display='none';
+  document.getElementById('log-progress').value=pct;document.getElementById('log-prog-lbl').textContent=pct+'%';
+  renderLog(p);document.getElementById('log-text').value='';openModal('detail-modal');
+}
+function renderLog(p){
+  const list=document.getElementById('log-list'),entries=(p.log||[]).slice().reverse();
+  if(!entries.length){list.innerHTML=`<div class="empty" style="padding:16px;font-size:12px">Sin avances registrados</div>`;return}
+  list.innerHTML=entries.map(e=>`<div class="log-item"><div class="log-meta"><span class="log-author">Seguimiento semanal</span><span class="log-date">${e.date}${e.progress!=null?' · '+e.progress+'%':''}</span></div><div class="log-text">${e.text}</div></div>`).join('');
+}
+function addLog(){
+  const text=document.getElementById('log-text').value.trim();if(!text){alert('Escribe el avance');return}
+  const p=projects.find(x=>x.id===detailId);if(!p)return;if(!p.log)p.log=[];
+  const pc=Math.min(100,Math.max(0,parseInt(document.getElementById('log-progress').value)||0));
+  const entry={author:'Ejecutiva',text,date:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),progress:pc};
+  p.progress=pc;p.log.push(entry);save();
+  document.getElementById('detail-prog-bar').style.width=pc+'%';document.getElementById('detail-prog-pct').textContent=pc+'%';
+  renderLog(p);document.getElementById('log-text').value='';renderAll();
+}
+function editFromDetail(){closeModal('detail-modal');setTimeout(()=>openEditModal(detailId),120)}
+
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function closeOnOverlay(e,id){if(e.target===e.currentTarget)closeModal(id)}
+
+function renderAll(){renderMyKanban();renderTeam();renderDash()}
+
+async function seedIfEmpty(){
+  if(projects.length>0)return;
+  const t=new Date,d=o=>{const x=new Date(t);x.setDate(x.getDate()+o);return x.toISOString().slice(0,10)};
+  projects=[
+    {id:uid(),name:'Bot procesamiento facturas',desc:'Automatización RPA para procesamiento masivo de facturas en SAP.',client:'Contabilidad',status:'progress',priority:'high',assignee:'0',start:d(-20),due:d(10),progress:65,log:[{author:'Ejecutiva',text:'Se completó la conexión con SAP y las primeras pruebas de lectura de PDFs. Alberto reporta avance estable.',date:'05/may/2026',progress:40},{author:'Ejecutiva',text:'Se validó el alcance con el área contable. Prioridad alta por cierre fiscal. Alberto va al 65%.',date:'12/may/2026',progress:65}],createdAt:d(-20)},
+    {id:uid(),name:'Integración API pagos PSE',desc:'Conectar pasarela PSE con el ERP para conciliación automática.',client:'Tesorería',status:'progress',priority:'high',assignee:'1',start:d(-15),due:d(5),progress:40,log:[{author:'Ejecutiva',text:'Endpoint de consulta funcionando. Falta el webhook de confirmación. Bleiner tiene bloqueador con el proveedor.',date:'10/may/2026',progress:40}],createdAt:d(-15)},
+    {id:uid(),name:'Dashboard KPIs automatización',desc:'Panel de métricas del equipo de automatización.',client:'Operaciones',status:'testing',priority:'mid',assignee:'2',start:d(-30),due:d(3),progress:90,log:[{author:'Ejecutiva',text:'Dashboard terminado. En pruebas con datos reales de producción.',date:'14/may/2026',progress:90}],createdAt:d(-30)},
+    {id:uid(),name:'Scraper proveedores externos',desc:'Extracción automática de precios de proveedores para comparación.',client:'Compras',status:'standby',priority:'mid',assignee:'3',start:d(-5),due:d(25),progress:20,log:[],createdAt:d(-5)},
+    {id:uid(),name:'Automatización onboarding RRHH',desc:'Flujo automático de bienvenida para nuevos empleados.',client:'Recursos Humanos',status:'backlog',priority:'low',assignee:'4',start:d(5),due:d(40),progress:0,log:[],createdAt:d(0)},
+    {id:uid(),name:'Migración scripts legacy Python 2',desc:'Actualizar base de código de Python 2 a Python 3.',client:'TI Infraestructura',status:'backlog',priority:'low',assignee:'',start:d(10),due:d(60),progress:0,log:[],createdAt:d(0)},
+    {id:uid(),name:'Pruebas regresión inventario',desc:'Suite de pruebas automatizadas para módulo de inventario.',client:'Logística',status:'done',priority:'mid',assignee:'0',start:d(-45),due:d(-10),progress:100,log:[{author:'Ejecutiva',text:'Todas las pruebas pasaron. Entregado al área de logística.',date:'08/may/2026',progress:100}],createdAt:d(-45)},
+    {id:uid(),name:'Notificaciones automáticas pedidos',desc:'Alertas por correo cuando un pedido cambia de estado.',client:'Ventas',status:'progress',priority:'mid',assignee:'4',start:d(-10),due:d(15),progress:35,log:[{author:'Ejecutiva',text:'Template de correo listo. Roger está integrando con el evento del ERP.',date:'13/may/2026',progress:35}],createdAt:d(-10)},
+  ];
+  await save();
+}
+
+(async()=>{await load();await seedIfEmpty();renderAll()})();
+</script>
+
+
+</body></html>

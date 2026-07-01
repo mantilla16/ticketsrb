@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: autotrack-db
+    environment:
+      POSTGRES_DB: autotrack
+      POSTGRES_USER: autotrack
+      POSTGRES_PASSWORD: autotrack123
+    ports:
+      - "5432:5432"
+    volumes:
+      - autotrack_data:/var/lib/postgresql/data
+      - ./autotrack-backend/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    restart: unless-stopped
+
+volumes:
+  autotrack_data:
