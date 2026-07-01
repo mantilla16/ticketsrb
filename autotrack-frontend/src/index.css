@@ -170,10 +170,30 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 30px; position: sticky; top: 0; z-index: 40;
 }
-.topbar-left   { display: flex; flex-direction: column; }
+.topbar-left   { display: flex; align-items: center; gap: 8px; }
+.topbar-titles { display: flex; flex-direction: column; }
 .page-title    { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
 .page-subtitle { font-size: 12px; color: var(--text3); }
 .topbar-right  { display: flex; align-items: center; gap: 10px; }
+
+/* Hamburger — hidden on desktop */
+.hamburger {
+  display: none; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex-shrink: 0;
+  border: none; background: transparent; cursor: pointer;
+  border-radius: var(--radius-sm); color: var(--text2);
+  transition: background .15s, color .15s;
+}
+.hamburger:hover { background: var(--bg); color: var(--text); }
+
+/* Sidebar overlay — hidden on desktop */
+.sidebar-overlay {
+  position: fixed; inset: 0; z-index: 99;
+  background: rgba(0,0,0,.48);
+  backdrop-filter: blur(2px);
+  animation: fadeIn .18s ease;
+}
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 
 /* ════ BUTTONS ════ */
 .btn {
@@ -509,9 +529,61 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
 
 @media (max-width:768px) {
-  .layout { grid-template-columns:1fr; }
-  .sidebar { display:none; }
-  .chart-row { grid-template-columns:1fr; }
+  /* Layout */
+  .layout { grid-template-columns: 1fr; }
+
+  /* Sidebar — drawer deslizante */
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    z-index: 100; width: var(--sidebar-w);
+    transform: translateX(-100%);
+    transition: transform .25s var(--ease-out);
+    box-shadow: none;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,.35);
+  }
+
+  /* Hamburger visible */
+  .hamburger { display: flex; }
+
+  /* Topbar */
+  .topbar { padding: 0 14px; height: 52px; }
+  .page-title { font-size: 14px; }
+  .page-subtitle { display: none; }
+
+  /* Content */
+  .content { padding: 14px 12px 40px; }
+
+  /* Kanban — scroll horizontal, columnas más angostas */
+  .kanban-col { flex: 0 0 210px; min-width: 210px; }
+  .engineer-col { flex: 0 0 210px; min-width: 210px; }
+
+  /* Charts */
+  .chart-row { grid-template-columns: 1fr; }
+
+  /* Modal — bottom sheet */
+  .modal-backdrop { padding: 0; align-items: flex-end; }
+  .modal {
+    max-width: 100%; width: 100%;
+    border-radius: 18px 18px 0 0;
+    max-height: 92vh; overflow-y: auto;
+    padding: 24px 18px 32px;
+  }
+
+  /* Toast */
+  .toast-container { right: 10px; left: 10px; bottom: 10px; min-width: unset; max-width: unset; }
+
+  /* Dashboard stats */
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Analytics profiles */
+  .at-profiles { grid-template-columns: 1fr; }
+  .at-col { flex: 0 0 155px; min-width: 155px; }
+
+  /* Page header */
+  .page-header { flex-direction: column; align-items: flex-start; }
 }
 
 /* ════ ANALYTICS TEAM VIEW ════ */

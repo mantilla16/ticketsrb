@@ -30,6 +30,7 @@ export default function App() {
   const { toasts, show: showToast, remove: removeToast } = useToast();
 
   const [section, setSection]       = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sectionKey, setSectionKey] = useState(0);
   const [projects, setProjects]     = useState([]);
   const [users, setUsers]           = useState([]);
@@ -62,6 +63,7 @@ export default function App() {
   const changeSection = (id) => {
     setSection(id);
     setSectionKey(k => k + 1);
+    setSidebarOpen(false);
   };
 
   const openNewProject = (defStatus, defAssigneeId = null) =>
@@ -132,14 +134,22 @@ export default function App() {
 
   return (
     <div className="layout">
-      <Sidebar section={section} onSection={changeSection} user={user} onLogout={logout} />
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+      <Sidebar section={section} onSection={changeSection} user={user} onLogout={logout} isOpen={sidebarOpen} />
 
       <div className="main-col">
         {/* Topbar */}
         <div className="topbar">
           <div className="topbar-left">
-            <div className="page-title">{title}</div>
-            <div className="page-subtitle">{sub}</div>
+            <button className="hamburger" onClick={() => setSidebarOpen(o => !o)} aria-label="Menú">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            </button>
+            <div className="topbar-titles">
+              <div className="page-title">{title}</div>
+              <div className="page-subtitle">{sub}</div>
+            </div>
           </div>
           <div className="topbar-right">
             {(section === 'my-kanban' || section === 'team-kanban') && (

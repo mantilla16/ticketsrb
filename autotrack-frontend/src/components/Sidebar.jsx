@@ -23,9 +23,9 @@ const SECTIONS = [
   },
 ];
 
-export default function Sidebar({ section, onSection, user, onLogout }) {
+export default function Sidebar({ section, onSection, user, onLogout, isOpen }) {
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' open' : ''}`}>
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">
