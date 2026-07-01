@@ -1,0 +1,31 @@
+name: Deploy to production
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 2244
+          script: |
+            git config --global --add safe.directory /var/www/html/autotrack
+            cd /var/www/html/autotrack
+            git fetch origin master
+            git reset --hard origin/master
+            cd autotrack-backend
+            npm install --omit=dev
+            cd ../autotrack-frontend
+            npm install
+            VITE_API_URL=/autotrack-api npx vite build --base=/autotrack/
+            systemctl restart autotrack
