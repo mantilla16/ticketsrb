@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { sortByPriority, colorClass } from '../utils/helpers';
 import KanbanCard from './KanbanCard';
 
+const ENG_COLORS = ['#4F5FE8','#6D7AE8','#3A4A9E','#8B91C4','#2D3578'];
+
 const TEAM_PREVIEW = 4;
 
 export default function TeamKanban({ projects, users, onCardClick, onAddClick }) {
@@ -31,16 +33,16 @@ export default function TeamKanban({ projects, users, onCardClick, onAddClick })
 
         return (
           <div className="engineer-col" key={eng.id}>
-            <div className="engineer-header">
+            <div className="engineer-header" style={{ '--eng-accent': ENG_COLORS[eng.colorIndex ?? 0] }}>
               <div className={`avatar ${colorClass(eng.colorIndex)}`}>{eng.initials}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="eng-name">{eng.name}</div>
                 <div className="eng-count">{allCards.length} proyecto{allCards.length !== 1 ? 's' : ''}</div>
                 {allCards.length > 0 && (
                   <div className="eng-mini-stats">
-                    {active  > 0 && <span className="eng-ms eng-ms--active">{active} activos</span>}
-                    {standby > 0 && <span className="eng-ms eng-ms--standby">{standby} standby</span>}
-                    {done    > 0 && <span className="eng-ms eng-ms--done">{done} finalizados</span>}
+                    {active  > 0 && <span className="eng-ms eng-ms--active"><span className="eng-ms-dot"/>{active} activos</span>}
+                    {standby > 0 && <span className="eng-ms eng-ms--standby"><span className="eng-ms-dot"/>{standby} standby</span>}
+                    {done    > 0 && <span className="eng-ms eng-ms--done"><span className="eng-ms-dot"/>{done} finalizados</span>}
                   </div>
                 )}
               </div>
