@@ -25,13 +25,24 @@ export default function TeamKanban({ projects, users, onCardClick, onAddClick })
         const cards      = isExpanded ? allCards : allCards.slice(0, TEAM_PREVIEW);
         const hidden     = allCards.length - TEAM_PREVIEW;
 
+        const active  = allCards.filter(p => ['progress','testing'].includes(p.status)).length;
+        const standby = allCards.filter(p => p.status === 'standby').length;
+        const done    = allCards.filter(p => p.status === 'done').length;
+
         return (
           <div className="engineer-col" key={eng.id}>
             <div className="engineer-header">
               <div className={`avatar ${colorClass(eng.colorIndex)}`}>{eng.initials}</div>
-              <div style={{ flex: 1 }}>
-                <div className="eng-name">{eng.name.split(' ')[0]}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="eng-name">{eng.name}</div>
                 <div className="eng-count">{allCards.length} proyecto{allCards.length !== 1 ? 's' : ''}</div>
+                {allCards.length > 0 && (
+                  <div className="eng-mini-stats">
+                    {active  > 0 && <span className="eng-ms eng-ms--active">{active} activos</span>}
+                    {standby > 0 && <span className="eng-ms eng-ms--standby">{standby} standby</span>}
+                    {done    > 0 && <span className="eng-ms eng-ms--done">{done} finalizados</span>}
+                  </div>
+                )}
               </div>
               <button
                 className="eng-add-btn"
@@ -47,7 +58,14 @@ export default function TeamKanban({ projects, users, onCardClick, onAddClick })
             <div className="kanban-cards">
               {cards.length
                 ? cards.map(p => <KanbanCard key={p.id} project={p} onClick={onCardClick} compact />)
-                : <div className="empty" style={{ fontSize: 12, padding: 16 }}>Sin asignaciones</div>}
+                : (
+                  <div className="eng-empty">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" className="eng-empty-icon">
+                      <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/>
+                    </svg>
+                    <span>Sin proyectos asignados</span>
+                  </div>
+                )}
             </div>
 
             {hidden > 0 && (
