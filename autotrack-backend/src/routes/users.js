@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 router.get('/', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id, name, email, initials, color_index as "colorIndex" FROM users ORDER BY name'
+      'SELECT id, name, email, initials, color_index as "colorIndex", COALESCE(role, \'engineer\') as role FROM users ORDER BY name'
     );
     res.json(rows);
   } catch (err) {

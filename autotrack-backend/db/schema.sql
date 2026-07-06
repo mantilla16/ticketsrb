@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   password     VARCHAR(255) NOT NULL,
   initials     VARCHAR(5) NOT NULL,
   color_index  INTEGER DEFAULT 0,
+  role         VARCHAR(20) DEFAULT 'engineer',
   created_at   TIMESTAMP DEFAULT NOW()
 );
 

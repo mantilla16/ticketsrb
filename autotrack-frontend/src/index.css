@@ -751,3 +751,99 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .sc-tip-dot    { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
 .sc-tip-pct    { font-family:var(--mono); font-weight:700; color:var(--text2); margin-left:auto; }
 .sc-tip-client { font-size:10px; color:var(--text3); margin-top:2px; }
+
+/* ════ TEAM KANBAN — expand toggle ════ */
+.eng-add-btn {
+  width:26px; height:26px; border-radius:6px; border:1px solid var(--border);
+  background:var(--surface2); color:var(--text3); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  transition:background .14s, color .14s, border-color .14s;
+}
+.eng-add-btn:hover { background:var(--accent-light); color:var(--accent); border-color:var(--accent); }
+
+.team-expand-btn {
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  width:calc(100% - 20px); margin:6px 10px 10px;
+  padding:7px 10px; border-radius:7px; border:1px dashed var(--border);
+  background:transparent; color:var(--text3); font-size:11px; font-weight:600;
+  font-family:var(--font); cursor:pointer; transition:all .15s;
+}
+.team-expand-btn:hover { background:var(--accent-light); color:var(--accent); border-color:var(--accent); border-style:solid; }
+.team-expand-btn--open { color:var(--text2); border-style:solid; }
+
+/* ════ USERS VIEW ════ */
+.uv-root { display:flex; flex-direction:column; gap:18px; }
+
+.uv-summary {
+  display:flex; align-items:baseline; gap:7px;
+}
+.uv-summary-num {
+  font-size:28px; font-weight:800; font-family:var(--mono); color:var(--text); line-height:1;
+}
+.uv-summary-lbl { font-size:13px; color:var(--text3); }
+
+.uv-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap:14px;
+}
+
+.uv-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--sh); display:flex; flex-direction:column; gap:14px;
+  transition:box-shadow .18s, transform .18s;
+  animation:fadeUp .35s var(--ease-out) both;
+}
+.uv-card:hover { box-shadow:var(--sh-md); transform:translateY(-2px); }
+.uv-card--me { border-color:var(--accent); box-shadow:0 0 0 3px rgba(79,95,232,.08), var(--sh); }
+
+.uv-card-head { display:flex; align-items:flex-start; gap:14px; }
+.uv-avatar {
+  width:48px; height:48px; border-radius:12px; font-size:16px; font-weight:800; color:#fff;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.uv-info { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.uv-name {
+  font-size:14px; font-weight:800; color:var(--text); letter-spacing:-.2px;
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+}
+.uv-email { font-size:11px; color:var(--text3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.uv-me-tag {
+  font-size:9px; font-weight:700; background:var(--accent-light); color:var(--accent);
+  border-radius:4px; padding:1px 6px; letter-spacing:.3px; text-transform:uppercase; flex-shrink:0;
+}
+
+.uv-role {
+  display:inline-block; font-size:10px; font-weight:700; border-radius:5px;
+  padding:2px 8px; letter-spacing:.3px; text-transform:uppercase; margin-top:1px;
+}
+.role-admin     { background:#FEF3C7; color:#92400E; }
+.role-eng       { background:var(--accent-light); color:var(--accent); }
+.role-analytics { background:#F0FDF4; color:#166534; }
+.role-viewer    { background:var(--bg); color:var(--text3); border:1px solid var(--border); }
+
+.uv-stats {
+  display:flex; align-items:center; background:var(--surface2);
+  border-radius:8px; padding:10px 0; border:1px solid var(--border);
+}
+.uv-stat { flex:1; text-align:center; }
+.uv-stat-sep { width:1px; background:var(--border); align-self:stretch; }
+.uv-stat-val  { font-size:20px; font-weight:800; font-family:var(--mono); color:var(--text); line-height:1; }
+.uv-stat-lbl  { font-size:9px; color:var(--text3); margin-top:3px; text-transform:uppercase; letter-spacing:.6px; font-weight:700; }
+.uv-val-active { color:var(--accent); }
+.uv-val-done   { color:var(--green); }
+
+.uv-bar-wrap { display:flex; flex-direction:column; gap:5px; }
+.uv-bar {
+  height:5px; border-radius:3px; background:var(--border); overflow:hidden;
+  display:flex;
+}
+.uv-bar-fill { height:100%; transition:width .5s var(--ease-out); }
+.uv-bar-done   { background:var(--green); }
+.uv-bar-active { background:var(--accent); }
+.uv-bar-pct { font-size:10px; color:var(--text3); font-family:var(--mono); font-weight:700; }
+
+@media (max-width:768px) {
+  .uv-grid { grid-template-columns: 1fr; }
+}

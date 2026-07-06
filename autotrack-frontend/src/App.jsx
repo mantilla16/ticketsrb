@@ -9,6 +9,7 @@ import TeamKanban from './components/TeamKanban';
 import GanttView from './components/GanttView';
 import AnalyticsTeamView from './components/AnalyticsTeamView';
 import HistorialView from './components/HistorialView';
+import UsersView from './components/UsersView';
 import ProjectModal from './components/ProjectModal';
 import DetailModal from './components/DetailModal';
 import Toast, { useToast } from './components/Toast';
@@ -20,6 +21,7 @@ const TITLES = {
   'gantt':       { title: 'Diagrama de Gantt',      sub: 'Línea de tiempo y progreso de todos los proyectos' },
   'analytics':   { title: 'Equipo Analítica',       sub: 'Proyectos de Miguel Padilla y Andres Holguin' },
   'historial':   { title: 'Historial',              sub: 'Todos los proyectos finalizados' },
+  'users':       { title: 'Usuarios',               sub: 'Equipo, roles y estadísticas por persona' },
 };
 
 const STATUS_NAMES = {
@@ -201,6 +203,10 @@ export default function App() {
 
             {section === 'historial' && (
               <HistorialView projects={projects} users={users} onCardClick={openDetail} />
+            )}
+
+            {section === 'users' && (
+              <UsersView projects={projects} users={users} currentUser={user} />
             )}
 
             {section === 'gantt' && (
