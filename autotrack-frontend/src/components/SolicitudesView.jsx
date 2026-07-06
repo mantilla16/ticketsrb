@@ -3,6 +3,7 @@ import { solicitudesAPI, projectsAPI } from '../services/api';
 import { colorClass } from '../utils/helpers';
 
 const PRIORITY_MAP_PROJECT = { alta: 'high', media: 'mid', baja: 'low' };
+const STATUS_MAP_PROJECT   = { nueva: 'backlog', en_revision: 'backlog', en_proceso: 'progress', completada: 'done', rechazada: 'done' };
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -536,7 +537,7 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
           name:        sol.title,
           description: sol.description || '',
           client:      sol.area || '',
-          status:      'backlog',
+          status:      STATUS_MAP_PROJECT[data.status] || 'backlog',
           priority:    PRIORITY_MAP_PROJECT[sol.priority] || 'mid',
           assigneeId:  data.assigneeId,
           dueDate:     sol.due_date || null,
