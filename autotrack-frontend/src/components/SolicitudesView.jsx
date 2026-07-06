@@ -530,8 +530,8 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
     setSolicitudes(s => s.map(x => x.id === updated.id ? { ...x, ...updated } : x));
     setManageModal(null);
 
-    // Auto-crear proyecto en Kanban cuando se asigna por primera vez
-    if (data.assigneeId && !sol?.assignee_id) {
+    // Auto-crear proyecto en Kanban la primera vez que se asigna
+    if (data.assigneeId && !sol?.project_created) {
       try {
         const project = await projectsAPI.create({
           name:        sol.title,
@@ -543,6 +543,8 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
           dueDate:     sol.due_date || null,
           progress:    0,
         });
+        await solicitudesAPI.markProjectCreated(sol.id);
+        setSolicitudes(s => s.map(x => x.id === sol.id ? { ...x, project_created: true } : x));
         onProjectCreated?.(project);
         showToast(`Proyecto "${project.name}" creado y asignado`, 'success');
       } catch (err) {

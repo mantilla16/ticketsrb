@@ -36,6 +36,7 @@ router.get('/', auth, async (req, res) => {
     const { rows } = await pool.query(
       `SELECT s.id, s.title, s.description, s.type, s.priority, s.area,
               s.due_date, s.file_name, s.file_path, s.status, s.notes,
+              s.project_created,
               s.created_at, s.updated_at,
               u.id          AS user_id,
               u.name        AS user_name,
@@ -104,6 +105,20 @@ router.put('/:id/status', auth, requireRole('admin'), async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Solicitud no encontrada' });
     res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// PATCH /api/solicitudes/:id/project-created  — solo admin
+router.patch('/:id/project-created', auth, requireRole('admin'), async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE solicitudes SET project_created=TRUE WHERE id=$1',
+      [req.params.id]
+    );
+    res.json({ ok: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
