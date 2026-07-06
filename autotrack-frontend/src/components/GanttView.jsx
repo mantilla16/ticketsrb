@@ -14,12 +14,14 @@ const BAR_COLOR = {
 };
 
 export default function GanttView({ projects, onRowClick }) {
-  if (!projects.length) {
-    return <div className="empty" style={{ padding: 60 }}>No hay proyectos registrados</div>;
+  const active = projects.filter(p => p.status !== 'done');
+
+  if (!active.length) {
+    return <div className="empty" style={{ padding: 60 }}>No hay proyectos activos</div>;
   }
 
-  const withDates    = projects.filter(p => p.startDate && p.dueDate).sort((a, b) => a.startDate.localeCompare(b.startDate));
-  const withoutDates = projects.filter(p => !p.startDate || !p.dueDate).sort((a, b) => a.name.localeCompare(b.name));
+  const withDates    = active.filter(p => p.startDate && p.dueDate).sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const withoutDates = active.filter(p => !p.startDate || !p.dueDate).sort((a, b) => a.name.localeCompare(b.name));
   const all          = [...withDates, ...withoutDates];
 
   let todayPct = 50, minDate, totalDays;
