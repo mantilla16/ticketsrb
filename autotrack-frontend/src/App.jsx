@@ -146,23 +146,31 @@ export default function App() {
 
   // User CRUD handlers
   const handleSaveUser = async (data, id) => {
-    if (id) {
-      const updated = await usersAPI.update(id, data);
-      setUsers(us => us.map(u => u.id === updated.id ? updated : u));
-      showToast(`Usuario "${updated.name}" actualizado`, 'success');
-    } else {
-      const created = await usersAPI.create(data);
-      setUsers(us => [...us, created]);
-      showToast(`Usuario "${created.name}" creado`, 'success');
+    try {
+      if (id) {
+        const updated = await usersAPI.update(id, data);
+        setUsers(us => us.map(u => u.id === updated.id ? updated : u));
+        showToast(`Usuario "${updated.name}" actualizado`, 'success');
+      } else {
+        const created = await usersAPI.create(data);
+        setUsers(us => [...us, created]);
+        showToast(`Usuario "${created.name}" creado`, 'success');
+      }
+      setUserModal({ open: false, user: null });
+    } catch (err) {
+      throw err; // re-throw so UserModal shows inline error
     }
-    setUserModal({ open: false, user: null });
   };
 
   const handleDeleteUser = async (id) => {
     const u = users.find(x => x.id === id);
-    await usersAPI.remove(id);
-    setUsers(us => us.filter(x => x.id !== id));
-    showToast(`"${u?.name}" eliminado`, 'error');
+    try {
+      await usersAPI.remove(id);
+      setUsers(us => us.filter(x => x.id !== id));
+      showToast(`"${u?.name}" eliminado`, 'error');
+    } catch (err) {
+      showToast(err.error || 'Error al eliminar el usuario', 'error');
+    }
   };
 
   const showNewProject = section === 'my-kanban' || section === 'team-kanban';
