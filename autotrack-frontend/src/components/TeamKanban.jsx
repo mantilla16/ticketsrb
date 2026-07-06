@@ -2,16 +2,13 @@ import { useState } from 'react';
 import { sortByPriority, colorClass } from '../utils/helpers';
 import KanbanCard from './KanbanCard';
 
-const ANALYTICS    = ['miguel padilla', 'andres holguin'];
 const TEAM_PREVIEW = 4;
 
 export default function TeamKanban({ projects, users, onCardClick, onAddClick }) {
   const [expanded, setExpanded] = useState(new Set());
 
-  const visibleUsers = users.filter(u => !ANALYTICS.includes(u.name.toLowerCase()));
-
-  if (!visibleUsers.length) {
-    return <div className="empty">Sin ingenieros registrados aún. Pide a tu equipo que se registre.</div>;
+  if (!users.length) {
+    return <div className="empty">Sin ingenieros registrados aún.</div>;
   }
 
   const toggle = (id) => setExpanded(prev => {
@@ -22,7 +19,7 @@ export default function TeamKanban({ projects, users, onCardClick, onAddClick })
 
   return (
     <div className="team-board">
-      {visibleUsers.map((eng) => {
+      {users.map((eng) => {
         const allCards   = projects.filter(p => p.assigneeId === eng.id).sort(sortByPriority);
         const isExpanded = expanded.has(eng.id);
         const cards      = isExpanded ? allCards : allCards.slice(0, TEAM_PREVIEW);

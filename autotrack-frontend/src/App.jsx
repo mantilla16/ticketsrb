@@ -8,6 +8,7 @@ import KanbanBoard from './components/KanbanBoard';
 import TeamKanban from './components/TeamKanban';
 import GanttView from './components/GanttView';
 import AnalyticsTeamView from './components/AnalyticsTeamView';
+const ANALYTICS_NAMES = ['miguel padilla', 'andres holguin'];
 import HistorialView from './components/HistorialView';
 import UsersView from './components/UsersView';
 import UserModal from './components/UserModal';
@@ -231,14 +232,19 @@ export default function App() {
             {section === 'team-kanban' && (
               <TeamKanban
                 projects={projects}
-                users={users}
+                users={users.filter(u => !ANALYTICS_NAMES.includes(u.name.toLowerCase()))}
                 onCardClick={openDetail}
                 onAddClick={(assigneeId) => openNewProject('backlog', assigneeId)}
               />
             )}
 
             {section === 'analytics' && (
-              <AnalyticsTeamView projects={projects} users={users} onCardClick={openDetail} />
+              <TeamKanban
+                projects={projects}
+                users={users.filter(u => ANALYTICS_NAMES.includes(u.name.toLowerCase()))}
+                onCardClick={openDetail}
+                onAddClick={(assigneeId) => openNewProject('backlog', assigneeId)}
+              />
             )}
 
             {section === 'historial' && (
