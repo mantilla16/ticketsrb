@@ -10,7 +10,9 @@ const COLS = [
   { key: 'done',     label: 'Finalizado', dot: 'var(--c-done)'     },
 ];
 
-export default function KanbanBoard({ projects, onCardClick, onAddClick, onMoveCard }) {
+const DONE_PREVIEW = 5;
+
+export default function KanbanBoard({ projects, onCardClick, onAddClick, onMoveCard, onViewHistorial }) {
   const [draggingProject, setDraggingProject] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
 
@@ -47,7 +49,13 @@ export default function KanbanBoard({ projects, onCardClick, onAddClick, onMoveC
   return (
     <div className="kanban-board">
       {COLS.map(({ key, label, dot }) => {
-        const cards = projects.filter(p => p.status === key).sort(sortByPriority);
+        const allCards = projects.filter(p => p.status === key).sort(sortByPriority);
+        const isDone = key === 'done';
+        const sorted = isDone
+          ? [...allCards].sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
+          : allCards;
+        const cards = isDone ? sorted.slice(0, DONE_PREVIEW) : sorted;
+        const hiddenCount = isDone ? sorted.length - DONE_PREVIEW : 0;
         const isOver = dragOverCol === key && draggingProject?.status !== key;
 
         return (
@@ -63,7 +71,7 @@ export default function KanbanBoard({ projects, onCardClick, onAddClick, onMoveC
                   <span className="col-dot" style={{ background: dot }} />
                   {label}
                 </div>
-                <span className="col-count">{cards.length}</span>
+                <span className="col-count">{allCards.length}</span>
               </div>
 
               <div className="kanban-cards">
@@ -91,9 +99,18 @@ export default function KanbanBoard({ projects, onCardClick, onAddClick, onMoveC
                 )}
               </div>
 
-              <button className="add-card-btn" onClick={() => onAddClick(key)}>
-                + Agregar
-              </button>
+              {isDone && hiddenCount > 0 ? (
+                <button className="historial-btn" onClick={onViewHistorial}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 3h6l3 9 3-9h6"/><path d="M3 21h18"/><path d="M12 12v9"/>
+                  </svg>
+                  Historial · {hiddenCount} más
+                </button>
+              ) : (
+                <button className="add-card-btn" onClick={() => onAddClick(key)}>
+                  + Agregar
+                </button>
+              )}
             </div>
           </div>
         );

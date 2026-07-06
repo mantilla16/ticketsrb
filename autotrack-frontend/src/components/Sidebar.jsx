@@ -18,6 +18,10 @@ const SECTIONS = [
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>,
   },
   {
+    id: 'historial', label: 'Historial',
+    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>,
+  },
+  {
     id: 'gantt', label: 'Cronograma',
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="5" x2="21" y2="5"/><rect x="4" y="9" width="9" height="3" rx="1" fill="currentColor" stroke="none"/><rect x="9" y="14" width="8" height="3" rx="1" fill="currentColor" stroke="none"/><line x1="3" y1="20" x2="21" y2="20"/></svg>,
   },
