@@ -7,13 +7,15 @@ const EMPTY = {
 };
 
 export default function ProjectModal({ open, project, defStatus, defAssigneeId, users, onSave, onDelete, onClose }) {
-  const [form, setForm]     = useState(EMPTY);
-  const [error, setError]   = useState('');
-  const [saving, setSaving] = useState(false);
+  const [form, setForm]         = useState(EMPTY);
+  const [error, setError]       = useState('');
+  const [saving, setSaving]     = useState(false);
+  const [delConfirm, setDelConfirm] = useState(false);
   const isEdit = Boolean(project);
 
   useEffect(() => {
     if (open) {
+      setDelConfirm(false);
       if (project) {
         setForm({
           name:        project.name,
@@ -56,7 +58,6 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   };
 
   const handleDelete = async () => {
-    if (!confirm('¿Eliminar este proyecto? Esta acción no se puede deshacer.')) return;
     setSaving(true);
     try { await onDelete(); } catch (err) { setError(err.error || 'Error al eliminar'); setSaving(false); }
   };
@@ -141,15 +142,28 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         </div>
 
         <div className="modal-footer">
-          {isEdit && (
-            <button className="btn btn-danger btn-sm" onClick={handleDelete} disabled={saving} style={{ marginRight: 'auto' }}>
+          {isEdit && !delConfirm && (
+            <button className="btn btn-danger btn-sm" onClick={() => setDelConfirm(true)} disabled={saving} style={{ marginRight: 'auto' }}>
               Eliminar
             </button>
           )}
-          <button className="btn btn-ghost btn-sm" onClick={onClose} disabled={saving}>Cancelar</button>
-          <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
-            {saving ? 'Guardando...' : isEdit ? 'Actualizar' : 'Crear proyecto'}
-          </button>
+          {isEdit && delConfirm && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 'auto' }}>
+              <span style={{ fontSize: 13, color: 'var(--text2)' }}>¿Eliminar este proyecto?</span>
+              <button className="btn btn-danger btn-sm" onClick={handleDelete} disabled={saving}>
+                {saving ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setDelConfirm(false)} disabled={saving}>No</button>
+            </div>
+          )}
+          {!delConfirm && (
+            <>
+              <button className="btn btn-ghost btn-sm" onClick={onClose} disabled={saving}>Cancelar</button>
+              <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
+                {saving ? 'Guardando...' : isEdit ? 'Actualizar' : 'Crear proyecto'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
