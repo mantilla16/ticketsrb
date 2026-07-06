@@ -212,7 +212,7 @@ export default function App() {
           <div key={sectionKey} className="section-enter">
 
             {section === 'solicitudes' && (
-              <SolicitudesView user={user} />
+              <SolicitudesView user={user} showToast={showToast} />
             )}
 
             {section === 'dashboard' && (

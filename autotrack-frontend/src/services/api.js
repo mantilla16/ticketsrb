@@ -36,4 +36,11 @@ export const usersAPI = {
   remove:  (id)       => api.delete(`/users/${id}`),
 };
 
+export const solicitudesAPI = {
+  getAll:       ()          => api.get('/solicitudes'),
+  create:       (formData)  => api.post('/solicitudes', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  updateStatus: (id, data)  => api.put(`/solicitudes/${id}/status`, data),
+  remove:       (id)        => api.delete(`/solicitudes/${id}`),
+};
+
 export default api;

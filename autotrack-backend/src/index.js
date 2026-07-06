@@ -1,8 +1,9 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
+const cors    = require('cors');
+const helmet  = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path    = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,9 +26,13 @@ app.use(rateLimit({
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }));
 app.use(express.json());
 
-app.use('/api/auth',     require('./routes/auth'));
-app.use('/api/projects', require('./routes/projects'));
-app.use('/api/users',    require('./routes/users'));
+// Serve uploaded files (solicitudes attachments)
+app.use('/api/uploads', express.static(path.join(__dirname, '../uploads')));
+
+app.use('/api/auth',         require('./routes/auth'));
+app.use('/api/projects',     require('./routes/projects'));
+app.use('/api/users',        require('./routes/users'));
+app.use('/api/solicitudes',  require('./routes/solicitudes'));
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
