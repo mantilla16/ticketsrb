@@ -205,7 +205,7 @@ export default function App() {
               <HistorialView projects={projects} users={users} onCardClick={openDetail} />
             )}
 
-            {section === 'users' && (
+            {section === 'users' && user?.role === 'admin' && (
               <UsersView projects={projects} users={users} currentUser={user} />
             )}
 

@@ -32,6 +32,11 @@ const SECTIONS = [
 ];
 
 export default function Sidebar({ section, onSection, user, onLogout, isOpen }) {
+  const visible = SECTIONS.filter(s => {
+    if (s.id === 'users') return user?.role === 'admin';
+    return true;
+  });
+
   return (
     <aside className={`sidebar${isOpen ? ' open' : ''}`}>
       {/* Logo */}
@@ -50,7 +55,7 @@ export default function Sidebar({ section, onSection, user, onLogout, isOpen }) 
       {/* Navigation */}
       <nav className="sidebar-nav">
         <div className="sidebar-label">Principal</div>
-        {SECTIONS.map(s => (
+        {visible.map(s => (
           <button
             key={s.id}
             className={`nav-item${section === s.id ? ' active' : ''}`}
