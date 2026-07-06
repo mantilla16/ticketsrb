@@ -540,10 +540,12 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
           priority:    PRIORITY_MAP_PROJECT[sol.priority] || 'mid',
           assigneeId:  data.assigneeId,
           dueDate:     sol.due_date || null,
+          progress:    0,
         });
         onProjectCreated?.(project);
         showToast(`Proyecto "${project.name}" creado y asignado`, 'success');
-      } catch {
+      } catch (err) {
+        console.error('Auto-create project failed:', err);
         showToast('Estado actualizado (no se pudo crear el proyecto)', 'error');
       }
     } else {
