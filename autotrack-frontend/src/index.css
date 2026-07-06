@@ -1,9 +1,9 @@
 :root {
-  /* Core accent — vivid violet, not generic blue */
-  --accent:        #5B4FE9;
-  --accent-light:  #EDE9FF;
-  --accent-hover:  #4B3FD4;
-  --accent-muted:  rgba(91,79,233,.1);
+  /* Acento único — índigo */
+  --accent:        #4F5FE8;
+  --accent-light:  #ECEEFF;
+  --accent-hover:  #3F4FD8;
+  --accent-muted:  rgba(79,95,232,.1);
 
   /* Sidebar */
   --sb-bg:          #0C0D14;
@@ -11,39 +11,39 @@
   --sb-text:        rgba(255,255,255,.38);
   --sb-text-hover:  rgba(255,255,255,.82);
   --sb-text-active: #FFFFFF;
-  --sb-item-active: rgba(91,79,233,.18);
+  --sb-item-active: rgba(79,95,232,.18);
 
   /* Layout */
   --sidebar-w:  240px;
   --topbar-h:   60px;
 
   /* Backgrounds */
-  --bg:       #F4F4F6;
+  --bg:       #F1F2F6;
   --surface:  #FFFFFF;
-  --surface2: #FAFAFA;
+  --surface2: #F7F8FB;
 
   /* Typography */
-  --text:   #111827;
-  --text2:  #6B7280;
-  --text3:  #9CA3AF;
-  --text4:  #D1D5DB;
+  --text:   #18191F;
+  --text2:  #474C5C;
+  --text3:  #8F95A3;
+  --text4:  #C4C9D4;
 
   /* Borders */
-  --border:  #E5E7EB;
-  --border2: #D1D5DB;
+  --border:  #E4E6ED;
+  --border2: #C4C9D4;
 
   /* Semantic */
   --high:          #DC2626;  --high-bg:  #FEF2F2;
-  --mid:           #5B4FE9;  --mid-bg:   #EDE9FF;
-  --low:           #059669;  --low-bg:   #ECFDF5;
-  --green:         #059669;  --green-bg: #ECFDF5;
+  --mid:           #4F5FE8;  --mid-bg:   #ECEEFF;
+  --low:           #16A34A;  --low-bg:   #DCFCE7;
+  --green:         #16A34A;  --green-bg: #DCFCE7;
 
-  /* Status */
-  --c-backlog:  #9CA3AF;  --c-backlog-bg:  #F9FAFB;
-  --c-progress: #5B4FE9;  --c-progress-bg: #EDE9FF;
-  --c-standby:  #D97706;  --c-standby-bg:  #FFFBEB;
-  --c-testing:  #7C3AED;  --c-testing-bg:  #F5F3FF;
-  --c-done:     #059669;  --c-done-bg:     #ECFDF5;
+  /* Status — 2 colores funcionales + grises */
+  --c-backlog:  #8F95A3;  --c-backlog-bg:  #F1F2F6;
+  --c-progress: #4F5FE8;  --c-progress-bg: #ECEEFF;
+  --c-standby:  #78716C;  --c-standby-bg:  #F5F5F4;
+  --c-testing:  #4F5FE8;  --c-testing-bg:  #E8EAFD;
+  --c-done:     #16A34A;  --c-done-bg:     #DCFCE7;
 
   /* Shadows — precise offset, not diffuse blobs */
   --sh:    0 1px 2px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04);
@@ -244,11 +244,11 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .avatar    { width:36px; height:36px; border-radius:50%; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; }
 .avatar-sm { width:28px; height:28px; border-radius:50%; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; }
 .avatar-xs { width:22px; height:22px; border-radius:50%; font-size:9px;  font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; }
-.eng-c-0 { background:#5B4FE9; }
-.eng-c-1 { background:#DC2626; }
-.eng-c-2 { background:#059669; }
-.eng-c-3 { background:#D97706; }
-.eng-c-4 { background:#7C3AED; }
+.eng-c-0 { background:#4F5FE8; }
+.eng-c-1 { background:#6D7AE8; }
+.eng-c-2 { background:#3A4A9E; }
+.eng-c-3 { background:#8B91C4; }
+.eng-c-4 { background:#2D3578; }
 
 /* ════ KANBAN ════ */
 .kanban-board { display:flex; gap:14px; overflow-x:auto; padding-bottom:16px; align-items:flex-start; }

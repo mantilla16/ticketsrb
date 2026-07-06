@@ -58,10 +58,10 @@ export default function GanttView({ projects, onRowClick }) {
 
               // bar color based on status
               const barColors = {
-                backlog: '#C8D5F0', progress: '#4361EE',
-                standby: '#FFB020', testing: '#9B59B6', done: '#00C48C',
+                backlog: '#C4C9D4', progress: '#4F5FE8',
+                standby: '#A8A29E', testing: '#6D7AE8', done: '#16A34A',
               };
-              const barColor = barColors[p.status] || '#4361EE';
+              const barColor = barColors[p.status] || '#4F5FE8';
 
               return (
                 <tr className="gantt-row" key={p.id} onClick={() => onRowClick(p.id)} style={{ cursor: 'pointer' }}>

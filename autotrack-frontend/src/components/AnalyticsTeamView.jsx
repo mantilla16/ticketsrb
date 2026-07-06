@@ -2,11 +2,11 @@ import { useRef } from 'react';
 import { colorClass } from '../utils/helpers';
 
 const STATUSES = [
-  { id: 'progress', label: 'En proceso', dot: '#4361EE' },
-  { id: 'standby',  label: 'Standby',    dot: '#D97706' },
-  { id: 'testing',  label: 'Testing',    dot: '#7C3AED' },
-  { id: 'backlog',  label: 'Por hacer',  dot: '#9CA3AF' },
-  { id: 'done',     label: 'Finalizado', dot: '#059669' },
+  { id: 'progress', label: 'En proceso', dot: '#4F5FE8' },
+  { id: 'standby',  label: 'Standby',    dot: '#78716C' },
+  { id: 'testing',  label: 'Testing',    dot: '#6D7AE8' },
+  { id: 'backlog',  label: 'Por hacer',  dot: '#8F95A3' },
+  { id: 'done',     label: 'Finalizado', dot: '#16A34A' },
 ];
 
 const PR_ORDER = { high: 0, mid: 1, low: 2 };
@@ -103,19 +103,19 @@ export default function AnalyticsTeamView({ projects, users, onCardClick }) {
                   <div className="at-pstat-lbl">Total</div>
                 </div>
                 <div className="at-pstat">
-                  <div className="at-pstat-val" style={{ color: '#4361EE' }}>{active}</div>
+                  <div className="at-pstat-val" style={{ color: '#4F5FE8' }}>{active}</div>
                   <div className="at-pstat-lbl">Activos</div>
                 </div>
                 <div className="at-pstat at-pstat-sep">
-                  <div className="at-pstat-val" style={{ color: '#D97706' }}>{standby}</div>
+                  <div className="at-pstat-val" style={{ color: '#78716C' }}>{standby}</div>
                   <div className="at-pstat-lbl">Standby</div>
                 </div>
                 <div className="at-pstat">
-                  <div className="at-pstat-val" style={{ color: '#6B7280' }}>{backlog}</div>
+                  <div className="at-pstat-val" style={{ color: '#8F95A3' }}>{backlog}</div>
                   <div className="at-pstat-lbl">Backlog</div>
                 </div>
                 <div className="at-pstat">
-                  <div className="at-pstat-val" style={{ color: '#059669' }}>{done}</div>
+                  <div className="at-pstat-val" style={{ color: '#16A34A' }}>{done}</div>
                   <div className="at-pstat-lbl">Listos</div>
                 </div>
               </div>
