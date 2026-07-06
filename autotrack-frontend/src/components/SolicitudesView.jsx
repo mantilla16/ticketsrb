@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { solicitudesAPI } from '../services/api';
+import { solicitudesAPI, projectsAPI } from '../services/api';
 import { colorClass } from '../utils/helpers';
+
+const PRIORITY_MAP_PROJECT = { alta: 'high', media: 'mid', baja: 'low' };
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -498,7 +500,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-export default function SolicitudesView({ user, showToast, users = [] }) {
+export default function SolicitudesView({ user, showToast, users = [], onProjectCreated }) {
   const isAdmin = user?.role === 'admin';
 
   const [solicitudes, setSolicitudes] = useState([]);
@@ -522,10 +524,31 @@ export default function SolicitudesView({ user, showToast, users = [] }) {
   };
 
   const handleUpdateStatus = async (id, data) => {
+    const sol = solicitudes.find(x => x.id === id);
     const updated = await solicitudesAPI.updateStatus(id, data);
     setSolicitudes(s => s.map(x => x.id === updated.id ? { ...x, ...updated } : x));
     setManageModal(null);
-    showToast('Estado actualizado', 'success');
+
+    // Auto-crear proyecto en Kanban cuando se asigna por primera vez
+    if (data.assigneeId && !sol?.assignee_id) {
+      try {
+        const project = await projectsAPI.create({
+          name:        sol.title,
+          description: sol.description || '',
+          client:      sol.area || '',
+          status:      'backlog',
+          priority:    PRIORITY_MAP_PROJECT[sol.priority] || 'mid',
+          assigneeId:  data.assigneeId,
+          dueDate:     sol.due_date || null,
+        });
+        onProjectCreated?.(project);
+        showToast(`Proyecto "${project.name}" creado y asignado`, 'success');
+      } catch {
+        showToast('Estado actualizado (no se pudo crear el proyecto)', 'error');
+      }
+    } else {
+      showToast('Estado actualizado', 'success');
+    }
   };
 
   const handleDelete = async (id) => {

@@ -212,7 +212,12 @@ export default function App() {
           <div key={sectionKey} className="section-enter">
 
             {section === 'solicitudes' && (
-              <SolicitudesView user={user} showToast={showToast} users={users} />
+              <SolicitudesView
+                user={user}
+                showToast={showToast}
+                users={users}
+                onProjectCreated={(project) => setProjects(ps => [project, ...ps])}
+              />
             )}
 
             {section === 'dashboard' && (
