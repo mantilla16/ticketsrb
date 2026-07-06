@@ -1085,6 +1085,23 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   padding:14px;
 }
 
+/* Assignee + file on card */
+.sol-card-assignee {
+  display:flex; align-items:center; gap:6px; margin-top:8px;
+  font-size:11px; color:var(--text3);
+}
+.sol-card-assignee strong { color:var(--text2); font-weight:600; }
+
+/* File download link in manage modal */
+.sol-file-download {
+  display:flex; align-items:center; gap:7px; padding:9px 12px;
+  border:1px solid var(--border); border-radius:8px; background:var(--surface2);
+  color:var(--accent); font-size:12px; font-weight:500; text-decoration:none;
+  transition:.12s; cursor:pointer; margin-top:8px;
+}
+.sol-file-download:hover { background:var(--accent-light); border-color:var(--accent); }
+.sol-file-download span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
 /* Textarea */
 .sol-textarea { resize:vertical; min-height:90px; font-family:inherit; line-height:1.6; }
 

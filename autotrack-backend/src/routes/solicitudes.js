@@ -37,12 +37,17 @@ router.get('/', auth, async (req, res) => {
       `SELECT s.id, s.title, s.description, s.type, s.priority, s.area,
               s.due_date, s.file_name, s.file_path, s.status, s.notes,
               s.created_at, s.updated_at,
-              u.id   AS user_id,
-              u.name AS user_name,
-              u.initials  AS user_initials,
-              u.color_index AS user_color_index
+              u.id          AS user_id,
+              u.name        AS user_name,
+              u.initials    AS user_initials,
+              u.color_index AS user_color_index,
+              a.id          AS assignee_id,
+              a.name        AS assignee_name,
+              a.initials    AS assignee_initials,
+              a.color_index AS assignee_color_index
        FROM solicitudes s
-       LEFT JOIN users u ON s.user_id = u.id
+       LEFT JOIN users u ON s.user_id    = u.id
+       LEFT JOIN users a ON s.assignee_id = a.id
        ${isAdmin ? '' : 'WHERE s.user_id = $1'}
        ORDER BY s.created_at DESC`,
       isAdmin ? [] : [req.user.id]
@@ -84,7 +89,7 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
 
 // PUT /api/solicitudes/:id/status  — solo admin
 router.put('/:id/status', auth, requireRole('admin'), async (req, res) => {
-  const { status, notes } = req.body;
+  const { status, notes, assigneeId } = req.body;
   const valid = ['nueva','en_revision','en_proceso','completada','rechazada'];
   if (!valid.includes(status)) {
     return res.status(400).json({ error: 'Estado inválido' });
@@ -92,10 +97,10 @@ router.put('/:id/status', auth, requireRole('admin'), async (req, res) => {
   try {
     const { rows } = await pool.query(
       `UPDATE solicitudes
-       SET status=$1, notes=$2, updated_at=NOW()
-       WHERE id=$3
+       SET status=$1, notes=$2, assignee_id=$3, updated_at=NOW()
+       WHERE id=$4
        RETURNING *`,
-      [status, notes || null, req.params.id]
+      [status, notes || null, assigneeId || null, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Solicitud no encontrada' });
     res.json(rows[0]);

@@ -322,14 +322,21 @@ function NewSolicitudModal({ open, onClose, onSave }) {
 
 // ── Manage Modal (Admin) ───────────────────────────────────────────────────────
 
-function ManageModal({ sol, open, onClose, onSave, onDelete }) {
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
   const [status,     setStatus]     = useState('nueva');
   const [notes,      setNotes]      = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
   const [saving,     setSaving]     = useState(false);
   const [delConfirm, setDelConfirm] = useState(false);
 
   useEffect(() => {
-    if (sol) { setStatus(sol.status || 'nueva'); setNotes(sol.notes || ''); }
+    if (sol) {
+      setStatus(sol.status || 'nueva');
+      setNotes(sol.notes || '');
+      setAssigneeId(sol.assignee_id ? String(sol.assignee_id) : '');
+    }
     setDelConfirm(false);
     setSaving(false);
   }, [sol]);
@@ -339,9 +346,11 @@ function ManageModal({ sol, open, onClose, onSave, onDelete }) {
   const tp = TYPE_MAP[sol.type]   || {};
   const pr = PRIORITY_MAP[sol.priority] || PRIORITY_MAP.media;
 
+  const engineers = users.filter(u => u.role === 'engineer' || u.role === 'admin');
+
   const submit = async () => {
     setSaving(true);
-    try { await onSave(sol.id, { status, notes }); }
+    try { await onSave(sol.id, { status, notes, assigneeId: assigneeId || null }); }
     finally { setSaving(false); }
   };
 
@@ -379,14 +388,24 @@ function ManageModal({ sol, open, onClose, onSave, onDelete }) {
             {sol.description && (
               <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 8, lineHeight: 1.6 }}>{sol.description}</p>
             )}
-            {sol.file_name && (
-              <div className="sol-card-file" style={{ marginTop: 8 }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            {sol.file_name && sol.file_path && (
+              <a
+                href={`${API_BASE}/uploads/solicitudes/${sol.file_path}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="sol-file-download"
+                onClick={e => e.stopPropagation()}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
                   <polyline points="13 2 13 9 20 9"/>
                 </svg>
-                {sol.file_name}
-              </div>
+                <span>{sol.file_name}</span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ marginLeft: 'auto', opacity: .6 }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </a>
             )}
           </div>
 
@@ -403,6 +422,26 @@ function ManageModal({ sol, open, onClose, onSave, onDelete }) {
                   {STATUS_MAP[s].label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="um-field">
+            <label className="um-label">Asignar a</label>
+            <div className="um-input-wrap">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              <select
+                className="um-input"
+                value={assigneeId}
+                onChange={e => setAssigneeId(e.target.value)}
+                style={{ cursor: 'pointer' }}
+              >
+                <option value="">Sin asignar</option>
+                {engineers.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -459,7 +498,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-export default function SolicitudesView({ user, showToast }) {
+export default function SolicitudesView({ user, showToast, users = [] }) {
   const isAdmin = user?.role === 'admin';
 
   const [solicitudes, setSolicitudes] = useState([]);
@@ -629,6 +668,15 @@ export default function SolicitudesView({ user, showToast }) {
                   </span>
                 </div>
 
+                {sol.assignee_name && (
+                  <div className="sol-card-assignee">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    Asignado a <strong>{sol.assignee_name}</strong>
+                  </div>
+                )}
+
                 {sol.notes && (
                   <div className="sol-card-note">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -659,6 +707,7 @@ export default function SolicitudesView({ user, showToast }) {
         onClose={() => setManageModal(null)}
         onSave={handleUpdateStatus}
         onDelete={handleDelete}
+        users={users}
       />
     </div>
   );
