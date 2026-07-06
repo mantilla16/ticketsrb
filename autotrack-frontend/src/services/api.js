@@ -30,7 +30,10 @@ export const projectsAPI = {
 };
 
 export const usersAPI = {
-  getAll: () => api.get('/users'),
+  getAll:  ()         => api.get('/users'),
+  create:  (data)     => api.post('/users', data),
+  update:  (id, data) => api.put(`/users/${id}`, data),
+  remove:  (id)       => api.delete(`/users/${id}`),
 };
 
 export default api;

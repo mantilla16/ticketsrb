@@ -10,18 +10,21 @@ import GanttView from './components/GanttView';
 import AnalyticsTeamView from './components/AnalyticsTeamView';
 import HistorialView from './components/HistorialView';
 import UsersView from './components/UsersView';
+import UserModal from './components/UserModal';
+import SolicitudesView from './components/SolicitudesView';
 import ProjectModal from './components/ProjectModal';
 import DetailModal from './components/DetailModal';
 import Toast, { useToast } from './components/Toast';
 
 const TITLES = {
-  'dashboard':   { title: 'Dashboard ejecutivo',   sub: 'Resumen general del portafolio de automatización' },
-  'my-kanban':   { title: 'Mi Kanban',              sub: 'Vista personal — organiza tus proyectos por estado' },
-  'team-kanban': { title: 'Kanban del equipo',      sub: 'Proyectos asignados por ingeniero' },
-  'gantt':       { title: 'Diagrama de Gantt',      sub: 'Línea de tiempo y progreso de todos los proyectos' },
-  'analytics':   { title: 'Equipo Analítica',       sub: 'Proyectos de Miguel Padilla y Andres Holguin' },
-  'historial':   { title: 'Historial',              sub: 'Todos los proyectos finalizados' },
-  'users':       { title: 'Usuarios',               sub: 'Equipo, roles y estadísticas por persona' },
+  'dashboard':    { title: 'Dashboard ejecutivo',   sub: 'Resumen general del portafolio de automatización' },
+  'my-kanban':    { title: 'Mi Kanban',              sub: 'Vista personal — organiza tus proyectos por estado' },
+  'team-kanban':  { title: 'Kanban del equipo',      sub: 'Proyectos asignados por ingeniero' },
+  'gantt':        { title: 'Diagrama de Gantt',      sub: 'Línea de tiempo y progreso de todos los proyectos' },
+  'analytics':    { title: 'Equipo Analítica',       sub: 'Proyectos de Miguel Padilla y Andres Holguin' },
+  'historial':    { title: 'Historial',              sub: 'Todos los proyectos finalizados' },
+  'users':        { title: 'Usuarios',               sub: 'Gestión del equipo — roles, accesos y estadísticas' },
+  'solicitudes':  { title: 'Solicitudes',            sub: 'Envía y haz seguimiento a tus solicitudes de automatización' },
 };
 
 const STATUS_NAMES = {
@@ -29,18 +32,24 @@ const STATUS_NAMES = {
   standby: 'En standby', testing: 'En testing', done: 'Finalizado',
 };
 
+function defaultSection(role) {
+  if (role === 'user') return 'solicitudes';
+  return 'dashboard';
+}
+
 export default function App() {
   const { user, loading, logout } = useAuth();
   const { toasts, show: showToast, remove: removeToast } = useToast();
 
-  const [section, setSection]       = useState('dashboard');
+  const [section, setSection]         = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sectionKey, setSectionKey] = useState(0);
-  const [projects, setProjects]     = useState([]);
-  const [users, setUsers]           = useState([]);
+  const [sectionKey, setSectionKey]   = useState(0);
+  const [projects, setProjects]       = useState([]);
+  const [users, setUsers]             = useState([]);
 
   const [projModal, setProjModal]     = useState({ open: false, project: null, defStatus: null, defAssigneeId: null });
   const [detailModal, setDetailModal] = useState({ open: false, projectId: null });
+  const [userModal, setUserModal]     = useState({ open: false, user: null });
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -52,6 +61,11 @@ export default function App() {
   }, [user]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Set default section based on role after user loads
+  useEffect(() => {
+    if (user) setSection(defaultSection(user.role));
+  }, [user?.role]);
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text2)', fontFamily: 'var(--font)', gap: 10 }}>
@@ -114,19 +128,13 @@ export default function App() {
   const handleMoveCard = async (projectId, newStatus) => {
     const p = projects.find(x => x.id === projectId);
     if (!p || p.status === newStatus) return;
-    // Optimistic update
     setProjects(ps => ps.map(x => x.id === projectId ? { ...x, status: newStatus } : x));
     try {
       const updated = await projectsAPI.update(projectId, {
-        name:        p.name,
-        description: p.description,
-        client:      p.client,
-        status:      newStatus,
-        priority:    p.priority || 'mid',
-        assigneeId:  p.assigneeId,
-        startDate:   p.startDate,
-        dueDate:     p.dueDate,
-        progress:    p.progress || 0,
+        name: p.name, description: p.description, client: p.client,
+        status: newStatus, priority: p.priority || 'mid',
+        assigneeId: p.assigneeId, startDate: p.startDate,
+        dueDate: p.dueDate, progress: p.progress || 0,
       });
       setProjects(ps => ps.map(x => x.id === updated.id ? updated : x));
       showToast(`Movido a "${STATUS_NAMES[newStatus]}"`, 'success');
@@ -135,6 +143,29 @@ export default function App() {
       showToast('Error al mover el proyecto', 'error');
     }
   };
+
+  // User CRUD handlers
+  const handleSaveUser = async (data, id) => {
+    if (id) {
+      const updated = await usersAPI.update(id, data);
+      setUsers(us => us.map(u => u.id === updated.id ? updated : u));
+      showToast(`Usuario "${updated.name}" actualizado`, 'success');
+    } else {
+      const created = await usersAPI.create(data);
+      setUsers(us => [...us, created]);
+      showToast(`Usuario "${created.name}" creado`, 'success');
+    }
+    setUserModal({ open: false, user: null });
+  };
+
+  const handleDeleteUser = async (id) => {
+    const u = users.find(x => x.id === id);
+    await usersAPI.remove(id);
+    setUsers(us => us.filter(x => x.id !== id));
+    showToast(`"${u?.name}" eliminado`, 'error');
+  };
+
+  const showNewProject = section === 'my-kanban' || section === 'team-kanban';
 
   return (
     <div className="layout">
@@ -156,7 +187,7 @@ export default function App() {
             </div>
           </div>
           <div className="topbar-right">
-            {(section === 'my-kanban' || section === 'team-kanban') && (
+            {showNewProject && (
               <button className="btn btn-primary" onClick={() => openNewProject('backlog')}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -167,9 +198,14 @@ export default function App() {
           </div>
         </div>
 
-        {/* Content with section enter animation */}
+        {/* Content */}
         <div className="content">
           <div key={sectionKey} className="section-enter">
+
+            {section === 'solicitudes' && (
+              <SolicitudesView user={user} />
+            )}
+
             {section === 'dashboard' && (
               <DashboardView projects={projects} users={users} onCardClick={openDetail} />
             )}
@@ -194,11 +230,7 @@ export default function App() {
             )}
 
             {section === 'analytics' && (
-              <AnalyticsTeamView
-                projects={projects}
-                users={users}
-                onCardClick={openDetail}
-              />
+              <AnalyticsTeamView projects={projects} users={users} onCardClick={openDetail} />
             )}
 
             {section === 'historial' && (
@@ -206,7 +238,14 @@ export default function App() {
             )}
 
             {section === 'users' && user?.role === 'admin' && (
-              <UsersView projects={projects} users={users} currentUser={user} />
+              <UsersView
+                users={users}
+                projects={projects}
+                currentUser={user}
+                onEdit={(u) => setUserModal({ open: true, user: u })}
+                onDelete={handleDeleteUser}
+                onAdd={() => setUserModal({ open: true, user: null })}
+              />
             )}
 
             {section === 'gantt' && (
@@ -228,6 +267,7 @@ export default function App() {
                 )}
               </>
             )}
+
           </div>
         </div>
       </div>
@@ -252,6 +292,13 @@ export default function App() {
           setTimeout(() => openEditProject(id), 100);
         }}
         onAddLog={handleAddLog}
+      />
+
+      <UserModal
+        open={userModal.open}
+        user={userModal.user}
+        onSave={handleSaveUser}
+        onClose={() => setUserModal({ open: false, user: null })}
       />
 
       <Toast toasts={toasts} onRemove={removeToast} />
