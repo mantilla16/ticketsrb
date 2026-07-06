@@ -122,17 +122,34 @@ export default function UsersView({ users, projects, currentUser, onEdit, onDele
 
       {/* Delete confirm */}
       {delConfirm && (
-        <div className="modal-backdrop" onClick={() => setDelConfirm(null)}>
-          <div className="modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-title" style={{ marginBottom: 10 }}>Eliminar usuario</div>
-            <p style={{ fontSize: 13, color: 'var(--text2)', margin: '0 0 20px' }}>
-              ¿Eliminar a <strong>{delConfirm.name}</strong>? Esta acción no se puede deshacer. Sus proyectos quedarán sin asignado.
+        <div className="um-backdrop" onClick={() => setDelConfirm(null)}>
+          <div className="um-del-modal" onClick={e => e.stopPropagation()}>
+            <div className="um-del-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+              </svg>
+            </div>
+            <div className="um-del-title">Eliminar usuario</div>
+            <div className="um-del-user">
+              <div className={`uv-avatar-sm ${colorClass(delConfirm.colorIndex)}`}>{delConfirm.initials}</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{delConfirm.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--text3)' }}>{delConfirm.email}</div>
+              </div>
+            </div>
+            <p className="um-del-desc">
+              Esta acción es <strong>irreversible</strong>. El usuario perderá acceso al sistema y sus proyectos quedarán sin asignado.
             </p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-ghost" onClick={() => setDelConfirm(null)} style={{ flex: 1, justifyContent: 'center' }}>Cancelar</button>
-              <button className="btn" onClick={executeDelete}
-                style={{ flex: 1, justifyContent: 'center', background: 'var(--high)', color: '#fff', border: 'none' }}>
-                Eliminar
+            <div className="um-del-actions">
+              <button className="btn btn-ghost" onClick={() => setDelConfirm(null)} style={{ flex: 1, justifyContent: 'center' }}>
+                Cancelar
+              </button>
+              <button className="um-del-btn" onClick={executeDelete}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                </svg>
+                Sí, eliminar
               </button>
             </div>
           </div>
