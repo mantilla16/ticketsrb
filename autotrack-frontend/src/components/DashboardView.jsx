@@ -1,11 +1,11 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { colorClass } from '../utils/helpers';
 
-const STATUS_COLOR = { progress: '#f9924d', testing: '#e87d3a', standby: '#78716C', backlog: '#a86040', done: '#16A34A' };
+const STATUS_COLOR = { progress: '#f9924d', testing: '#e87d3a', standby: '#78716C', backlog: '#a86040', done: '#16A34A', soporte: '#0891b2' };
 
-const STATUS_DOT   = { backlog:'#a86040', progress:'#f9924d', standby:'#78716C', testing:'#e87d3a', done:'#16A34A' };
-const STATUS_LABEL = { backlog:'Por hacer', progress:'En proceso', standby:'En standby', testing:'En testing', done:'Finalizado' };
-const STATUS_BAR   = { backlog:'#a86040', progress:'#f9924d', standby:'#78716C', testing:'#e87d3a', done:'#16A34A' };
+const STATUS_DOT   = { backlog:'#a86040', progress:'#f9924d', standby:'#78716C', testing:'#e87d3a', done:'#16A34A', soporte:'#0891b2' };
+const STATUS_LABEL = { backlog:'Por hacer', progress:'En proceso', standby:'En standby', testing:'En testing', done:'Finalizado', soporte:'En soporte' };
+const STATUS_BAR   = { backlog:'#a86040', progress:'#f9924d', standby:'#78716C', testing:'#e87d3a', done:'#16A34A', soporte:'#0891b2' };
 
 /* ── Animated counter hook ── */
 function useCountUp(end, duration = 700) {

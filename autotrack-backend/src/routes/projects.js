@@ -64,7 +64,7 @@ async function fetchProject(id) {
 
 const validators = [
   body('name').notEmpty().trim().withMessage('Nombre requerido'),
-  body('status').isIn(['backlog', 'progress', 'standby', 'testing', 'done']),
+  body('status').isIn(['backlog', 'progress', 'standby', 'testing', 'done', 'soporte']),
   body('priority').isIn(['high', 'mid', 'low']),
   body('progress').isInt({ min: 0, max: 100 }),
 ];

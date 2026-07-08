@@ -44,6 +44,7 @@
   --c-standby:  #78716C;  --c-standby-bg:  #F5F5F4;
   --c-testing:  #e87d3a;  --c-testing-bg:  #ffeadb;
   --c-done:     #16A34A;  --c-done-bg:     #DCFCE7;
+  --c-soporte:  #0891b2;  --c-soporte-bg:  #e0f2fe;
 
   /* Shadows — precise offset, not diffuse blobs */
   --sh:    0 1px 2px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04);
@@ -230,6 +231,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .status-standby  { background: var(--c-standby-bg);  color: var(--c-standby);  }
 .status-testing  { background: var(--c-testing-bg);  color: var(--c-testing);  }
 .status-done     { background: var(--c-done-bg);     color: var(--c-done);     }
+.status-soporte  { background: var(--c-soporte-bg);  color: var(--c-soporte);  }
 
 .priority-pill {
   display: inline-flex; align-items: center;

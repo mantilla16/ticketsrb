@@ -18,19 +18,21 @@ import DetailModal from './components/DetailModal';
 import Toast, { useToast } from './components/Toast';
 
 const TITLES = {
-  'dashboard':    { title: 'Dashboard ejecutivo',   sub: 'Resumen general del portafolio de automatización' },
-  'my-kanban':    { title: 'Mi Kanban',              sub: 'Vista personal — organiza tus proyectos por estado' },
-  'team-kanban':  { title: 'Kanban del equipo',      sub: 'Proyectos asignados por ingeniero' },
-  'gantt':        { title: 'Diagrama de Gantt',      sub: 'Línea de tiempo y progreso de todos los proyectos' },
-  'analytics':    { title: 'Equipo Analítica',       sub: 'Proyectos de Miguel Padilla y Andres Holguin' },
-  'historial':    { title: 'Historial',              sub: 'Todos los proyectos finalizados' },
-  'users':        { title: 'Usuarios',               sub: 'Gestión del equipo — roles, accesos y estadísticas' },
-  'solicitudes':  { title: 'Solicitudes',            sub: 'Envía y haz seguimiento a tus solicitudes de automatización' },
+  'dashboard':    { title: 'Dashboard ejecutivo',      sub: 'Resumen general del portafolio de automatización' },
+  'my-kanban':    { title: 'Mi Kanban',                sub: 'Vista personal — organiza tus proyectos por estado' },
+  'team-kanban':  { title: 'Equipo Automatización',    sub: 'Proyectos asignados por ingeniero' },
+  'gantt':        { title: 'Cronograma',               sub: 'Línea de tiempo y progreso de todos los proyectos' },
+  'analytics':    { title: 'Equipo Analítica',         sub: 'Proyectos de Miguel Padilla y Andres Holguin' },
+  'historial':    { title: 'Historial',                sub: 'Proyectos finalizados y cerrados' },
+  'users':        { title: 'Usuarios',                 sub: 'Gestión del equipo — roles, accesos y estadísticas' },
+  'solicitudes':  { title: 'Centro de Solicitudes',    sub: 'Gestión de requerimientos entrantes desde otras áreas' },
+  'config':       { title: 'Configuración',            sub: 'Ajustes generales de la plataforma' },
 };
 
 const STATUS_NAMES = {
   backlog: 'Por hacer', progress: 'En proceso',
-  standby: 'En standby', testing: 'En testing', done: 'Finalizado',
+  standby: 'En standby', testing: 'En testing',
+  done: 'Finalizado', soporte: 'En soporte',
 };
 
 function defaultSection(role) {
@@ -254,6 +256,10 @@ export default function App() {
 
             {section === 'historial' && (
               <HistorialView projects={projects} users={users} onCardClick={openDetail} />
+            )}
+
+            {section === 'config' && user?.role === 'admin' && (
+              <div style={{ padding: 40, color: 'var(--text3)', fontSize: 14 }}>Módulo de configuración — próximamente.</div>
             )}
 
             {section === 'users' && user?.role === 'admin' && (

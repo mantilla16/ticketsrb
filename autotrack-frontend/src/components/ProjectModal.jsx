@@ -111,6 +111,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                 <option value="standby">En standby</option>
                 <option value="testing">En testing</option>
                 <option value="done">Finalizado</option>
+                <option value="soporte">En soporte</option>
               </select>
             </div>
             <div className="form-group">

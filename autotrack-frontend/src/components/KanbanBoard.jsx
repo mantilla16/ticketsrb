@@ -8,6 +8,7 @@ const COLS = [
   { key: 'standby',  label: 'En standby', dot: 'var(--c-standby)'  },
   { key: 'testing',  label: 'En testing', dot: 'var(--c-testing)'  },
   { key: 'done',     label: 'Finalizado', dot: 'var(--c-done)'     },
+  { key: 'soporte',  label: 'En soporte', dot: 'var(--c-soporte)'  },
 ];
 
 const DONE_PREVIEW = 5;

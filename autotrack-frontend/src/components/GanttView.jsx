@@ -2,15 +2,17 @@ import { fmtDate, colorClass } from '../utils/helpers';
 
 const STATUS_CLS = {
   backlog: 'status-backlog', progress: 'status-progress',
-  standby: 'status-standby', testing: 'status-testing', done: 'status-done',
+  standby: 'status-standby', testing: 'status-testing',
+  done: 'status-done', soporte: 'status-soporte',
 };
 const STATUS_L = {
   backlog: 'Por hacer', progress: 'En proceso',
-  standby: 'En standby', testing: 'En testing', done: 'Finalizado',
+  standby: 'En standby', testing: 'En testing',
+  done: 'Finalizado', soporte: 'En soporte',
 };
 const BAR_COLOR = {
   backlog: '#d4b8a8', progress: '#f9924d',
-  standby: '#A8A29E', testing: '#e87d3a', done: '#16A34A',
+  standby: '#A8A29E', testing: '#e87d3a', done: '#16A34A', soporte: '#0891b2',
 };
 
 export default function GanttView({ projects, onRowClick }) {
