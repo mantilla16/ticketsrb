@@ -52,8 +52,8 @@
   --sh-lg: 0 20px 60px rgba(0,0,0,.14), 0 4px 20px rgba(0,0,0,.07);
 
   /* Geometry */
-  --radius:    8px;
-  --radius-sm: 6px;
+  --radius:    12px;
+  --radius-sm: 8px;
   --radius-pill: 999px;
 
   /* Typography */
@@ -114,7 +114,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 /* ════ LAYOUT ════ */
 .layout { display:grid; grid-template-columns:var(--sidebar-w) 1fr; min-height:100vh; }
 .main-col { display:flex; flex-direction:column; min-height:100vh; overflow-x:hidden; }
-.content  { flex:1; padding:28px 30px 60px; }
+.content  { flex:1; padding:32px 36px 72px; max-width:1560px; }
 
 /* ════ SIDEBAR — solid dark, no gradient animation ════ */
 .sidebar {
@@ -447,20 +447,41 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .dash-num { font-size:38px; font-weight:800; font-family:var(--mono); color:var(--text); line-height:1; margin-bottom:10px; overflow:hidden; }
 .dash-num-inner { display:inline-block; animation:countUp .55s var(--ease-spring) both; }
 
-/* Colored gradient KPI cards */
-.dash-card-colored { border: none !important; }
-.dash-card-colored::before { background: rgba(255,255,255,.18) !important; }
-.dash-card-colored .dash-card-label { color: rgba(255,255,255,.65) !important; }
-.dash-card-colored .dash-num { color: #fff !important; }
+/* Quiet KPI cards — hairline border carries the structure */
+.kpi-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 16px 12px;
+  transition: border-color .18s, box-shadow .18s, transform .18s;
+}
+.kpi-card:hover { border-color: var(--border2); box-shadow: var(--sh); transform: translateY(-1px); }
+.kpi-head  { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; }
+.kpi-dot   { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.kpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--text3); }
+.kpi-num {
+  font-size: 32px; font-weight: 800; font-family: var(--mono);
+  font-variant-numeric: tabular-nums; color: var(--text);
+  line-height: 1; margin-bottom: 10px; overflow: hidden;
+}
+
+/* Tipo breakdown strip */
+.tipo-mini {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px;
+  transition: border-color .18s;
+}
+.tipo-mini:hover { border-color: var(--border2); }
+.tipo-mini-bar { width: 3px; height: 30px; border-radius: 2px; flex-shrink: 0; }
+.tipo-mini-num { font-size: 20px; font-weight: 800; color: var(--text); line-height: 1; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.tipo-mini-lbl { font-size: 11px; color: var(--text3); margin-top: 3px; }
 
 .chart-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px; }
 .chart-box {
   background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
-  padding:20px; box-shadow:var(--sh); transition:.18s;
+  padding:22px 24px;
 }
-.chart-box:hover { box-shadow:var(--sh-md); }
 .chart-title    { font-size:14px; font-weight:700; color:var(--text); margin-bottom:2px; letter-spacing:-.2px; }
-.chart-subtitle { font-size:11px; color:var(--text3); margin-bottom:16px; }
+.chart-subtitle { font-size:11px; color:var(--text3); margin-bottom:18px; }
 
 .bar-h { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
 .bar-h-label { width:80px; font-size:12px; color:var(--text2); text-align:right; flex-shrink:0; font-weight:500; }

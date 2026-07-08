@@ -231,45 +231,19 @@ function TreemapChart({ projects, users }) {
   );
 }
 
-/* ── KPI card — colored gradient, no flat white ── */
-function KpiCard({ label, value, gradient, spark, color }) {
+/* ── KPI card — quiet surface, color carried by dot + sparkline ── */
+function KpiCard({ label, value, color, spark, alert }) {
   const animated = useCountUp(value);
-  const cardRef  = useRef(null);
-
-  const handleMouseMove = (e) => {
-    if (!cardRef.current) return;
-    const el = cardRef.current;
-    const r  = el.getBoundingClientRect();
-    const x  = (e.clientX - r.left) / r.width;
-    const y  = (e.clientY - r.top)  / r.height;
-    const rX = (y - 0.5) * -8;
-    const rY = (x - 0.5) *  8;
-    el.style.transition = 'box-shadow .08s';
-    el.style.transform  = `perspective(700px) rotateX(${rX}deg) rotateY(${rY}deg) translateY(-3px) scale(1.01)`;
-    el.style.boxShadow  = `0 20px 50px rgba(0,0,0,.25)`;
-  };
-
-  const handleMouseLeave = () => {
-    if (!cardRef.current) return;
-    const el = cardRef.current;
-    el.style.transition = 'transform .5s cubic-bezier(.34,1.56,.64,1), box-shadow .4s';
-    el.style.transform  = '';
-    el.style.boxShadow  = '';
-  };
-
   return (
-    <div
-      ref={cardRef}
-      className="dash-card dash-card-colored"
-      style={{ background: gradient, boxShadow: `0 8px 30px rgba(0,0,0,.18)` }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
-      <div className="dash-card-label">{label}</div>
-      <div className="dash-num">
-        <div className="dash-num-inner" key={value}>{animated}</div>
+    <div className="kpi-card">
+      <div className="kpi-head">
+        <span className="kpi-dot" style={{ background: color }} />
+        <span className="kpi-label">{label}</span>
       </div>
-      <Sparkline values={spark} color="rgba(255,255,255,.75)" />
+      <div className="kpi-num" style={alert && value > 0 ? { color } : undefined}>
+        <span className="dash-num-inner" key={value}>{animated}</span>
+      </div>
+      <Sparkline values={spark} color={color} />
     </div>
   );
 }
@@ -401,35 +375,35 @@ export default function DashboardView({ projects, users, onCardClick }) {
         </button>
       </div>
 
-      {/* KPI row — colored gradient cards */}
+      {/* KPI row — quiet cards, semantic dot color */}
       <div className="dash-grid">
-        <KpiCard label="Por hacer"   value={cnt.backlog}  gradient="linear-gradient(135deg,#8a3a10,#c4622d)" spark={[cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog]} />
-        <KpiCard label="En proceso"  value={cnt.progress} gradient="linear-gradient(135deg,#f9924d,#ffbe99)" spark={spark.progress} />
-        <KpiCard label="En testing"  value={cnt.testing}  gradient="linear-gradient(135deg,#5a2807,#e87d3a)" spark={[0,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing]} />
-        <KpiCard label="En standby"  value={cnt.standby}  gradient="linear-gradient(135deg,#57534E,#78716C)" spark={spark.standby} />
-        <KpiCard label="Finalizados" value={cnt.done}     gradient="linear-gradient(135deg,#14532D,#16A34A)" spark={spark.done} />
-        <KpiCard label="Vencidos"    value={overdueCount} gradient="linear-gradient(135deg,#991b1b,#DC2626)" spark={[0,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount]} />
-        <KpiCard label="En soporte"  value={cnt.soporte}  gradient="linear-gradient(135deg,#0e7490,#0891b2)" spark={[0,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte]} />
-        <KpiCard label="Total"       value={total}        gradient="linear-gradient(135deg,#5a2807,#f9924d)" spark={spark.total} />
+        <KpiCard label="Por hacer"   value={cnt.backlog}  color="#a86040" spark={[cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog]} />
+        <KpiCard label="En proceso"  value={cnt.progress} color="#f9924d" spark={spark.progress} />
+        <KpiCard label="En testing"  value={cnt.testing}  color="#e87d3a" spark={[0,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing]} />
+        <KpiCard label="En standby"  value={cnt.standby}  color="#78716C" spark={spark.standby} />
+        <KpiCard label="Finalizados" value={cnt.done}     color="#16A34A" spark={spark.done} />
+        <KpiCard label="Vencidos"    value={overdueCount} color="#DC2626" alert spark={[0,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount]} />
+        <KpiCard label="En soporte"  value={cnt.soporte}  color="#0891b2" spark={[0,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte]} />
+        <KpiCard label="Total"       value={total}        color="#5a2807" spark={spark.total} />
       </div>
 
-      {/* Tipo breakdown */}
+      {/* Tipo breakdown — quiet strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginTop: 12 }}>
         {Object.entries(TIPO_INFO).map(([key, info]) => (
-          <div key={key} style={{ background: info.bg, border: `1px solid ${info.color}30`, borderRadius: 'var(--radius)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 6, height: 36, borderRadius: 3, background: info.color, flexShrink: 0 }} />
+          <div key={key} className="tipo-mini">
+            <div className="tipo-mini-bar" style={{ background: info.color }} />
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: info.color, lineHeight: 1, fontFamily: 'var(--mono)' }}>{tipoCnt[key]}</div>
-              <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>{info.label}</div>
+              <div className="tipo-mini-num">{tipoCnt[key]}</div>
+              <div className="tipo-mini-lbl">{info.label}</div>
             </div>
           </div>
         ))}
         {upcomingCount > 0 && (
-          <div style={{ background: 'rgba(217,119,6,.10)', border: '1px solid rgba(217,119,6,.3)', borderRadius: 'var(--radius)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 6, height: 36, borderRadius: 3, background: '#d97706', flexShrink: 0 }} />
+          <div className="tipo-mini">
+            <div className="tipo-mini-bar" style={{ background: '#d97706' }} />
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: '#d97706', lineHeight: 1, fontFamily: 'var(--mono)' }}>{upcomingCount}</div>
-              <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>Entregas próx.</div>
+              <div className="tipo-mini-num" style={{ color: '#d97706' }}>{upcomingCount}</div>
+              <div className="tipo-mini-lbl">Entregas próx.</div>
             </div>
           </div>
         )}
