@@ -440,7 +440,7 @@ export default function DashboardView({ projects, users, onCardClick }) {
         <div className="chart-box">
           <div className="chart-title">Carga por persona</div>
           <div className="chart-subtitle">Tamaño = total proyectos · intensidad = % activos</div>
-          <TreemapChart projects={projects} users={users} />
+          <TreemapChart projects={projects} users={users.filter(u => ['admin','engineer','leader_analytics','member_analytics'].includes(u.role))} />
         </div>
 
         <div className="chart-box">
@@ -476,7 +476,7 @@ export default function DashboardView({ projects, users, onCardClick }) {
         <div className="chart-title">Carga del equipo</div>
         <div className="chart-subtitle" style={{ marginBottom: 18 }}>Proyectos activos por ingeniero — clic para expandir</div>
         {users.length === 0 && <div className="empty">Sin ingenieros registrados</div>}
-        <EngWorkload projects={projects} users={users} onCardClick={onCardClick} />
+        <EngWorkload projects={projects} users={users.filter(u => ['admin','engineer','leader_analytics','member_analytics'].includes(u.role))} onCardClick={onCardClick} />
       </div>
     </>
   );
