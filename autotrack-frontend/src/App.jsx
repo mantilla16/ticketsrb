@@ -26,7 +26,6 @@ const TITLES = {
   'historial':    { title: 'Historial',                sub: 'Proyectos finalizados y cerrados' },
   'users':        { title: 'Usuarios',                 sub: 'Gestión del equipo — roles, accesos y estadísticas' },
   'solicitudes':  { title: 'Centro de Solicitudes',    sub: 'Gestión de requerimientos entrantes desde otras áreas' },
-  'config':       { title: 'Configuración',            sub: 'Ajustes generales de la plataforma' },
 };
 
 const STATUS_NAMES = {
@@ -304,10 +303,6 @@ export default function App() {
 
             {section === 'historial' && (
               <HistorialView projects={projects} users={users} onCardClick={openDetail} />
-            )}
-
-            {section === 'config' && user?.role === 'admin' && (
-              <div style={{ padding: 40, color: 'var(--text3)', fontSize: 14 }}>Módulo de configuración — próximamente.</div>
             )}
 
             {section === 'users' && user?.role === 'admin' && (

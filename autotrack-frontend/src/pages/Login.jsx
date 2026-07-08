@@ -70,12 +70,12 @@ export default function Login() {
             </svg>
           </div>
           <div>
-            <div className="login-logo">Auto<span>Track</span></div>
+            <div className="login-logo">AMBAR<span>C</span></div>
             <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: -2 }}>Gestión de Proyectos</div>
           </div>
         </div>
 
-        <div className="login-sub">Sistema de seguimiento del equipo de automatización</div>
+        <div className="login-sub">Plataforma de gestión de los equipos de Automatización y Analítica</div>
 
         <div className="login-tabs">
           <button className={`login-tab${tab === 'login' ? ' active' : ''}`} onClick={() => switchTab('login')}>
