@@ -5,6 +5,8 @@ const EMPTY = {
   status: 'backlog', priority: 'mid', assigneeId: '',
   startDate: '', dueDate: '', progress: 0,
   tipo: 'automatizacion', docUrl: '',
+  coAssigneeId: '', participationAuto: '', participationAnalitica: '',
+  progressAuto: 0, progressAnalitica: 0,
 };
 
 const TIPO_OPTIONS = [
@@ -14,7 +16,11 @@ const TIPO_OPTIONS = [
   { value: 'asignacion_flash',label: 'Asignación Flash' },
 ];
 
-export default function ProjectModal({ open, project, defStatus, defAssigneeId, users, onSave, onDelete, onClose }) {
+const LEADER_ROLES = ['admin', 'leader_analytics'];
+
+export default function ProjectModal({ open, project, defStatus, defAssigneeId, users, onSave, onDelete, onClose, currentUser }) {
+  const isLeader  = LEADER_ROLES.includes(currentUser?.role);
+  const canDelete = isLeader;
   const [form, setForm]         = useState(EMPTY);
   const [error, setError]       = useState('');
   const [saving, setSaving]     = useState(false);
@@ -26,17 +32,22 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
       setDelConfirm(false);
       if (project) {
         setForm({
-          name:        project.name,
-          description: project.description || '',
-          client:      project.client || '',
-          status:      project.status,
-          priority:    project.priority || 'mid',
-          assigneeId:  project.assigneeId != null ? String(project.assigneeId) : '',
-          startDate:   project.startDate || '',
-          dueDate:     project.dueDate || '',
-          progress:    project.progress || 0,
-          tipo:        project.tipo || 'automatizacion',
-          docUrl:      project.docUrl || '',
+          name:                  project.name,
+          description:           project.description || '',
+          client:                project.client || '',
+          status:                project.status,
+          priority:              project.priority || 'mid',
+          assigneeId:            project.assigneeId != null ? String(project.assigneeId) : '',
+          startDate:             project.startDate || '',
+          dueDate:               project.dueDate || '',
+          progress:              project.progress || 0,
+          tipo:                  project.tipo || 'automatizacion',
+          docUrl:                project.docUrl || '',
+          coAssigneeId:          project.coAssigneeId != null ? String(project.coAssigneeId) : '',
+          participationAuto:     project.participationAuto || '',
+          participationAnalitica:project.participationAnalitica || '',
+          progressAuto:          project.progressAuto || 0,
+          progressAnalitica:     project.progressAnalitica || 0,
         });
       } else {
         setForm({ ...EMPTY, status: defStatus || 'backlog', assigneeId: defAssigneeId != null ? String(defAssigneeId) : '' });
@@ -52,17 +63,22 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
     setSaving(true); setError('');
     try {
       await onSave({
-        name:        form.name.trim(),
-        description: form.description.trim() || null,
-        client:      form.client.trim() || null,
-        status:      form.status,
-        priority:    form.priority,
-        assigneeId:  form.assigneeId ? parseInt(form.assigneeId) : null,
-        startDate:   form.startDate || null,
-        dueDate:     form.dueDate || null,
-        progress:    parseInt(form.progress) || 0,
-        tipo:        form.tipo || 'automatizacion',
-        docUrl:      form.docUrl.trim() || null,
+        name:                  form.name.trim(),
+        description:           form.description.trim() || null,
+        client:                form.client.trim() || null,
+        status:                form.status,
+        priority:              form.priority,
+        assigneeId:            form.assigneeId ? parseInt(form.assigneeId) : null,
+        startDate:             form.startDate || null,
+        dueDate:               form.dueDate || null,
+        progress:              parseInt(form.progress) || 0,
+        tipo:                  form.tipo || 'automatizacion',
+        docUrl:                form.docUrl.trim() || null,
+        coAssigneeId:          form.coAssigneeId ? parseInt(form.coAssigneeId) : null,
+        participationAuto:     form.participationAuto.trim() || null,
+        participationAnalitica:form.participationAnalitica.trim() || null,
+        progressAuto:          parseInt(form.progressAuto) || 0,
+        progressAnalitica:     parseInt(form.progressAnalitica) || 0,
       });
     } catch (err) {
       setError(err.error || err.errors?.[0]?.msg || 'Error al guardar');
@@ -139,13 +155,59 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Asignar a</label>
-              <select className="form-select" value={form.assigneeId} onChange={set('assigneeId')}>
+              <label className="form-label">Responsable principal</label>
+              <select className="form-select" value={form.assigneeId} onChange={set('assigneeId')} disabled={!isLeader}>
                 <option value="">— Sin asignar —</option>
                 {users.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
               </select>
             </div>
           </div>
+
+          {/* Shared project extra fields */}
+          {form.tipo === 'compartido' && (
+            <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#0891b2' }}>
+                Campos del proyecto compartido
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Responsable Analítica</label>
+                  <select className="form-select" value={form.coAssigneeId} onChange={set('coAssigneeId')} disabled={!isLeader}>
+                    <option value="">— Sin asignar —</option>
+                    {users.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Participación Automatización</label>
+                  <input className="form-input" value={form.participationAuto} onChange={set('participationAuto')} placeholder="Integración, flujo, agente..." />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Participación Analítica</label>
+                  <input className="form-input" value={form.participationAnalitica} onChange={set('participationAnalitica')} placeholder="Dashboard, indicadores..." />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Avance Automatización</span>
+                    <span style={{ fontFamily: 'var(--mono)', color: '#f9924d', fontWeight: 700, textTransform: 'none', letterSpacing: 0 }}>{form.progressAuto}%</span>
+                  </label>
+                  <input type="range" min={0} max={100} step={5} value={form.progressAuto}
+                    onChange={e => setForm(f => ({ ...f, progressAuto: parseInt(e.target.value) }))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Avance Analítica</span>
+                    <span style={{ fontFamily: 'var(--mono)', color: '#7c3aed', fontWeight: 700, textTransform: 'none', letterSpacing: 0 }}>{form.progressAnalitica}%</span>
+                  </label>
+                  <input type="range" min={0} max={100} step={5} value={form.progressAnalitica}
+                    onChange={e => setForm(f => ({ ...f, progressAnalitica: parseInt(e.target.value) }))} />
+                </div>
+              </div>
+            </div>
+          )}
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Fecha de inicio</label>
@@ -167,12 +229,12 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         </div>
 
         <div className="modal-footer">
-          {isEdit && !delConfirm && (
+          {isEdit && canDelete && !delConfirm && (
             <button className="btn btn-danger btn-sm" onClick={() => setDelConfirm(true)} disabled={saving} style={{ marginRight: 'auto' }}>
               Eliminar
             </button>
           )}
-          {isEdit && delConfirm && (
+          {isEdit && canDelete && delConfirm && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 'auto' }}>
               <span style={{ fontSize: 13, color: 'var(--text2)' }}>¿Eliminar este proyecto?</span>
               <button className="btn btn-danger btn-sm" onClick={handleDelete} disabled={saving}>

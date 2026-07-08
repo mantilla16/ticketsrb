@@ -36,9 +36,12 @@ const STATUS_NAMES = {
 };
 
 function defaultSection(role) {
-  if (role === 'user') return 'solicitudes';
+  if (role === 'user')             return 'solicitudes';
+  if (role === 'member_analytics') return 'my-kanban';
   return 'dashboard';
 }
+
+const LEADER_ROLES = ['admin', 'leader_analytics'];
 
 export default function App() {
   const { user, loading, logout } = useAuth();
@@ -177,7 +180,8 @@ export default function App() {
     }
   };
 
-  const showNewProject = section === 'my-kanban' || section === 'team-kanban';
+  const isLeader = LEADER_ROLES.includes(user?.role);
+  const showNewProject = isLeader && (section === 'my-kanban' || section === 'team-kanban');
 
   return (
     <div className="layout">
@@ -302,6 +306,7 @@ export default function App() {
         open={projModal.open}
         project={projModal.project}
         defStatus={projModal.defStatus}
+        currentUser={user}
         defAssigneeId={projModal.defAssigneeId}
         users={users}
         onSave={handleSaveProject}
@@ -312,6 +317,8 @@ export default function App() {
       <DetailModal
         open={detailModal.open}
         project={detailProject}
+        currentUser={user}
+        users={users}
         onClose={() => setDetailModal({ open: false, projectId: null })}
         onEdit={(id) => {
           setDetailModal({ open: false, projectId: null });

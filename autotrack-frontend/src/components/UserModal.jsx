@@ -3,39 +3,45 @@ import { useState, useEffect } from 'react';
 const ROLES = [
   {
     value: 'admin',
-    label: 'Administrador',
-    desc: 'Acceso total — proyectos, equipo y configuración',
-    color: '#92400E',
-    bg: '#FEF3C7',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
-    ),
+    label: 'Líder Automatización',
+    desc: 'Acceso total — proyectos, equipo, solicitudes y configuración',
+    color: '#92400E', bg: '#FEF3C7',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  },
+  {
+    value: 'leader_analytics',
+    label: 'Líder Analítica',
+    desc: 'Gestiona proyectos de analítica, asigna miembros y revisa solicitudes',
+    color: '#5B21B6', bg: '#F5F3FF',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>,
   },
   {
     value: 'engineer',
-    label: 'Ingeniero',
-    desc: 'Gestiona proyectos, Kanban y cronograma',
-    color: '#3730A3',
-    bg: '#EEF2FF',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-      </svg>
-    ),
+    label: 'Ingeniero Automatización',
+    desc: 'Ve proyectos asignados, actualiza avance y agrega notas',
+    color: '#3730A3', bg: '#EEF2FF',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
+  },
+  {
+    value: 'member_analytics',
+    label: 'Miembro Analítica',
+    desc: 'Ve proyectos de analítica asignados y actualiza avance',
+    color: '#0E7490', bg: '#ECFEFF',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9h.01M15 9h.01M9 15s1 1 3 1 3-1 3-1"/></svg>,
+  },
+  {
+    value: 'manager',
+    label: 'Gerente',
+    desc: 'Ve el dashboard ejecutivo, historial y cronograma — solo lectura',
+    color: '#047857', bg: '#ECFDF5',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>,
   },
   {
     value: 'user',
-    label: 'Usuario',
-    desc: 'Solo puede enviar solicitudes de automatización',
-    color: '#0369A1',
-    bg: '#F0F9FF',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-      </svg>
-    ),
+    label: 'Área Solicitante',
+    desc: 'Solo puede enviar solicitudes y ver su estado',
+    color: '#0369A1', bg: '#F0F9FF',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   },
 ];
 

@@ -94,7 +94,7 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
 });
 
 // PUT /api/solicitudes/:id/status  — solo admin
-router.put('/:id/status', auth, requireRole('admin'), async (req, res) => {
+router.put('/:id/status', auth, requireRole('admin', 'leader_analytics'), async (req, res) => {
   const { status, notes, assigneeId } = req.body;
   const valid = ['recibido','en_revision','reunion_agendada','aceptado','rechazado','convertido',
                  'nueva','en_proceso','completada','rechazada'];
@@ -118,7 +118,7 @@ router.put('/:id/status', auth, requireRole('admin'), async (req, res) => {
 });
 
 // PATCH /api/solicitudes/:id/project-created  — solo admin
-router.patch('/:id/project-created', auth, requireRole('admin'), async (req, res) => {
+router.patch('/:id/project-created', auth, requireRole('admin', 'leader_analytics'), async (req, res) => {
   try {
     await pool.query(
       'UPDATE solicitudes SET project_created=TRUE WHERE id=$1',
@@ -132,7 +132,7 @@ router.patch('/:id/project-created', auth, requireRole('admin'), async (req, res
 });
 
 // DELETE /api/solicitudes/:id  — solo admin
-router.delete('/:id', auth, requireRole('admin'), async (req, res) => {
+router.delete('/:id', auth, requireRole('admin', 'leader_analytics'), async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT file_path FROM solicitudes WHERE id=$1', [req.params.id]
