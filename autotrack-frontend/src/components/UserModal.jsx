@@ -39,7 +39,7 @@ const ROLES = [
   },
 ];
 
-const AVATAR_COLORS = ['#4F5FE8','#6D7AE8','#3A4A9E','#8B91C4','#2D3578'];
+const AVATAR_COLORS = ['#f9924d','#d4763a','#5a2807','#c4622d','#8a3a10'];
 
 function pwStrength(pw) {
   if (!pw) return 0;

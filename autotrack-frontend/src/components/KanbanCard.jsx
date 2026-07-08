@@ -22,8 +22,8 @@ export default function KanbanCard({ project, onClick, compact = false, index = 
     const rY = (x - 0.5) *  14;
     el.style.transition = 'box-shadow .08s, border-color .08s';
     el.style.transform  = `perspective(800px) rotateX(${rX}deg) rotateY(${rY}deg) translateY(-6px) scale(1.02)`;
-    el.style.boxShadow  = `${rY * 1.2}px ${Math.abs(rX) * 2 + 10}px 40px rgba(91,79,233,.22), 0 4px 12px rgba(0,0,0,.08)`;
-    el.style.borderColor = 'rgba(91,79,233,.35)';
+    el.style.boxShadow  = `${rY * 1.2}px ${Math.abs(rX) * 2 + 10}px 40px rgba(249,146,77,.22), 0 4px 12px rgba(0,0,0,.08)`;
+    el.style.borderColor = 'rgba(249,146,77,.35)';
     el.style.setProperty('--mx', `${x * 100}%`);
     el.style.setProperty('--my', `${y * 100}%`);
   };

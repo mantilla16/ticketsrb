@@ -2,10 +2,10 @@ import { useRef } from 'react';
 import { colorClass } from '../utils/helpers';
 
 const STATUSES = [
-  { id: 'progress', label: 'En proceso', dot: '#4F5FE8' },
+  { id: 'progress', label: 'En proceso', dot: '#f9924d' },
   { id: 'standby',  label: 'Standby',    dot: '#78716C' },
-  { id: 'testing',  label: 'Testing',    dot: '#6D7AE8' },
-  { id: 'backlog',  label: 'Por hacer',  dot: '#8F95A3' },
+  { id: 'testing',  label: 'Testing',    dot: '#e87d3a' },
+  { id: 'backlog',  label: 'Por hacer',  dot: '#a86040' },
   { id: 'done',     label: 'Finalizado', dot: '#16A34A' },
 ];
 
@@ -27,8 +27,8 @@ function MiniCard({ project, onClick, index }) {
     const rY = (x - 0.5) *  10;
     el.style.transition  = 'box-shadow .08s';
     el.style.transform   = `perspective(600px) rotateX(${rX}deg) rotateY(${rY}deg) translateY(-4px) scale(1.02)`;
-    el.style.boxShadow   = `${rY * 1.1}px ${Math.abs(rX) * 2 + 8}px 28px rgba(91,79,233,.2), 0 2px 6px rgba(0,0,0,.06)`;
-    el.style.borderColor = 'rgba(91,79,233,.28)';
+    el.style.boxShadow   = `${rY * 1.1}px ${Math.abs(rX) * 2 + 8}px 28px rgba(249,146,77,.2), 0 2px 6px rgba(0,0,0,.06)`;
+    el.style.borderColor = 'rgba(249,146,77,.28)';
     el.style.setProperty('--mx', `${x * 100}%`);
     el.style.setProperty('--my', `${y * 100}%`);
   };
@@ -103,7 +103,7 @@ export default function AnalyticsTeamView({ projects, users, onCardClick }) {
                   <div className="at-pstat-lbl">Total</div>
                 </div>
                 <div className="at-pstat">
-                  <div className="at-pstat-val" style={{ color: '#4F5FE8' }}>{active}</div>
+                  <div className="at-pstat-val" style={{ color: '#f9924d' }}>{active}</div>
                   <div className="at-pstat-lbl">Activos</div>
                 </div>
                 <div className="at-pstat at-pstat-sep">

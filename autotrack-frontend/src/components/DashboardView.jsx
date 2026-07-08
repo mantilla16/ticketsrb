@@ -1,11 +1,11 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { colorClass } from '../utils/helpers';
 
-const STATUS_COLOR = { progress: '#4F5FE8', testing: '#6D7AE8', standby: '#78716C', backlog: '#8F95A3', done: '#16A34A' };
+const STATUS_COLOR = { progress: '#f9924d', testing: '#e87d3a', standby: '#78716C', backlog: '#a86040', done: '#16A34A' };
 
-const STATUS_DOT   = { backlog:'#8F95A3', progress:'#4F5FE8', standby:'#78716C', testing:'#6D7AE8', done:'#16A34A' };
+const STATUS_DOT   = { backlog:'#a86040', progress:'#f9924d', standby:'#78716C', testing:'#e87d3a', done:'#16A34A' };
 const STATUS_LABEL = { backlog:'Por hacer', progress:'En proceso', standby:'En standby', testing:'En testing', done:'Finalizado' };
-const STATUS_BAR   = { backlog:'#8F95A3', progress:'#4F5FE8', standby:'#78716C', testing:'#6D7AE8', done:'#16A34A' };
+const STATUS_BAR   = { backlog:'#a86040', progress:'#f9924d', standby:'#78716C', testing:'#e87d3a', done:'#16A34A' };
 
 /* ── Animated counter hook ── */
 function useCountUp(end, duration = 700) {
@@ -67,7 +67,7 @@ function Sparkline({ values, color }) {
 }
 
 /* ── Treemap: carga por persona ── */
-const ENG_HEX = ['#4F5FE8', '#6D7AE8', '#3A4A9E', '#8B91C4', '#2D3578'];
+const ENG_HEX = ['#f9924d', '#d4763a', '#5a2807', '#c4622d', '#8a3a10'];
 
 function tmLayout(items, x, y, w, h) {
   if (!items.length) return [];
@@ -222,7 +222,7 @@ function TreemapChart({ projects, users }) {
             <span style={{ fontWeight: 600 }}>{tip.d.total} proyectos</span>
           </div>
           <div className="sc-tip-row" style={{ marginTop: 2 }}>
-            <span style={{ color: '#4F5FE8' }}>{tip.d.active} activos</span>
+            <span style={{ color: '#f9924d' }}>{tip.d.active} activos</span>
             <span className="sc-tip-pct">{tip.d.done} listos</span>
           </div>
         </div>
@@ -373,12 +373,12 @@ export default function DashboardView({ projects, users, onCardClick }) {
     <>
       {/* KPI row — colored gradient cards */}
       <div className="dash-grid">
-        <KpiCard label="Total"       value={total}        gradient="linear-gradient(135deg,#3A4A9E,#4F5FE8)" spark={spark.total} />
-        <KpiCard label="En proceso"  value={cnt.progress} gradient="linear-gradient(135deg,#4F5FE8,#6D7AE8)" spark={spark.progress} />
+        <KpiCard label="Total"       value={total}        gradient="linear-gradient(135deg,#5a2807,#f9924d)" spark={spark.total} />
+        <KpiCard label="En proceso"  value={cnt.progress} gradient="linear-gradient(135deg,#f9924d,#ffbe99)" spark={spark.progress} />
         <KpiCard label="En standby"  value={cnt.standby}  gradient="linear-gradient(135deg,#57534E,#78716C)" spark={spark.standby} />
-        <KpiCard label="En testing"  value={cnt.testing}  gradient="linear-gradient(135deg,#2D3578,#6D7AE8)" spark={[0,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing]} />
+        <KpiCard label="En testing"  value={cnt.testing}  gradient="linear-gradient(135deg,#5a2807,#e87d3a)" spark={[0,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing]} />
         <KpiCard label="Finalizados" value={cnt.done}     gradient="linear-gradient(135deg,#14532D,#16A34A)" spark={spark.done} />
-        <KpiCard label="Por hacer"   value={cnt.backlog}  gradient="linear-gradient(135deg,#474C5C,#8F95A3)" spark={[cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog]} />
+        <KpiCard label="Por hacer"   value={cnt.backlog}  gradient="linear-gradient(135deg,#8a3a10,#c4622d)" spark={[cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog]} />
       </div>
 
       {/* Charts */}
@@ -393,7 +393,7 @@ export default function DashboardView({ projects, users, onCardClick }) {
           <div className="chart-title">Distribución del portafolio</div>
           <div className="chart-subtitle">Por prioridad y estado actual</div>
           <div style={{ marginTop: 20 }}>
-            {[['high','Alta','#DC2626'],['mid','Media','#4F5FE8'],['low','Baja','#16A34A']].map(([k, l, c]) => (
+            {[['high','Alta','#DC2626'],['mid','Media','#f9924d'],['low','Baja','#16A34A']].map(([k, l, c]) => (
               <div className="bar-h" key={k}>
                 <div className="bar-h-label" style={{ width: 58 }}>{l}</div>
                 <div className="bar-h-track">

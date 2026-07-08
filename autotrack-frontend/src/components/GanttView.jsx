@@ -9,8 +9,8 @@ const STATUS_L = {
   standby: 'En standby', testing: 'En testing', done: 'Finalizado',
 };
 const BAR_COLOR = {
-  backlog: '#C4C9D4', progress: '#4F5FE8',
-  standby: '#A8A29E', testing: '#6D7AE8', done: '#16A34A',
+  backlog: '#d4b8a8', progress: '#f9924d',
+  standby: '#A8A29E', testing: '#e87d3a', done: '#16A34A',
 };
 
 export default function GanttView({ projects, onRowClick }) {
