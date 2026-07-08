@@ -1,5 +1,8 @@
 import { fmtDate, colorClass } from '../utils/helpers';
 
+const TIPO_LABEL = { automatizacion: 'Auto', analitica: 'Analítica', compartido: 'Comp.', asignacion_flash: 'Flash' };
+const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', compartido: 'tipo-compartido', asignacion_flash: 'tipo-flash' };
+
 const STATUS_CLS = {
   backlog: 'status-backlog', progress: 'status-progress',
   standby: 'status-standby', testing: 'status-testing',
@@ -14,6 +17,19 @@ const BAR_COLOR = {
   backlog: '#d4b8a8', progress: '#f9924d',
   standby: '#A8A29E', testing: '#e87d3a', done: '#16A34A', soporte: '#0891b2',
 };
+
+function isOverdue(dueDate) {
+  if (!dueDate) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return new Date(dueDate) < today;
+}
+function isUpcoming(dueDate) {
+  if (!dueDate) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d = new Date(dueDate);
+  const diff = (d - today) / 86400000;
+  return diff >= 0 && diff <= 7;
+}
 
 export default function GanttView({ projects, onRowClick }) {
   const active = projects.filter(p => p.status !== 'done');
@@ -45,6 +61,7 @@ export default function GanttView({ projects, onRowClick }) {
           <thead>
             <tr>
               <th style={{ minWidth: 190 }}>Proyecto</th>
+              <th style={{ minWidth: 90 }}>Tipo</th>
               <th style={{ minWidth: 130 }}>Responsable</th>
               <th style={{ minWidth: 100 }}>Estado</th>
               <th style={{ minWidth: 65 }}>Avance</th>
@@ -56,9 +73,12 @@ export default function GanttView({ projects, onRowClick }) {
           <tbody>
             {all.map((p, i) => {
               const hasDates = Boolean(p.startDate && p.dueDate);
-              const eng = p.assignee;
-              const ci  = eng?.colorIndex ?? -1;
-              const pct = p.progress || 0;
+              const eng  = p.assignee;
+              const ci   = eng?.colorIndex ?? -1;
+              const pct  = p.progress || 0;
+              const tipo = p.tipo || 'automatizacion';
+              const overdue  = hasDates && isOverdue(p.dueDate)  && p.status !== 'done';
+              const upcoming = hasDates && !overdue && isUpcoming(p.dueDate);
 
               let left = 0, width = 0;
               if (hasDates && minDate) {
@@ -70,11 +90,18 @@ export default function GanttView({ projects, onRowClick }) {
 
               const isFirstNoDates = !hasDates && withDates.length > 0 && i === withDates.length;
 
+              const rowStyle = {
+                cursor: 'pointer',
+                opacity: hasDates ? 1 : 0.6,
+                ...(overdue  ? { background: 'rgba(220,38,38,.06)' } : {}),
+                ...(upcoming ? { background: 'rgba(217,119,6,.06)' }  : {}),
+              };
+
               return (
                 <>
                   {isFirstNoDates && (
                     <tr key={`divider-${p.id}`}>
-                      <td colSpan={7} style={{ padding: '6px 14px 4px', fontSize: 11, fontWeight: 700, letterSpacing: '.5px', textTransform: 'uppercase', color: 'var(--text3)', background: 'var(--bg)', borderTop: '1px solid var(--border)' }}>
+                      <td colSpan={8} style={{ padding: '6px 14px 4px', fontSize: 11, fontWeight: 700, letterSpacing: '.5px', textTransform: 'uppercase', color: 'var(--text3)', background: 'var(--bg)', borderTop: '1px solid var(--border)' }}>
                         Sin fechas — {withoutDates.length} proyecto{withoutDates.length !== 1 ? 's' : ''}
                       </td>
                     </tr>
@@ -83,10 +110,17 @@ export default function GanttView({ projects, onRowClick }) {
                     className="gantt-row"
                     key={p.id}
                     onClick={() => onRowClick(p.id)}
-                    style={{ cursor: 'pointer', opacity: hasDates ? 1 : 0.6 }}
+                    style={rowStyle}
                   >
                     <td>
-                      <div className="gantt-name" style={{ color: hasDates ? undefined : 'var(--text2)' }}>{p.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {overdue  && <span title="Vencido"  style={{ color: '#DC2626', fontSize: 13 }}>⚑</span>}
+                        {upcoming && <span title="Próxima entrega" style={{ color: '#D97706', fontSize: 13 }}>⏰</span>}
+                        <div className="gantt-name" style={{ color: hasDates ? undefined : 'var(--text2)' }}>{p.name}</div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`tipo-badge ${TIPO_CLS[tipo]}`} style={{ fontSize: 10 }}>{TIPO_LABEL[tipo]}</span>
                     </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -107,8 +141,11 @@ export default function GanttView({ projects, onRowClick }) {
                     <td style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text2)' }}>
                       {hasDates ? fmtDate(p.startDate) : <span style={{ color: 'var(--text3)' }}>—</span>}
                     </td>
-                    <td style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text2)' }}>
-                      {hasDates ? fmtDate(p.dueDate) : <span style={{ color: 'var(--text3)' }}>—</span>}
+                    <td style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>
+                      {hasDates
+                        ? <span style={{ color: overdue ? '#DC2626' : upcoming ? '#D97706' : 'var(--text2)', fontWeight: overdue || upcoming ? 700 : 400 }}>{fmtDate(p.dueDate)}</span>
+                        : <span style={{ color: 'var(--text3)' }}>—</span>
+                      }
                     </td>
                     <td className="gantt-bar-cell">
                       {hasDates ? (

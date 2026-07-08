@@ -138,6 +138,7 @@ export default function App() {
         status: newStatus, priority: p.priority || 'mid',
         assigneeId: p.assigneeId, startDate: p.startDate,
         dueDate: p.dueDate, progress: p.progress || 0,
+        tipo: p.tipo || 'automatizacion', docUrl: p.docUrl || null,
       });
       setProjects(ps => ps.map(x => x.id === updated.id ? updated : x));
       showToast(`Movido a "${STATUS_NAMES[newStatus]}"`, 'success');

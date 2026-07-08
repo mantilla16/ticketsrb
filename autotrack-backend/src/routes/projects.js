@@ -19,6 +19,8 @@ function fmtProject(p, logs = []) {
     client: p.client,
     status: p.status,
     priority: p.priority,
+    tipo: p.tipo || 'automatizacion',
+    docUrl: p.doc_url || null,
     assigneeId: p.assignee_id,
     assignee: p.assignee_id ? {
       id: p.assignee_id,
@@ -67,6 +69,7 @@ const validators = [
   body('status').isIn(['backlog', 'progress', 'standby', 'testing', 'done', 'soporte']),
   body('priority').isIn(['high', 'mid', 'low']),
   body('progress').isInt({ min: 0, max: 100 }),
+  body('tipo').optional().isIn(['automatizacion', 'analitica', 'compartido', 'asignacion_flash']),
 ];
 
 // GET /api/projects
@@ -102,14 +105,15 @@ router.post('/', auth, validators, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, description, client, status, priority, assigneeId, startDate, dueDate, progress } = req.body;
+  const { name, description, client, status, priority, assigneeId, startDate, dueDate, progress, tipo, docUrl } = req.body;
   const id = uid();
   try {
     await pool.query(`
-      INSERT INTO projects (id, name, description, client, status, priority, assignee_id, start_date, due_date, progress, created_by)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      INSERT INTO projects (id, name, description, client, status, priority, assignee_id, start_date, due_date, progress, tipo, doc_url, created_by)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
     `, [id, name, description || null, client || null, status, priority,
-        assigneeId || null, startDate || null, dueDate || null, progress || 0, req.user.id]);
+        assigneeId || null, startDate || null, dueDate || null, progress || 0,
+        tipo || 'automatizacion', docUrl || null, req.user.id]);
 
     const project = await fetchProject(id);
     res.status(201).json(project);
@@ -124,15 +128,17 @@ router.put('/:id', auth, validators, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, description, client, status, priority, assigneeId, startDate, dueDate, progress } = req.body;
+  const { name, description, client, status, priority, assigneeId, startDate, dueDate, progress, tipo, docUrl } = req.body;
   try {
     const result = await pool.query(`
       UPDATE projects SET
         name=$1, description=$2, client=$3, status=$4, priority=$5,
-        assignee_id=$6, start_date=$7, due_date=$8, progress=$9, updated_at=NOW()
-      WHERE id=$10 RETURNING id
+        assignee_id=$6, start_date=$7, due_date=$8, progress=$9,
+        tipo=$10, doc_url=$11, updated_at=NOW()
+      WHERE id=$12 RETURNING id
     `, [name, description || null, client || null, status, priority,
-        assigneeId || null, startDate || null, dueDate || null, progress || 0, req.params.id]);
+        assigneeId || null, startDate || null, dueDate || null, progress || 0,
+        tipo || 'automatizacion', docUrl || null, req.params.id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
     res.json(await fetchProject(req.params.id));

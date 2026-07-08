@@ -4,12 +4,16 @@ import { fmtDate, dateStatus, colorClass } from '../utils/helpers';
 const PR_PILL  = { high: 'pp-high', mid: 'pp-mid', low: 'pp-low' };
 const PR_LABEL = { high: 'Alta',   mid: 'Media',  low: 'Baja'   };
 
+const TIPO_LABEL = { automatizacion: 'Auto', analitica: 'Analítica', compartido: 'Compartido', asignacion_flash: 'Flash' };
+const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', compartido: 'tipo-compartido', asignacion_flash: 'tipo-flash' };
+
 export default function KanbanCard({ project, onClick, compact = false, index = 0, isDragging = false, onDragStart, onDragEnd }) {
   const cardRef = useRef(null);
-  const pct = project.progress || 0;
-  const dSt = dateStatus(project.dueDate);
-  const eng = project.assignee;
-  const pr  = project.priority || 'mid';
+  const pct  = project.progress || 0;
+  const dSt  = dateStatus(project.dueDate);
+  const eng  = project.assignee;
+  const pr   = project.priority || 'mid';
+  const tipo = project.tipo || 'automatizacion';
 
   /* ── 3D tilt — direct DOM, zero re-renders ── */
   const handleMouseMove = (e) => {
@@ -55,11 +59,12 @@ export default function KanbanCard({ project, onClick, compact = false, index = 
       onMouseLeave={handleMouseLeave}
       style={{ animationDelay: `${index * 55}ms` }}
     >
-      {/* Priority + client */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+      {/* Priority + tipo + client */}
+      <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:8, flexWrap:'wrap' }}>
         <span className={`priority-pill ${PR_PILL[pr]}`}>{PR_LABEL[pr]}</span>
+        <span className={`tipo-badge ${TIPO_CLS[tipo]}`}>{TIPO_LABEL[tipo]}</span>
         {project.client && (
-          <span style={{ fontSize:11, color:'var(--text3)', maxWidth:100, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          <span style={{ fontSize:11, color:'var(--text3)', maxWidth:90, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginLeft:'auto' }}>
             {project.client}
           </span>
         )}

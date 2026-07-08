@@ -4,7 +4,15 @@ const EMPTY = {
   name: '', description: '', client: '',
   status: 'backlog', priority: 'mid', assigneeId: '',
   startDate: '', dueDate: '', progress: 0,
+  tipo: 'automatizacion', docUrl: '',
 };
+
+const TIPO_OPTIONS = [
+  { value: 'automatizacion',  label: 'Automatización' },
+  { value: 'analitica',       label: 'Analítica' },
+  { value: 'compartido',      label: 'Compartido' },
+  { value: 'asignacion_flash',label: 'Asignación Flash' },
+];
 
 export default function ProjectModal({ open, project, defStatus, defAssigneeId, users, onSave, onDelete, onClose }) {
   const [form, setForm]         = useState(EMPTY);
@@ -27,6 +35,8 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
           startDate:   project.startDate || '',
           dueDate:     project.dueDate || '',
           progress:    project.progress || 0,
+          tipo:        project.tipo || 'automatizacion',
+          docUrl:      project.docUrl || '',
         });
       } else {
         setForm({ ...EMPTY, status: defStatus || 'backlog', assigneeId: defAssigneeId != null ? String(defAssigneeId) : '' });
@@ -51,6 +61,8 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         startDate:   form.startDate || null,
         dueDate:     form.dueDate || null,
         progress:    parseInt(form.progress) || 0,
+        tipo:        form.tipo || 'automatizacion',
+        docUrl:      form.docUrl.trim() || null,
       });
     } catch (err) {
       setError(err.error || err.errors?.[0]?.msg || 'Error al guardar');
@@ -90,16 +102,28 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Cliente / Área</label>
-              <input className="form-input" value={form.client} onChange={set('client')} placeholder="Ej. Contabilidad" />
+              <label className="form-label">Tipo de registro</label>
+              <select className="form-select" value={form.tipo} onChange={set('tipo')}>
+                {TIPO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
             </div>
             <div className="form-group">
               <label className="form-label">Prioridad</label>
               <select className="form-select" value={form.priority} onChange={set('priority')}>
-                <option value="high">🔴 Alta</option>
-                <option value="mid">🔵 Media</option>
-                <option value="low">🟢 Baja</option>
+                <option value="high">Alta</option>
+                <option value="mid">Media</option>
+                <option value="low">Baja</option>
               </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Cliente / Área</label>
+              <input className="form-input" value={form.client} onChange={set('client')} placeholder="Ej. Contabilidad" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Link de documentación</label>
+              <input className="form-input" value={form.docUrl} onChange={set('docUrl')} placeholder="https://..." type="url" />
             </div>
           </div>
           <div className="form-row">

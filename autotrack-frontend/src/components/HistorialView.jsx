@@ -4,24 +4,29 @@ import { colorClass } from '../utils/helpers';
 const PR_LABEL = { high: 'Alta', mid: 'Media', low: 'Baja' };
 const PR_CLASS = { high: 'pp-high', mid: 'pp-mid', low: 'pp-low' };
 
+const TIPO_LABEL = { automatizacion: 'Automatización', analitica: 'Analítica', compartido: 'Compartido', asignacion_flash: 'Flash' };
+const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', compartido: 'tipo-compartido', asignacion_flash: 'tipo-flash' };
+const TIPO_FILTERS = ['all', 'automatizacion', 'analitica', 'compartido', 'asignacion_flash'];
+
 function fmt(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export default function HistorialView({ projects, users, onCardClick }) {
-  const [search, setSearch] = useState('');
+  const [search,     setSearch]     = useState('');
+  const [tipoFilter, setTipoFilter] = useState('all');
 
   const done = projects
     .filter(p => p.status === 'done')
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
 
-  const filtered = search.trim()
-    ? done.filter(p =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        (p.client || '').toLowerCase().includes(search.toLowerCase())
-      )
-    : done;
+  const filtered = done
+    .filter(p => tipoFilter === 'all' || (p.tipo || 'automatizacion') === tipoFilter)
+    .filter(p => !search.trim() || (
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.client || '').toLowerCase().includes(search.toLowerCase())
+    ));
 
   const assignee = (p) => users.find(u => u.id === (p.assigneeId || p.assignee_id));
 
@@ -49,6 +54,19 @@ export default function HistorialView({ projects, users, onCardClick }) {
         </div>
       </div>
 
+      {/* Tipo filter chips */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        {TIPO_FILTERS.map(t => (
+          <button
+            key={t}
+            className={`sol-chip${tipoFilter === t ? ' sol-chip--active' : ''}`}
+            onClick={() => setTipoFilter(t)}
+          >
+            {t === 'all' ? 'Todos' : TIPO_LABEL[t]}
+          </button>
+        ))}
+      </div>
+
       {/* Grid */}
       {filtered.length === 0 ? (
         <div className="hist-empty">No hay proyectos que coincidan con "{search}"</div>
@@ -65,9 +83,14 @@ export default function HistorialView({ projects, users, onCardClick }) {
               >
                 <div className="hist-card-top">
                   <div className="hist-card-name">{p.name}</div>
-                  <span className={`priority-pill ${PR_CLASS[p.priority] || 'pp-mid'}`}>
-                    {PR_LABEL[p.priority] || 'Media'}
-                  </span>
+                  <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                    <span className={`tipo-badge ${TIPO_CLS[p.tipo || 'automatizacion']}`} style={{ fontSize: 10 }}>
+                      {TIPO_LABEL[p.tipo || 'automatizacion']}
+                    </span>
+                    <span className={`priority-pill ${PR_CLASS[p.priority] || 'pp-mid'}`}>
+                      {PR_LABEL[p.priority] || 'Media'}
+                    </span>
+                  </div>
                 </div>
 
                 {p.client && <div className="hist-card-client">{p.client}</div>}

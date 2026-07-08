@@ -37,6 +37,7 @@ router.get('/', auth, async (req, res) => {
       `SELECT s.id, s.title, s.description, s.type, s.priority, s.area,
               s.due_date, s.file_name, s.file_path, s.status, s.notes,
               s.project_created,
+              s.frecuencia, s.herramientas, s.impacto, s.urgencia, s.correo_solicitante,
               s.created_at, s.updated_at,
               u.id          AS user_id,
               u.name        AS user_name,
@@ -62,23 +63,27 @@ router.get('/', auth, async (req, res) => {
 
 // POST /api/solicitudes  — cualquier usuario autenticado
 router.post('/', auth, upload.single('file'), async (req, res) => {
-  const { title, description, type, priority, area, dueDate } = req.body;
-  if (!title?.trim() || !type) {
-    return res.status(400).json({ error: 'Título y tipo son requeridos' });
+  const { title, description, type, priority, area, dueDate,
+          frecuencia, herramientas, impacto, urgencia, correoSolicitante } = req.body;
+  if (!title?.trim()) {
+    return res.status(400).json({ error: 'El nombre del proceso es requerido' });
   }
   try {
     const { rows } = await pool.query(
       `INSERT INTO solicitudes
-         (title, description, type, priority, area, due_date, file_name, file_path, user_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         (title, description, type, priority, area, due_date, file_name, file_path, user_id,
+          frecuencia, herramientas, impacto, urgencia, correo_solicitante)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
       [
-        title.trim(), description || null, type,
+        title.trim(), description || null, type || 'requerimiento',
         priority || 'media', area || null,
         dueDate || null,
         req.file?.originalname || null,
         req.file?.filename     || null,
         req.user.id,
+        frecuencia || null, herramientas || null, impacto || null,
+        urgencia || 'media', correoSolicitante || null,
       ]
     );
     res.status(201).json(rows[0]);
@@ -91,7 +96,8 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
 // PUT /api/solicitudes/:id/status  — solo admin
 router.put('/:id/status', auth, requireRole('admin'), async (req, res) => {
   const { status, notes, assigneeId } = req.body;
-  const valid = ['nueva','en_revision','en_proceso','completada','rechazada'];
+  const valid = ['recibido','en_revision','reunion_agendada','aceptado','rechazado','convertido',
+                 'nueva','en_proceso','completada','rechazada'];
   if (!valid.includes(status)) {
     return res.status(400).json({ error: 'Estado inválido' });
   }

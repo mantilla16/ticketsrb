@@ -351,12 +351,31 @@ function EngWorkload({ projects, users, onCardClick }) {
   );
 }
 
+const TIPO_INFO = {
+  automatizacion:  { label: 'Automatización', color: '#f9924d', bg: 'rgba(249,146,77,.12)' },
+  analitica:       { label: 'Analítica',       color: '#7c3aed', bg: 'rgba(124,58,237,.10)' },
+  compartido:      { label: 'Compartido',      color: '#0891b2', bg: 'rgba(8,145,178,.10)'  },
+  asignacion_flash:{ label: 'Flash',           color: '#d97706', bg: 'rgba(217,119,6,.10)'  },
+};
+
 export default function DashboardView({ projects, users, onCardClick }) {
-  const cnt   = { backlog: 0, progress: 0, standby: 0, testing: 0, done: 0 };
+  const cnt   = { backlog: 0, progress: 0, standby: 0, testing: 0, done: 0, soporte: 0 };
   const prCnt = { high: 0, mid: 0, low: 0 };
+  const tipoCnt = { automatizacion: 0, analitica: 0, compartido: 0, asignacion_flash: 0 };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  let overdueCount = 0, upcomingCount = 0;
+
   projects.forEach(p => {
     if (cnt[p.status] !== undefined) cnt[p.status]++;
     if (prCnt[p.priority || 'mid'] !== undefined) prCnt[p.priority || 'mid']++;
+    const t = p.tipo || 'automatizacion';
+    if (tipoCnt[t] !== undefined) tipoCnt[t]++;
+    if (p.dueDate && p.status !== 'done') {
+      const d = new Date(p.dueDate);
+      const diff = (d - today) / 86400000;
+      if (diff < 0) overdueCount++;
+      else if (diff <= 7) upcomingCount++;
+    }
   });
   const total  = projects.length;
   const maxCnt = Math.max(1, ...Object.values(cnt));
@@ -371,6 +390,17 @@ export default function DashboardView({ projects, users, onCardClick }) {
 
   return (
     <>
+      {/* Print button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }} className="no-print">
+        <button className="btn btn-ghost btn-sm" onClick={() => window.print()} style={{ gap: 6 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+            <rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          Exportar / Imprimir
+        </button>
+      </div>
+
       {/* KPI row — colored gradient cards */}
       <div className="dash-grid">
         <KpiCard label="Total"       value={total}        gradient="linear-gradient(135deg,#5a2807,#f9924d)" spark={spark.total} />
@@ -379,6 +409,30 @@ export default function DashboardView({ projects, users, onCardClick }) {
         <KpiCard label="En testing"  value={cnt.testing}  gradient="linear-gradient(135deg,#5a2807,#e87d3a)" spark={[0,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing]} />
         <KpiCard label="Finalizados" value={cnt.done}     gradient="linear-gradient(135deg,#14532D,#16A34A)" spark={spark.done} />
         <KpiCard label="Por hacer"   value={cnt.backlog}  gradient="linear-gradient(135deg,#8a3a10,#c4622d)" spark={[cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog]} />
+        <KpiCard label="En soporte"  value={cnt.soporte}  gradient="linear-gradient(135deg,#0e7490,#0891b2)" spark={[0,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte]} />
+        <KpiCard label="Vencidos"    value={overdueCount} gradient="linear-gradient(135deg,#991b1b,#DC2626)" spark={[0,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount]} />
+      </div>
+
+      {/* Tipo breakdown */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginTop: 12 }}>
+        {Object.entries(TIPO_INFO).map(([key, info]) => (
+          <div key={key} style={{ background: info.bg, border: `1px solid ${info.color}30`, borderRadius: 'var(--radius)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 6, height: 36, borderRadius: 3, background: info.color, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: info.color, lineHeight: 1, fontFamily: 'var(--mono)' }}>{tipoCnt[key]}</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>{info.label}</div>
+            </div>
+          </div>
+        ))}
+        {upcomingCount > 0 && (
+          <div style={{ background: 'rgba(217,119,6,.10)', border: '1px solid rgba(217,119,6,.3)', borderRadius: 'var(--radius)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 6, height: 36, borderRadius: 3, background: '#d97706', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#d97706', lineHeight: 1, fontFamily: 'var(--mono)' }}>{upcomingCount}</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>Entregas próx.</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Charts */}
