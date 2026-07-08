@@ -514,6 +514,58 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .eng-expand-status { font-size:11px; font-weight:600; white-space:nowrap; flex-shrink:0; }
 .eng-expand-pct { font-size:11px; font-family:var(--mono); font-weight:700; color:var(--text3); min-width:32px; text-align:right; flex-shrink:0; }
 
+/* ════ PROJECT SEARCH (topbar) ════ */
+.psearch { position: relative; }
+.psearch-input-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-pill); padding: 7px 14px;
+  width: 240px; transition: border-color .15s, box-shadow .15s, width .2s var(--ease-out);
+  color: var(--text3);
+}
+.psearch-input-wrap:focus-within {
+  border-color: var(--accent); background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-muted); width: 300px;
+}
+.psearch-input {
+  border: none; outline: none; background: transparent; flex: 1; min-width: 0;
+  font-size: 13px; color: var(--text); font-family: var(--font);
+}
+.psearch-input::placeholder { color: var(--text3); }
+.psearch-clear {
+  border: none; background: none; cursor: pointer; color: var(--text3);
+  font-size: 12px; padding: 0; line-height: 1;
+}
+.psearch-clear:hover { color: var(--text); }
+.psearch-results {
+  position: absolute; top: calc(100% + 8px); right: 0; width: 360px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--sh-lg);
+  padding: 6px; z-index: 200; max-height: 400px; overflow-y: auto;
+  animation: fadeUp .18s var(--ease-out);
+}
+.psearch-empty { padding: 18px; text-align: center; font-size: 12px; color: var(--text3); }
+.psearch-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 10px; border: none; background: transparent; cursor: pointer;
+  border-radius: var(--radius-sm); text-align: left; font-family: var(--font);
+  transition: background .12s;
+}
+.psearch-item:hover { background: var(--accent-light); }
+.psearch-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.psearch-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.psearch-item-name {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.psearch-item-meta { font-size: 11px; color: var(--text3); }
+
+@media (max-width: 768px) {
+  .psearch-input-wrap { width: 150px; }
+  .psearch-input-wrap:focus-within { width: 190px; }
+  .psearch-results { width: 300px; }
+}
+
 /* ════ PROJECT TASKS ════ */
 .task-row {
   display: flex; align-items: center; gap: 9px;

@@ -13,6 +13,7 @@ import HistorialView from './components/HistorialView';
 import UsersView from './components/UsersView';
 import UserModal from './components/UserModal';
 import SolicitudesView from './components/SolicitudesView';
+import ProjectSearch from './components/ProjectSearch';
 import ProjectModal from './components/ProjectModal';
 import DetailModal from './components/DetailModal';
 import Toast, { useToast } from './components/Toast';
@@ -255,6 +256,9 @@ export default function App() {
             </div>
           </div>
           <div className="topbar-right">
+            {user?.role !== 'user' && (
+              <ProjectSearch projects={projects} onSelect={openDetail} />
+            )}
             {showNewProject && (
               <button className="btn btn-primary" onClick={() => openNewProject('backlog')}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
