@@ -244,7 +244,7 @@ export default function App() {
             {section === 'team-kanban' && (
               <TeamKanban
                 projects={projects}
-                users={users.filter(u => !ANALYTICS_NAMES.includes(u.name.toLowerCase()))}
+                users={users.filter(u => u.role === 'engineer')}
                 onCardClick={openDetail}
                 onAddClick={(assigneeId) => openNewProject('backlog', assigneeId)}
               />
@@ -253,7 +253,7 @@ export default function App() {
             {section === 'analytics' && (
               <TeamKanban
                 projects={projects}
-                users={users.filter(u => ANALYTICS_NAMES.includes(u.name.toLowerCase()))}
+                users={users.filter(u => u.role === 'member_analytics')}
                 onCardClick={openDetail}
                 onAddClick={(assigneeId) => openNewProject('backlog', assigneeId)}
               />
