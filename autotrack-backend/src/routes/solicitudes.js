@@ -38,7 +38,7 @@ router.get('/', auth, async (req, res) => {
               s.due_date, s.file_name, s.file_path, s.status, s.notes,
               s.project_created,
               s.frecuencia, s.herramientas, s.impacto, s.urgencia,
-              s.nombre_solicitante, s.correo_solicitante,
+              s.nombre_solicitante, s.correo_solicitante, s.info_adicional,
               s.created_at, s.updated_at,
               u.id          AS user_id,
               u.name        AS user_name,
@@ -113,6 +113,28 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics'), async 
     );
     if (!rows.length) return res.status(404).json({ error: 'Solicitud no encontrada' });
     res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// PUT /api/solicitudes/:id/info  — solo el dueño de la solicitud
+router.put('/:id/info', auth, async (req, res) => {
+  const { infoAdicional } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'SELECT user_id FROM solicitudes WHERE id=$1', [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Solicitud no encontrada' });
+    if (rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Solo puedes editar tus propias solicitudes' });
+    }
+    const result = await pool.query(
+      `UPDATE solicitudes SET info_adicional=$1, updated_at=NOW() WHERE id=$2 RETURNING *`,
+      [infoAdicional?.trim() || null, req.params.id]
+    );
+    res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });

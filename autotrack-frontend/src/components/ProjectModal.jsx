@@ -5,7 +5,7 @@ const EMPTY = {
   status: 'backlog', priority: 'mid', assigneeId: '',
   startDate: '', dueDate: '', progress: 0,
   tipo: 'automatizacion', docUrl: '',
-  coAssigneeId: '', participationAuto: '', participationAnalitica: '',
+  coAssigneeId: '', generalAssigneeId: '', participationAuto: '', participationAnalitica: '',
   progressAuto: 0, progressAnalitica: 0,
 };
 
@@ -44,6 +44,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
           tipo:                  project.tipo || 'automatizacion',
           docUrl:                project.docUrl || '',
           coAssigneeId:          project.coAssigneeId != null ? String(project.coAssigneeId) : '',
+          generalAssigneeId:     project.generalAssigneeId != null ? String(project.generalAssigneeId) : '',
           participationAuto:     project.participationAuto || '',
           participationAnalitica:project.participationAnalitica || '',
           progressAuto:          project.progressAuto || 0,
@@ -75,6 +76,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         tipo:                  form.tipo || 'automatizacion',
         docUrl:                form.docUrl.trim() || null,
         coAssigneeId:          form.coAssigneeId ? parseInt(form.coAssigneeId) : null,
+        generalAssigneeId:     form.generalAssigneeId ? parseInt(form.generalAssigneeId) : null,
         participationAuto:     form.participationAuto.trim() || null,
         participationAnalitica:form.participationAnalitica.trim() || null,
         progressAuto:          parseInt(form.progressAuto) || 0,
@@ -155,7 +157,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Responsable principal</label>
+              <label className="form-label">{form.tipo === 'compartido' ? 'Responsable Automatización' : 'Responsable principal'}</label>
               <select className="form-select" value={form.assigneeId} onChange={set('assigneeId')} disabled={!isLeader}>
                 <option value="">— Sin asignar —</option>
                 {users.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
@@ -170,6 +172,13 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                 Campos del proyecto compartido
               </div>
               <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Responsable general</label>
+                  <select className="form-select" value={form.generalAssigneeId} onChange={set('generalAssigneeId')} disabled={!isLeader}>
+                    <option value="">— Sin asignar —</option>
+                    {users.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
+                  </select>
+                </div>
                 <div className="form-group">
                   <label className="form-label">Responsable Analítica</label>
                   <select className="form-select" value={form.coAssigneeId} onChange={set('coAssigneeId')} disabled={!isLeader}>

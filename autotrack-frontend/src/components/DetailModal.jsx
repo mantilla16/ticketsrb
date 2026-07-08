@@ -24,6 +24,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   const [error, setError]     = useState('');
   const [taskText, setTaskText]     = useState('');
   const [taskSaving, setTaskSaving] = useState(false);
+  const [isBlock, setIsBlock]       = useState(false);
 
   if (!open || !project) return null;
 
@@ -37,8 +38,9 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
     if (!logText.trim()) { setError('Escribe el avance de la reunión'); return; }
     setSaving(true); setError('');
     try {
-      await onAddLog(project.id, { text: logText.trim(), progress: logProg });
+      await onAddLog(project.id, { text: logText.trim(), progress: logProg, block: isBlock });
       setLogText('');
+      setIsBlock(false);
     } catch (err) {
       setError(err.error || 'Error al guardar');
     } finally { setSaving(false); }
@@ -84,9 +86,18 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
         <div className="modal-body" style={{ paddingBottom: 8 }}>
           {/* Info grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 16, background: 'var(--bg)', borderRadius: 'var(--radius-sm)', padding: '14px 16px' }}>
+            {project.generalAssignee && (
+              <div>
+                <div className="detail-label">Resp. general</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                  <div className={`avatar-xs ${colorClass(project.generalAssignee.colorIndex)}`}>{project.generalAssignee.initials}</div>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>{project.generalAssignee.name.split(' ')[0]}</span>
+                </div>
+              </div>
+            )}
             {eng && (
               <div>
-                <div className="detail-label">Responsable</div>
+                <div className="detail-label">{tipo === 'compartido' ? 'Resp. Automatización' : 'Responsable'}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                   <div className={`avatar-xs ${colorClass(eng.colorIndex)}`}>{eng.initials}</div>
                   <span style={{ fontSize: 12, fontWeight: 500 }}>{eng.name.split(' ')[0]}</span>
@@ -286,12 +297,19 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                 className="form-textarea"
                 value={logText}
                 onChange={e => setLogText(e.target.value)}
-                placeholder="Registra el avance de la reunión semanal..."
+                placeholder={isBlock ? 'Describe el bloqueo: qué lo causa, qué se necesita para destrabarlo...' : 'Registra el avance de la reunión semanal...'}
                 rows={2}
                 style={{ marginBottom: 8, fontSize: 13 }}
               />
-              <button className="btn btn-primary btn-sm" style={{ width: '100%', justifyContent: 'center' }} onClick={addLog} disabled={saving}>
-                {saving ? 'Guardando...' : 'Registrar avance'}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer', fontSize: 12, color: isBlock ? 'var(--high)' : 'var(--text2)', fontWeight: isBlock ? 600 : 400 }}>
+                <input type="checkbox" checked={isBlock} onChange={e => setIsBlock(e.target.checked)}
+                  style={{ accentColor: 'var(--high)', width: 14, height: 14, cursor: 'pointer' }} />
+                Reportar como bloqueo — el proyecto pasará a "En standby"
+              </label>
+              <button
+                className={`btn btn-sm${isBlock ? ' btn-danger' : ' btn-primary'}`}
+                style={{ width: '100%', justifyContent: 'center' }} onClick={addLog} disabled={saving}>
+                {saving ? 'Guardando...' : isBlock ? 'Reportar bloqueo' : 'Registrar avance'}
               </button>
             </div>
           )}

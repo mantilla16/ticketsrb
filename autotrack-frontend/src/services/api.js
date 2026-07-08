@@ -43,6 +43,7 @@ export const solicitudesAPI = {
   getAll:             ()          => api.get('/solicitudes'),
   create:             (formData)  => api.post('/solicitudes', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   updateStatus:       (id, data)  => api.put(`/solicitudes/${id}/status`, data),
+  updateInfo:         (id, data)  => api.put(`/solicitudes/${id}/info`, data),
   markProjectCreated: (id)        => api.patch(`/solicitudes/${id}/project-created`),
   remove:             (id)        => api.delete(`/solicitudes/${id}`),
 };

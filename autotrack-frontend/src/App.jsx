@@ -42,6 +42,24 @@ function defaultSection(role) {
 
 const LEADER_ROLES = ['admin', 'leader_analytics'];
 
+// Full payload for PUT /projects/:id — evita que updates parciales borren campos
+function projectPayload(p, overrides = {}) {
+  return {
+    name: p.name, description: p.description, client: p.client,
+    status: p.status, priority: p.priority || 'mid',
+    assigneeId: p.assigneeId, startDate: p.startDate,
+    dueDate: p.dueDate, progress: p.progress || 0,
+    tipo: p.tipo || 'automatizacion', docUrl: p.docUrl || null,
+    coAssigneeId: p.coAssigneeId || null,
+    generalAssigneeId: p.generalAssigneeId || null,
+    participationAuto: p.participationAuto || null,
+    participationAnalitica: p.participationAnalitica || null,
+    progressAuto: p.progressAuto || 0,
+    progressAnalitica: p.progressAnalitica || 0,
+    ...overrides,
+  };
+}
+
 export default function App() {
   const { user, loading, logout } = useAuth();
   const { toasts, show: showToast, remove: removeToast } = useToast();
@@ -125,9 +143,14 @@ export default function App() {
   };
 
   const handleAddLog = async (id, data) => {
-    const updated = await projectsAPI.addLog(id, data);
+    const { block, ...logData } = data;
+    if (block) logData.text = `⚠ BLOQUEO: ${logData.text}`;
+    let updated = await projectsAPI.addLog(id, logData);
+    if (block && updated.status !== 'standby') {
+      updated = await projectsAPI.update(id, projectPayload(updated, { status: 'standby' }));
+    }
     setProjects(ps => ps.map(p => p.id === updated.id ? updated : p));
-    showToast('Avance registrado', 'success');
+    showToast(block ? 'Bloqueo reportado — proyecto en standby' : 'Avance registrado', block ? 'error' : 'success');
   };
 
   const handleAddTask = async (id, title) => {
@@ -157,14 +180,7 @@ export default function App() {
     const p = projects.find(x => x.id === id);
     if (!p) return;
     try {
-      const updated = await projectsAPI.update(id, {
-        name: p.name, description: p.description, client: p.client,
-        status: 'done', priority: p.priority || 'mid',
-        assigneeId: p.assigneeId, startDate: p.startDate,
-        dueDate: p.dueDate, progress: p.progress || 0,
-        tipo: p.tipo || 'automatizacion', docUrl: p.docUrl || null,
-        supportClosed: true,
-      });
+      const updated = await projectsAPI.update(id, projectPayload(p, { status: 'done', supportClosed: true }));
       setProjects(ps => ps.map(x => x.id === updated.id ? updated : x));
       setDetailModal({ open: false, projectId: null });
       showToast(`Soporte de "${p.name}" cerrado`, 'success');
@@ -178,13 +194,7 @@ export default function App() {
     if (!p || p.status === newStatus) return;
     setProjects(ps => ps.map(x => x.id === projectId ? { ...x, status: newStatus } : x));
     try {
-      const updated = await projectsAPI.update(projectId, {
-        name: p.name, description: p.description, client: p.client,
-        status: newStatus, priority: p.priority || 'mid',
-        assigneeId: p.assigneeId, startDate: p.startDate,
-        dueDate: p.dueDate, progress: p.progress || 0,
-        tipo: p.tipo || 'automatizacion', docUrl: p.docUrl || null,
-      });
+      const updated = await projectsAPI.update(projectId, projectPayload(p, { status: newStatus }));
       setProjects(ps => ps.map(x => x.id === updated.id ? updated : x));
       showToast(`Movido a "${STATUS_NAMES[newStatus]}"`, 'success');
     } catch {

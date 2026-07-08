@@ -398,6 +398,12 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
                 )}
               </div>
             )}
+            {sol.info_adicional && (
+              <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--accent-light)', borderRadius: 6, fontSize: 12 }}>
+                <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Info adicional del solicitante: </span>
+                <span style={{ color: 'var(--text2)' }}>{sol.info_adicional}</span>
+              </div>
+            )}
             {sol.file_name && sol.file_path && (
               <a
                 href={`${API_BASE}/uploads/solicitudes/${sol.file_path}`}
@@ -512,6 +518,79 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
   );
 }
 
+// ── Detail Modal (área solicitante) ────────────────────────────────────────────
+
+function UserSolicitudModal({ sol, open, onClose, onSaveInfo }) {
+  const [info,   setInfo]   = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (sol) setInfo(sol.info_adicional || '');
+    setSaving(false);
+  }, [sol]);
+
+  if (!open || !sol) return null;
+  const st = STATUS_MAP[sol.status] || STATUS_MAP.recibido;
+
+  const save = async () => {
+    setSaving(true);
+    try { await onSaveInfo(sol.id, info); } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="um-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="sol-modal" style={{ maxWidth: 560 }}>
+        <div className="sol-modal-header" style={{ borderBottom: `3px solid ${st.color}` }}>
+          <div style={{ minWidth: 0 }}>
+            <div className="sol-modal-title">{sol.title}</div>
+            <div className="sol-modal-step">Enviada el {fmtDate(sol.created_at)}</div>
+          </div>
+          <button className="um-close" onClick={onClose}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div className="sol-modal-body">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="sol-badge" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+            {sol.due_date && (
+              <span style={{ fontSize: 11, color: 'var(--text3)', marginLeft: 'auto' }}>Vence: {fmtDate(sol.due_date)}</span>
+            )}
+          </div>
+
+          {sol.notes && (
+            <div style={{ background: 'var(--accent-light)', border: '1px solid rgba(249,146,77,.25)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--accent)', marginBottom: 4 }}>
+                Respuesta del equipo
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>{sol.notes}</div>
+            </div>
+          )}
+
+          <div className="um-field">
+            <label className="um-label">
+              Información adicional
+              <span style={{ fontWeight: 400, color: 'var(--text3)' }}> · visible para el equipo</span>
+            </label>
+            <textarea className="um-input sol-textarea" rows={4}
+              placeholder="Agrega contexto, aclaraciones o responde a lo que el equipo te pidió..."
+              value={info} onChange={e => setInfo(e.target.value)} />
+          </div>
+
+          <div className="sol-modal-footer">
+            <button className="btn btn-ghost" onClick={onClose} style={{ flex: 1, justifyContent: 'center' }}>Cerrar</button>
+            <button className="btn btn-primary" onClick={save} disabled={saving} style={{ flex: 2, justifyContent: 'center' }}>
+              {saving ? <><span className="um-spinner"/>Guardando...</> : 'Guardar información'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function SolicitudesView({ user, showToast, users = [], onProjectCreated }) {
@@ -521,6 +600,7 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
   const [loading,     setLoading]     = useState(true);
   const [newModal,    setNewModal]    = useState(false);
   const [manageModal, setManageModal] = useState(null);
+  const [ownModal,    setOwnModal]    = useState(null);
   const [filter,      setFilter]      = useState('all');
 
   useEffect(() => {
@@ -567,6 +647,17 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
       }
     } else {
       showToast('Estado actualizado', 'success');
+    }
+  };
+
+  const handleSaveInfo = async (id, info) => {
+    try {
+      const updated = await solicitudesAPI.updateInfo(id, { infoAdicional: info });
+      setSolicitudes(s => s.map(x => x.id === updated.id ? { ...x, ...updated } : x));
+      setOwnModal(null);
+      showToast('Información agregada a la solicitud', 'success');
+    } catch (err) {
+      showToast(err.error || 'Error al guardar', 'error');
     }
   };
 
@@ -665,9 +756,9 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
             const pr = PRIORITY_MAP[sol.priority] || PRIORITY_MAP.media;
             return (
               <div key={sol.id}
-                className={`sol-card${isAdmin ? ' sol-card--clickable' : ''}`}
+                className="sol-card sol-card--clickable"
                 style={{ '--sol-status-color': st.color }}
-                onClick={() => isAdmin && setManageModal(sol)}>
+                onClick={() => isAdmin ? setManageModal(sol) : setOwnModal(sol)}>
 
                 <div className="sol-card-top">
                   {isAdmin && sol.user_name && (
@@ -734,6 +825,12 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
       )}
 
       <NewSolicitudModal open={newModal} onClose={() => setNewModal(false)} onSave={handleCreate} />
+      <UserSolicitudModal
+        sol={ownModal}
+        open={Boolean(ownModal)}
+        onClose={() => setOwnModal(null)}
+        onSaveInfo={handleSaveInfo}
+      />
       <ManageModal
         sol={manageModal}
         open={Boolean(manageModal)}
