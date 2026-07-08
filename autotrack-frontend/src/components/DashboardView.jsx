@@ -355,6 +355,35 @@ export default function DashboardView({ projects, users, onCardClick }) {
   const maxCnt = Math.max(1, ...Object.values(cnt));
   const maxPr  = Math.max(1, ...Object.values(prCnt));
 
+  // Proyectos por área solicitante (top 8, resto agrupado)
+  const areaMap = {};
+  projects.forEach(p => {
+    const a = (p.client || '').trim() || 'Sin área';
+    areaMap[a] = (areaMap[a] || 0) + 1;
+  });
+  const areaSorted = Object.entries(areaMap).sort((a, b) => b[1] - a[1]);
+  const areaTop    = areaSorted.slice(0, 8);
+  const areaRest   = areaSorted.slice(8).reduce((s, [, n]) => s + n, 0);
+  if (areaRest > 0) areaTop.push(['Otras áreas', areaRest]);
+  const maxArea = Math.max(1, ...areaTop.map(([, n]) => n));
+
+  // Carga por equipo — proyectos activos por área (compartidos cuentan en ambas)
+  const ACTIVE = ['backlog', 'progress', 'standby', 'testing'];
+  const teamLoad = { auto: { active: 0, total: 0 }, analitica: { active: 0, total: 0 } };
+  projects.forEach(p => {
+    const t = p.tipo || 'automatizacion';
+    const isActive = ACTIVE.includes(p.status);
+    if (t === 'automatizacion' || t === 'asignacion_flash' || t === 'compartido') {
+      teamLoad.auto.total++;
+      if (isActive) teamLoad.auto.active++;
+    }
+    if (t === 'analitica' || t === 'compartido') {
+      teamLoad.analitica.total++;
+      if (isActive) teamLoad.analitica.active++;
+    }
+  });
+  const maxTeam = Math.max(1, teamLoad.auto.active, teamLoad.analitica.active);
+
   const spark = {
     progress: [cnt.progress * 0.4, cnt.progress * 0.55, cnt.progress * 0.65, cnt.progress * 0.75, cnt.progress * 0.85, cnt.progress * 0.92, cnt.progress],
     standby:  [cnt.standby, cnt.standby * 1.2, cnt.standby * 0.9, cnt.standby * 1.1, cnt.standby, cnt.standby * 0.85, cnt.standby],
@@ -364,8 +393,16 @@ export default function DashboardView({ projects, users, onCardClick }) {
 
   return (
     <>
-      {/* Print button */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }} className="no-print">
+      {/* Export actions */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 8 }} className="no-print">
+        <a className="btn btn-ghost btn-sm" style={{ gap: 6, textDecoration: 'none' }}
+          href={`mailto:?subject=${encodeURIComponent('Dashboard ejecutivo — AutoTrack')}&body=${encodeURIComponent(`Hola,\n\nComparto el enlace al dashboard ejecutivo de proyectos:\n${window.location.origin}${window.location.pathname}\n\nSaludos.`)}`}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          Compartir por correo
+        </a>
         <button className="btn btn-ghost btn-sm" onClick={() => window.print()} style={{ gap: 6 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
@@ -442,6 +479,44 @@ export default function DashboardView({ projects, users, onCardClick }) {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Área solicitante + carga por equipo */}
+      <div className="chart-row" style={{ marginTop: 16 }}>
+        <div className="chart-box">
+          <div className="chart-title">Proyectos por área solicitante</div>
+          <div className="chart-subtitle">Total de proyectos registrados por cada área</div>
+          {areaTop.map(([area, n]) => (
+            <div className="bar-h" key={area}>
+              <div className="bar-h-label" title={area}>{area}</div>
+              <div className="bar-h-track">
+                <div className="bar-h-fill" style={{ width: `${(n / maxArea) * 100}%`, background: 'var(--accent)' }} />
+              </div>
+              <div className="bar-h-val">{n}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="chart-box">
+          <div className="chart-title">Carga por equipo</div>
+          <div className="chart-subtitle">Proyectos activos — los compartidos cuentan en ambos equipos</div>
+          {[
+            { key: 'auto',      label: 'Automatización', color: '#f9924d', data: teamLoad.auto },
+            { key: 'analitica', label: 'Analítica',       color: '#7c3aed', data: teamLoad.analitica },
+          ].map(({ key, label, color, data }) => (
+            <div key={key} style={{ marginBottom: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{label}</span>
+                <span style={{ fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--text2)' }}>
+                  <b style={{ color, fontSize: 16 }}>{data.active}</b> activos · {data.total} en total
+                </span>
+              </div>
+              <div className="bar-h-track" style={{ height: 26 }}>
+                <div className="bar-h-fill" style={{ width: `${(data.active / maxTeam) * 100}%`, background: color }} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

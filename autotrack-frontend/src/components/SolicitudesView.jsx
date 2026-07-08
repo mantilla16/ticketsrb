@@ -34,6 +34,13 @@ const STATUS_MAP = {
 
 const STATUSES = ['recibido','en_revision','reunion_agendada','aceptado','rechazado','convertido'];
 
+const TIPO_CONVERT_OPTIONS = [
+  { value: 'automatizacion',   label: 'Proyecto de Automatización' },
+  { value: 'analitica',        label: 'Proyecto de Analítica' },
+  { value: 'compartido',       label: 'Proyecto compartido' },
+  { value: 'asignacion_flash', label: 'Asignación flash' },
+];
+
 const FRECUENCIA_OPTIONS = [
   { value: '', label: 'Seleccionar...' },
   { value: 'diario',   label: 'Diario' },
@@ -53,7 +60,7 @@ function NewSolicitudModal({ open, onClose, onSave }) {
   const [form,   setForm]   = useState({
     title: '', area: '', description: '', priority: 'media',
     frecuencia: '', herramientas: '', impacto: '', urgencia: 'media',
-    correoSolicitante: '', dueDate: '', file: null,
+    nombreSolicitante: '', correoSolicitante: '', dueDate: '', file: null,
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -63,7 +70,7 @@ function NewSolicitudModal({ open, onClose, onSave }) {
       setForm({
         title: '', area: '', description: '', priority: 'media',
         frecuencia: '', herramientas: '', impacto: '', urgencia: 'media',
-        correoSolicitante: '', dueDate: '', file: null,
+        nombreSolicitante: '', correoSolicitante: '', dueDate: '', file: null,
       });
       setError('');
       setSaving(false);
@@ -89,6 +96,7 @@ function NewSolicitudModal({ open, onClose, onSave }) {
       fd.append('frecuencia',        form.frecuencia);
       fd.append('herramientas',      form.herramientas);
       fd.append('impacto',           form.impacto);
+      fd.append('nombreSolicitante', form.nombreSolicitante);
       fd.append('correoSolicitante', form.correoSolicitante);
       if (form.dueDate) fd.append('dueDate', form.dueDate);
       if (form.file)    fd.append('file',    form.file);
@@ -148,6 +156,16 @@ function NewSolicitudModal({ open, onClose, onSave }) {
           </div>
 
           <div className="um-row">
+            <div className="um-field">
+              <label className="um-label">Nombre del solicitante</label>
+              <div className="um-input-wrap">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input className="um-input" type="text" placeholder="Tu nombre completo"
+                  value={form.nombreSolicitante} onChange={e => set('nombreSolicitante', e.target.value)} />
+              </div>
+            </div>
             <div className="um-field">
               <label className="um-label">Correo de contacto</label>
               <div className="um-input-wrap">
@@ -282,17 +300,19 @@ function NewSolicitudModal({ open, onClose, onSave }) {
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
-  const [status,     setStatus]     = useState('recibido');
-  const [notes,      setNotes]      = useState('');
-  const [assigneeId, setAssigneeId] = useState('');
-  const [saving,     setSaving]     = useState(false);
-  const [delConfirm, setDelConfirm] = useState(false);
+  const [status,       setStatus]       = useState('recibido');
+  const [notes,        setNotes]        = useState('');
+  const [assigneeId,   setAssigneeId]   = useState('');
+  const [tipoProyecto, setTipoProyecto] = useState('automatizacion');
+  const [saving,       setSaving]       = useState(false);
+  const [delConfirm,   setDelConfirm]   = useState(false);
 
   useEffect(() => {
     if (sol) {
       setStatus(sol.status || 'recibido');
       setNotes(sol.notes || '');
       setAssigneeId(sol.assignee_id ? String(sol.assignee_id) : '');
+      setTipoProyecto('automatizacion');
     }
     setDelConfirm(false);
     setSaving(false);
@@ -301,11 +321,15 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
   if (!open || !sol) return null;
 
   const pr = PRIORITY_MAP[sol.priority] || PRIORITY_MAP.media;
-  const engineers = users.filter(u => u.role === 'engineer' || u.role === 'admin');
+  const assignables = tipoProyecto === 'analitica'
+    ? users.filter(u => ['member_analytics', 'leader_analytics'].includes(u.role))
+    : tipoProyecto === 'compartido'
+      ? users.filter(u => ['engineer', 'admin', 'member_analytics', 'leader_analytics'].includes(u.role))
+      : users.filter(u => u.role === 'engineer' || u.role === 'admin');
 
   const submit = async () => {
     setSaving(true);
-    try { await onSave(sol.id, { status, notes, assigneeId: assigneeId || null }); }
+    try { await onSave(sol.id, { status, notes, assigneeId: assigneeId || null, tipoProyecto }); }
     finally { setSaving(false); }
   };
 
@@ -343,7 +367,11 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
               )}
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{sol.title}</div>
-            {sol.area && <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>{sol.area}{sol.correo_solicitante ? ` · ${sol.correo_solicitante}` : ''}</div>}
+            {(sol.area || sol.nombre_solicitante) && (
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>
+                {[sol.area, sol.nombre_solicitante, sol.correo_solicitante].filter(Boolean).join(' · ')}
+              </div>
+            )}
             {sol.description && (
               <p style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 8 }}>{sol.description}</p>
             )}
@@ -408,17 +436,32 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
             </div>
           </div>
 
-          <div className="um-field">
-            <label className="um-label">Asignar a ingeniero</label>
-            <div className="um-input-wrap">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-              </svg>
-              <select className="um-input" value={assigneeId}
-                onChange={e => setAssigneeId(e.target.value)} style={{ cursor: 'pointer' }}>
-                <option value="">Sin asignar</option>
-                {engineers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
+          <div className="um-row">
+            <div className="um-field">
+              <label className="um-label">Convertir como</label>
+              <div className="um-input-wrap">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                  <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                </svg>
+                <select className="um-input" value={tipoProyecto}
+                  onChange={e => setTipoProyecto(e.target.value)} style={{ cursor: 'pointer' }}>
+                  {TIPO_CONVERT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="um-field">
+              <label className="um-label">Asignar responsable</label>
+              <div className="um-input-wrap">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                <select className="um-input" value={assigneeId}
+                  onChange={e => setAssigneeId(e.target.value)} style={{ cursor: 'pointer' }}>
+                  <option value="">Sin asignar</option>
+                  {assignables.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -472,7 +515,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function SolicitudesView({ user, showToast, users = [], onProjectCreated }) {
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = ['admin', 'leader_analytics'].includes(user?.role);
 
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -512,7 +555,7 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
           assigneeId:  data.assigneeId,
           dueDate:     sol.due_date || null,
           progress:    0,
-          tipo:        'automatizacion',
+          tipo:        data.tipoProyecto || 'automatizacion',
         });
         await solicitudesAPI.markProjectCreated(sol.id);
         setSolicitudes(s => s.map(x => x.id === sol.id ? { ...x, project_created: true } : x));

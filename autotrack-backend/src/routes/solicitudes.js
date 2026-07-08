@@ -32,12 +32,13 @@ const upload = multer({
 // admin → todas; user → solo las propias
 router.get('/', auth, async (req, res) => {
   try {
-    const isAdmin = req.user.role === 'admin';
+    const isAdmin = ['admin', 'leader_analytics'].includes(req.user.role);
     const { rows } = await pool.query(
       `SELECT s.id, s.title, s.description, s.type, s.priority, s.area,
               s.due_date, s.file_name, s.file_path, s.status, s.notes,
               s.project_created,
-              s.frecuencia, s.herramientas, s.impacto, s.urgencia, s.correo_solicitante,
+              s.frecuencia, s.herramientas, s.impacto, s.urgencia,
+              s.nombre_solicitante, s.correo_solicitante,
               s.created_at, s.updated_at,
               u.id          AS user_id,
               u.name        AS user_name,
@@ -64,7 +65,8 @@ router.get('/', auth, async (req, res) => {
 // POST /api/solicitudes  — cualquier usuario autenticado
 router.post('/', auth, upload.single('file'), async (req, res) => {
   const { title, description, type, priority, area, dueDate,
-          frecuencia, herramientas, impacto, urgencia, correoSolicitante } = req.body;
+          frecuencia, herramientas, impacto, urgencia,
+          nombreSolicitante, correoSolicitante } = req.body;
   if (!title?.trim()) {
     return res.status(400).json({ error: 'El nombre del proceso es requerido' });
   }
@@ -72,8 +74,8 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
     const { rows } = await pool.query(
       `INSERT INTO solicitudes
          (title, description, type, priority, area, due_date, file_name, file_path, user_id,
-          frecuencia, herramientas, impacto, urgencia, correo_solicitante)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          frecuencia, herramientas, impacto, urgencia, nombre_solicitante, correo_solicitante)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [
         title.trim(), description || null, type || 'requerimiento',
@@ -83,7 +85,7 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
         req.file?.filename     || null,
         req.user.id,
         frecuencia || null, herramientas || null, impacto || null,
-        urgencia || 'media', correoSolicitante || null,
+        urgencia || 'media', nombreSolicitante || null, correoSolicitante || null,
       ]
     );
     res.status(201).json(rows[0]);

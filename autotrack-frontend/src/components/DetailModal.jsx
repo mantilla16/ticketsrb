@@ -15,13 +15,15 @@ const PR_L    = { high: 'Alta',   mid: 'Media',  low: 'Baja'   };
 const TIPO_LABEL = { automatizacion: 'Automatización', analitica: 'Analítica', compartido: 'Compartido', asignacion_flash: 'Asignación Flash' };
 const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', compartido: 'tipo-compartido', asignacion_flash: 'tipo-flash' };
 
-export default function DetailModal({ open, project, onClose, onEdit, onAddLog, currentUser, users = [] }) {
+export default function DetailModal({ open, project, onClose, onEdit, onAddLog, onCloseSupport, onAddTask, onToggleTask, onDeleteTask, currentUser, users = [] }) {
   const isManager = currentUser?.role === 'manager';
   const isLeader  = ['admin','leader_analytics'].includes(currentUser?.role);
   const [logText, setLogText] = useState('');
   const [logProg, setLogProg] = useState(0);
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
+  const [taskText, setTaskText]     = useState('');
+  const [taskSaving, setTaskSaving] = useState(false);
 
   if (!open || !project) return null;
 
@@ -42,6 +44,18 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
     } finally { setSaving(false); }
   };
 
+  const addTask = async () => {
+    if (!taskText.trim() || taskSaving) return;
+    setTaskSaving(true);
+    try {
+      await onAddTask(project.id, taskText.trim());
+      setTaskText('');
+    } finally { setTaskSaving(false); }
+  };
+
+  const tasks     = project?.tasks || [];
+  const tasksDone = tasks.filter(t => t.done).length;
+
   return (
     <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ maxWidth: 600 }}>
@@ -54,6 +68,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                 {PR_L[pr]}
               </span>
               <span className={`tipo-badge ${TIPO_CLS[tipo]}`}>{TIPO_LABEL[tipo]}</span>
+              {project.supportClosed && <span className="badge status-soporte">Soporte cerrado</span>}
             </div>
             <div className="modal-title">{project.name}</div>
             <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
@@ -183,6 +198,63 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
             </div>
           )}
 
+          {/* Tareas */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div className="detail-label">Tareas</div>
+              {tasks.length > 0 && (
+                <span style={{ fontSize: 11, fontFamily: 'var(--mono)', fontWeight: 700, color: tasksDone === tasks.length ? 'var(--green)' : 'var(--text3)' }}>
+                  {tasksDone}/{tasks.length}
+                </span>
+              )}
+            </div>
+            {tasks.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 8 }}>
+                {tasks.map(t => (
+                  <div key={t.id} className="task-row">
+                    <button
+                      className={`task-check${t.done ? ' task-check--done' : ''}`}
+                      disabled={isManager}
+                      onClick={() => !isManager && onToggleTask(project.id, t.id, !t.done)}
+                    >
+                      {t.done && (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      )}
+                    </button>
+                    <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
+                    {!isManager && (
+                      <button className="task-del" onClick={() => onDeleteTask(project.id, t.id)} title="Eliminar tarea">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {tasks.length === 0 && isManager && (
+              <div style={{ fontSize: 12, color: 'var(--text3)' }}>Sin tareas registradas</div>
+            )}
+            {!isManager && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input
+                  className="form-input"
+                  style={{ flex: 1, fontSize: 13, padding: '7px 10px' }}
+                  placeholder="Nueva tarea…"
+                  value={taskText}
+                  onChange={e => setTaskText(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addTask()}
+                />
+                <button className="btn btn-ghost btn-sm" onClick={addTask} disabled={taskSaving || !taskText.trim()}>
+                  Agregar
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Logs */}
           <div className="log-divider">Seguimiento semanal</div>
           <div className="log-list">
@@ -226,6 +298,18 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
         </div>
 
         <div className="modal-footer">
+          {project.status === 'soporte' && isLeader && (
+            <button
+              className="btn btn-sm"
+              style={{ marginRight: 'auto', background: 'var(--c-soporte-bg)', color: 'var(--c-soporte)' }}
+              onClick={() => onCloseSupport?.(project.id)}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Cerrar soporte
+            </button>
+          )}
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Cerrar</button>
         </div>
       </div>

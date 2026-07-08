@@ -6,7 +6,7 @@ const PR_CLASS = { high: 'pp-high', mid: 'pp-mid', low: 'pp-low' };
 
 const TIPO_LABEL = { automatizacion: 'Automatización', analitica: 'Analítica', compartido: 'Compartido', asignacion_flash: 'Flash' };
 const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', compartido: 'tipo-compartido', asignacion_flash: 'tipo-flash' };
-const TIPO_FILTERS = ['all', 'automatizacion', 'analitica', 'compartido', 'asignacion_flash'];
+const TIPO_FILTERS = ['all', 'automatizacion', 'analitica', 'compartido', 'asignacion_flash', 'soporte_cerrado'];
 
 function fmt(d) {
   if (!d) return '—';
@@ -22,7 +22,8 @@ export default function HistorialView({ projects, users, onCardClick }) {
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
 
   const filtered = done
-    .filter(p => tipoFilter === 'all' || (p.tipo || 'automatizacion') === tipoFilter)
+    .filter(p => tipoFilter === 'all'
+      || (tipoFilter === 'soporte_cerrado' ? p.supportClosed : (p.tipo || 'automatizacion') === tipoFilter))
     .filter(p => !search.trim() || (
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       (p.client || '').toLowerCase().includes(search.toLowerCase())
@@ -62,7 +63,7 @@ export default function HistorialView({ projects, users, onCardClick }) {
             className={`sol-chip${tipoFilter === t ? ' sol-chip--active' : ''}`}
             onClick={() => setTipoFilter(t)}
           >
-            {t === 'all' ? 'Todos' : TIPO_LABEL[t]}
+            {t === 'all' ? 'Todos' : t === 'soporte_cerrado' ? 'Soporte cerrado' : TIPO_LABEL[t]}
           </button>
         ))}
       </div>
@@ -111,11 +112,12 @@ export default function HistorialView({ projects, users, onCardClick }) {
                   </div>
                 </div>
 
-                <div className="hist-done-badge">
+                <div className="hist-done-badge"
+                  style={p.supportClosed ? { background: 'var(--c-soporte-bg)', color: 'var(--c-soporte)' } : undefined}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
-                  Finalizado
+                  {p.supportClosed ? 'Soporte cerrado' : 'Finalizado'}
                 </div>
               </div>
             );

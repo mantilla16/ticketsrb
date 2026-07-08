@@ -131,6 +131,49 @@ export default function App() {
     showToast('Avance registrado', 'success');
   };
 
+  const handleAddTask = async (id, title) => {
+    const updated = await projectsAPI.addTask(id, { title });
+    setProjects(ps => ps.map(p => p.id === updated.id ? updated : p));
+  };
+
+  const handleToggleTask = async (id, taskId, done) => {
+    try {
+      const updated = await projectsAPI.updateTask(id, taskId, { done });
+      setProjects(ps => ps.map(p => p.id === updated.id ? updated : p));
+    } catch {
+      showToast('Error al actualizar la tarea', 'error');
+    }
+  };
+
+  const handleDeleteTask = async (id, taskId) => {
+    try {
+      const updated = await projectsAPI.removeTask(id, taskId);
+      setProjects(ps => ps.map(p => p.id === updated.id ? updated : p));
+    } catch {
+      showToast('Error al eliminar la tarea', 'error');
+    }
+  };
+
+  const handleCloseSupport = async (id) => {
+    const p = projects.find(x => x.id === id);
+    if (!p) return;
+    try {
+      const updated = await projectsAPI.update(id, {
+        name: p.name, description: p.description, client: p.client,
+        status: 'done', priority: p.priority || 'mid',
+        assigneeId: p.assigneeId, startDate: p.startDate,
+        dueDate: p.dueDate, progress: p.progress || 0,
+        tipo: p.tipo || 'automatizacion', docUrl: p.docUrl || null,
+        supportClosed: true,
+      });
+      setProjects(ps => ps.map(x => x.id === updated.id ? updated : x));
+      setDetailModal({ open: false, projectId: null });
+      showToast(`Soporte de "${p.name}" cerrado`, 'success');
+    } catch {
+      showToast('Error al cerrar el soporte', 'error');
+    }
+  };
+
   const handleMoveCard = async (projectId, newStatus) => {
     const p = projects.find(x => x.id === projectId);
     if (!p || p.status === newStatus) return;
@@ -325,6 +368,10 @@ export default function App() {
           setTimeout(() => openEditProject(id), 100);
         }}
         onAddLog={handleAddLog}
+        onCloseSupport={handleCloseSupport}
+        onAddTask={handleAddTask}
+        onToggleTask={handleToggleTask}
+        onDeleteTask={handleDeleteTask}
       />
 
       <UserModal

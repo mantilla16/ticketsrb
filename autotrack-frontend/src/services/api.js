@@ -27,6 +27,9 @@ export const projectsAPI = {
   update: (id, data) => api.put(`/projects/${id}`, data),
   remove: (id) => api.delete(`/projects/${id}`),
   addLog: (id, data) => api.post(`/projects/${id}/logs`, data),
+  addTask:    (id, data)    => api.post(`/projects/${id}/tasks`, data),
+  updateTask: (id, taskId, data) => api.patch(`/projects/${id}/tasks/${taskId}`, data),
+  removeTask: (id, taskId)  => api.delete(`/projects/${id}/tasks/${taskId}`),
 };
 
 export const usersAPI = {
