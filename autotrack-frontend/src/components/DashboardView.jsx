@@ -403,14 +403,14 @@ export default function DashboardView({ projects, users, onCardClick }) {
 
       {/* KPI row — colored gradient cards */}
       <div className="dash-grid">
-        <KpiCard label="Total"       value={total}        gradient="linear-gradient(135deg,#5a2807,#f9924d)" spark={spark.total} />
-        <KpiCard label="En proceso"  value={cnt.progress} gradient="linear-gradient(135deg,#f9924d,#ffbe99)" spark={spark.progress} />
-        <KpiCard label="En standby"  value={cnt.standby}  gradient="linear-gradient(135deg,#57534E,#78716C)" spark={spark.standby} />
-        <KpiCard label="En testing"  value={cnt.testing}  gradient="linear-gradient(135deg,#5a2807,#e87d3a)" spark={[0,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing]} />
-        <KpiCard label="Finalizados" value={cnt.done}     gradient="linear-gradient(135deg,#14532D,#16A34A)" spark={spark.done} />
         <KpiCard label="Por hacer"   value={cnt.backlog}  gradient="linear-gradient(135deg,#8a3a10,#c4622d)" spark={[cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog]} />
-        <KpiCard label="En soporte"  value={cnt.soporte}  gradient="linear-gradient(135deg,#0e7490,#0891b2)" spark={[0,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte]} />
+        <KpiCard label="En proceso"  value={cnt.progress} gradient="linear-gradient(135deg,#f9924d,#ffbe99)" spark={spark.progress} />
+        <KpiCard label="En testing"  value={cnt.testing}  gradient="linear-gradient(135deg,#5a2807,#e87d3a)" spark={[0,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing]} />
+        <KpiCard label="En standby"  value={cnt.standby}  gradient="linear-gradient(135deg,#57534E,#78716C)" spark={spark.standby} />
+        <KpiCard label="Finalizados" value={cnt.done}     gradient="linear-gradient(135deg,#14532D,#16A34A)" spark={spark.done} />
         <KpiCard label="Vencidos"    value={overdueCount} gradient="linear-gradient(135deg,#991b1b,#DC2626)" spark={[0,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount]} />
+        <KpiCard label="En soporte"  value={cnt.soporte}  gradient="linear-gradient(135deg,#0e7490,#0891b2)" spark={[0,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte]} />
+        <KpiCard label="Total"       value={total}        gradient="linear-gradient(135deg,#5a2807,#f9924d)" spark={spark.total} />
       </div>
 
       {/* Tipo breakdown */}
