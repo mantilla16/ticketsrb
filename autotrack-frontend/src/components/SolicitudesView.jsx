@@ -435,9 +435,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
           <div className="sol-modal-footer" style={{ justifyContent: 'space-between' }}>
             {!delConfirm
               ? (
-                <button type="button"
-                  className="uv-action-btn uv-action-btn--del"
-                  style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, gap: 5 }}
+                <button type="button" className="btn btn-danger btn-sm"
                   onClick={() => setDelConfirm(true)}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -446,13 +444,11 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
                 </button>
               )
               : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 12, color: 'var(--text2)' }}>¿Confirmar?</span>
-                  <button type="button" className="uv-action-btn uv-action-btn--del"
-                    style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12 }}
-                    onClick={() => onDelete(sol.id)}>Sí</button>
-                  <button type="button" className="btn btn-ghost"
-                    style={{ padding: '6px 12px', fontSize: 12 }}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text2)' }}>¿Eliminar esta solicitud?</span>
+                  <button type="button" className="btn btn-danger btn-sm"
+                    onClick={() => onDelete(sol.id)}>Sí, eliminar</button>
+                  <button type="button" className="btn btn-ghost btn-sm"
                     onClick={() => setDelConfirm(false)}>No</button>
                 </div>
               )
