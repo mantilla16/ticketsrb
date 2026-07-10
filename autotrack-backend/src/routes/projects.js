@@ -51,6 +51,7 @@ function fmtProject(p, logs = [], tasks = []) {
     dueDate: fmtDate(p.due_date),
     progress: p.progress,
     createdAt: p.created_at,
+    updatedAt: p.updated_at,
     logs: logs.map(l => ({
       id: l.id,
       text: l.text,

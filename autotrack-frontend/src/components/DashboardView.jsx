@@ -1,11 +1,11 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { colorClass } from '../utils/helpers';
 
-const STATUS_COLOR = { progress: '#f9924d', testing: '#e87d3a', standby: '#78716C', backlog: '#a86040', done: '#16A34A', soporte: '#0891b2' };
+const STATUS_COLOR = { progress: '#F97316', testing: '#F59E0B', standby: '#A8907C', backlog: '#9CA3AF', done: '#22C55E', soporte: '#0891b2' };
 
-const STATUS_DOT   = { backlog:'#a86040', progress:'#f9924d', standby:'#78716C', testing:'#e87d3a', done:'#16A34A', soporte:'#0891b2' };
+const STATUS_DOT   = { backlog:'#9CA3AF', progress:'#F97316', standby:'#A8907C', testing:'#F59E0B', done:'#22C55E', soporte:'#0891b2' };
 const STATUS_LABEL = { backlog:'Por hacer', progress:'En proceso', standby:'En standby', testing:'En testing', done:'Finalizado', soporte:'En soporte' };
-const STATUS_BAR   = { backlog:'#a86040', progress:'#f9924d', standby:'#78716C', testing:'#e87d3a', done:'#16A34A', soporte:'#0891b2' };
+const STATUS_BAR   = { backlog:'#9CA3AF', progress:'#F97316', standby:'#A8907C', testing:'#F59E0B', done:'#22C55E', soporte:'#0891b2' };
 
 /* ── Animated counter hook ── */
 function useCountUp(end, duration = 700) {
@@ -126,10 +126,10 @@ function TreemapChart({ projects, users }) {
         const total    = assigned.length;
         const active   = assigned.filter(p => p.status === 'progress' || p.status === 'testing').length;
         const ratio    = total > 0 ? active / total : 0;
-        const color    = total === 0 ? '#a9a29b'
-          : ratio > 0.7  ? '#DC2626'
-          : ratio >= 0.4 ? '#f9924d'
-          : '#16A34A';
+        const color    = total === 0 ? '#B8B0A8'
+          : ratio > 0.7  ? '#EF4444'
+          : ratio >= 0.4 ? '#F97316'
+          : '#22C55E';
         return {
           name:  u.name.split(' ')[0],
           full:  u.name,
@@ -185,16 +185,23 @@ function TreemapChart({ projects, users }) {
       if (rw > 38 && rh > 28) {
         const fName = Math.min(13, Math.max(9, rw / 8));
         ctx.fillStyle = r.color;
-        ctx.font = `700 ${fName}px system-ui`;
+        ctx.font = `700 ${fName}px Inter, system-ui`;
         const label = rw < 55 ? r.name.slice(0, 4) : r.name;
-        const offsetY = rh > 48 ? -8 : 0;
+        const offsetY = rh > 48 ? -10 : 0;
         ctx.fillText(label, mid.x, mid.y + offsetY);
 
         if (rh > 44) {
-          const fNum = Math.min(20, Math.max(12, rw / 5));
-          ctx.font = `800 ${fNum}px 'JetBrains Mono', monospace`;
-          ctx.globalAlpha = 0.75;
-          ctx.fillText(r.total, mid.x, mid.y + fName + 4);
+          const fNum = Math.min(22, Math.max(13, rw / 5));
+          ctx.font = `700 ${fNum}px Inter, system-ui`;
+          ctx.globalAlpha = 0.85;
+          ctx.fillText(r.total, mid.x, mid.y + fName + 2);
+          ctx.globalAlpha = 1;
+        }
+        if (rh > 78 && rw > 52) {
+          const pct = r.total ? Math.round(r.active / r.total * 100) : 0;
+          ctx.font = `600 10px Inter, system-ui`;
+          ctx.globalAlpha = 0.55;
+          ctx.fillText(`${pct}%`, mid.x, mid.y + fName + 24);
           ctx.globalAlpha = 1;
         }
       }
@@ -252,14 +259,14 @@ const KPI_ICON = {
   overdue:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
 };
 
-/* ── KPI card — icon chip, big number + unit, sparkline ── */
-function KpiCard({ label, value, color, spark, icon, alert }) {
+/* ── KPI card — icon chip, big number + unit, monthly change, sparkline ── */
+function KpiCard({ label, value, color, spark, icon, alert, change }) {
   const animated = useCountUp(value);
   const hot = alert && value > 0;
   return (
     <div className="kpi-card">
       <div className="kpi-head">
-        <span className="kpi-icon" style={{ background: `${color}1a`, color }}>{KPI_ICON[icon] || KPI_ICON.total}</span>
+        <span className="kpi-icon" style={{ background: `${color}16`, color }}>{KPI_ICON[icon] || KPI_ICON.total}</span>
         <span className="kpi-label">{label}</span>
       </div>
       <div className="kpi-numrow">
@@ -268,6 +275,13 @@ function KpiCard({ label, value, color, spark, icon, alert }) {
         </span>
         <span className="kpi-unit">{value === 1 ? 'proyecto' : 'proyectos'}</span>
       </div>
+      {change > 0
+        ? <span className="kpi-change" style={{ color: '#22C55E' }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            +{change} este mes
+          </span>
+        : <span className="kpi-change" style={{ color: 'var(--text4)' }}>— sin cambios</span>
+      }
       <Sparkline values={spark} color={color} />
     </div>
   );
@@ -339,10 +353,10 @@ function TeamTable({ projects, users }) {
 }
 
 const TIPO_INFO = {
-  automatizacion:  { label: 'Automatización', color: '#f9924d', bg: 'rgba(249,146,77,.12)' },
-  analitica:       { label: 'Analítica',       color: '#7c3aed', bg: 'rgba(124,58,237,.10)' },
-  compartido:      { label: 'Compartido',      color: '#0891b2', bg: 'rgba(8,145,178,.10)'  },
-  asignacion_flash:{ label: 'Flash',           color: '#d97706', bg: 'rgba(217,119,6,.10)'  },
+  automatizacion:  { label: 'Automatización', color: '#F97316', bg: '#FFF3E8' },
+  analitica:       { label: 'Analítica',       color: '#7c3aed', bg: '#F5F3FF' },
+  compartido:      { label: 'Compartidos',     color: '#0891b2', bg: '#E0F2FE' },
+  asignacion_flash:{ label: 'Flash',           color: '#F59E0B', bg: '#FEF3C7' },
 };
 
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -380,7 +394,17 @@ const SOL_MINI_ICON = {
   convertidas: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></svg>,
 };
 
-export default function DashboardView({ projects, users, solicitudes = [], onCardClick, onNavigate, role }) {
+export default function DashboardView({ projects: allProjects, users, solicitudes = [], onCardClick, onNavigate, role }) {
+  const [period, setPeriod] = useState('all');
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const projects = period === 'month'
+    ? allProjects.filter(p => p.createdAt && new Date(p.createdAt) >= monthStart)
+    : allProjects;
+
+  // Cambios reales del mes (por fecha de creación / actualización)
+  const createdThisMonth = allProjects.filter(p => p.createdAt && new Date(p.createdAt) >= monthStart).length;
+  const doneThisMonth    = allProjects.filter(p => p.status === 'done' && p.updatedAt && new Date(p.updatedAt) >= monthStart).length;
+
   const cnt   = { backlog: 0, progress: 0, standby: 0, testing: 0, done: 0, soporte: 0 };
   const prCnt = { high: 0, mid: 0, low: 0 };
   const tipoCnt = { automatizacion: 0, analitica: 0, compartido: 0, asignacion_flash: 0 };
@@ -442,8 +466,17 @@ export default function DashboardView({ projects, users, solicitudes = [], onCar
 
   return (
     <>
-      {/* Export */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }} className="no-print">
+      {/* Period + Export */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }} className="no-print">
+        <div className="period-select-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <select value={period} onChange={e => setPeriod(e.target.value)}>
+            <option value="all">Todo el portafolio</option>
+            <option value="month">Este mes</option>
+          </select>
+        </div>
         <button className="btn btn-ghost btn-sm" onClick={() => window.print()} style={{ gap: 6 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -455,14 +488,14 @@ export default function DashboardView({ projects, users, solicitudes = [], onCar
 
       {/* KPI row */}
       <div className="dash-grid">
-        <KpiCard label="Total"       value={total}        color="#5a2807" icon="total"    spark={spark.total} />
-        <KpiCard label="En proceso"  value={cnt.progress} color="#f9924d" icon="progress" spark={spark.progress} />
-        <KpiCard label="En standby"  value={cnt.standby}  color="#78716C" icon="standby"  spark={spark.standby} />
-        <KpiCard label="En testing"  value={cnt.testing}  color="#e87d3a" icon="testing"  spark={[0,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing]} />
-        <KpiCard label="Finalizados" value={cnt.done}     color="#16A34A" icon="done"     spark={spark.done} />
-        <KpiCard label="Por hacer"   value={cnt.backlog}  color="#a86040" icon="backlog"  spark={[cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog]} />
+        <KpiCard label="Total"       value={total}        color="#C96A1A" icon="total"    spark={spark.total}    change={createdThisMonth} />
+        <KpiCard label="En proceso"  value={cnt.progress} color="#F97316" icon="progress" spark={spark.progress} />
+        <KpiCard label="En standby"  value={cnt.standby}  color="#A8907C" icon="standby"  spark={spark.standby} />
+        <KpiCard label="En testing"  value={cnt.testing}  color="#F59E0B" icon="testing"  spark={[0,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing]} />
+        <KpiCard label="Finalizados" value={cnt.done}     color="#22C55E" icon="done"     spark={spark.done}     change={doneThisMonth} />
+        <KpiCard label="Por hacer"   value={cnt.backlog}  color="#6B7280" icon="backlog"  spark={[cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog]} />
         <KpiCard label="Soporte"     value={cnt.soporte}  color="#0891b2" icon="soporte"  spark={[0,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte]} />
-        <KpiCard label="Vencidos"    value={overdueCount} color="#DC2626" icon="overdue"  alert spark={[0,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount]} />
+        <KpiCard label="Vencidos"    value={overdueCount} color="#EF4444" icon="overdue"  alert spark={[0,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount]} />
       </div>
 
       {/* Áreas del equipo — chips */}
@@ -489,10 +522,10 @@ export default function DashboardView({ projects, users, solicitudes = [], onCar
           <div className="chart-subtitle">Tamaño = proyectos asignados · intensidad = % activos</div>
           <TreemapChart projects={projects} users={team} />
           <div className="tm-legend">
-            <span><i style={{ background: '#DC2626' }} /> Alta carga (&gt;70%)</span>
-            <span><i style={{ background: '#f9924d' }} /> Media (40–70%)</span>
-            <span><i style={{ background: '#16A34A' }} /> Baja (&lt;40%)</span>
-            <span><i style={{ background: '#c9c3bd' }} /> Sin carga</span>
+            <span><i style={{ background: '#EF4444' }} /> Alta carga (&gt;70%)</span>
+            <span><i style={{ background: '#F97316' }} /> Media (40–70%)</span>
+            <span><i style={{ background: '#22C55E' }} /> Baja (&lt;40%)</span>
+            <span><i style={{ background: '#B8B0A8' }} /> Sin carga</span>
           </div>
         </div>
 
@@ -502,10 +535,10 @@ export default function DashboardView({ projects, users, solicitudes = [], onCar
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 16 }}>
             <div>
               <div className="dist-col-label">Por prioridad</div>
-              {[['high','Alta','#DC2626'],['mid','Media','#f9924d'],['low','Baja','#16A34A']].map(([k, l, c]) => (
+              {[['high','Alta','#EF4444'],['mid','Media','#F97316'],['low','Baja','#22C55E']].map(([k, l, c]) => (
                 <div className="bar-h" key={k}>
                   <div className="bar-h-label" style={{ width: 44, fontSize: 11 }}>{l}</div>
-                  <div className="bar-h-track" style={{ height: 12 }}>
+                  <div className="bar-h-track">
                     <div className="bar-h-fill" style={{ width: `${Math.round(prCnt[k] / maxPr * 100)}%`, background: c }} />
                   </div>
                   <div className="bar-h-val" style={{ minWidth: 48, fontSize: 11 }}>
@@ -517,9 +550,9 @@ export default function DashboardView({ projects, users, solicitudes = [], onCar
             <div>
               <div className="dist-col-label">Por estado</div>
               {Object.entries(STATUS_LABEL).map(([k, l]) => (
-                <div className="bar-h" key={k} style={{ marginBottom: 6 }}>
+                <div className="bar-h" key={k} style={{ marginBottom: 8 }}>
                   <div className="bar-h-label" style={{ width: 68, fontSize: 11 }}>{l}</div>
-                  <div className="bar-h-track" style={{ height: 12 }}>
+                  <div className="bar-h-track">
                     <div className="bar-h-fill" style={{ width: `${Math.round(cnt[k] / maxCnt * 100)}%`, background: STATUS_BAR[k] }} />
                   </div>
                   <div className="bar-h-val" style={{ minWidth: 48, fontSize: 11 }}>
@@ -545,8 +578,8 @@ export default function DashboardView({ projects, users, solicitudes = [], onCar
                   <div key={p.id} className="due-row" onClick={() => onCardClick(p.id)}>
                     <span className="due-name" title={p.name}>{p.name}</span>
                     <span className="pill-mini" style={{
-                      background: p.priority === 'high' ? '#FEE2E2' : p.priority === 'low' ? '#DCFCE7' : '#FEF3C7',
-                      color:      p.priority === 'high' ? '#DC2626' : p.priority === 'low' ? '#16A34A' : '#D97706',
+                      background: p.priority === 'high' ? '#FEF2F2' : p.priority === 'low' ? '#ECFDF3' : '#FFF3E8',
+                      color:      p.priority === 'high' ? '#EF4444' : p.priority === 'low' ? '#22C55E' : '#F97316',
                     }}>
                       {p.priority === 'high' ? 'Alta' : p.priority === 'low' ? 'Baja' : 'Media'}
                     </span>
@@ -571,10 +604,10 @@ export default function DashboardView({ projects, users, solicitudes = [], onCar
               onMore={onNavigate && ['admin', 'leader_analytics'].includes(role) ? () => onNavigate('solicitudes') : undefined} />
             <div className="sol-grid-mini">
               {[
-                { n: solStats.recibidas,   l: 'Recibidas',              c: '#c4622d', ic: 'recibidas' },
-                { n: solStats.revision,    l: 'En revisión',            c: '#D97706', ic: 'revision' },
-                { n: solStats.reunion,     l: 'Reunión agendada',       c: '#b45309', ic: 'reunion' },
-                { n: solStats.convertidas, l: 'Convertidas en proyecto', c: '#16A34A', ic: 'convertidas' },
+                { n: solStats.recibidas,   l: 'Recibidas',              c: '#F97316', ic: 'recibidas' },
+                { n: solStats.revision,    l: 'En revisión',            c: '#F59E0B', ic: 'revision' },
+                { n: solStats.reunion,     l: 'Reunión agendada',       c: '#C96A1A', ic: 'reunion' },
+                { n: solStats.convertidas, l: 'Convertidas en proyecto', c: '#22C55E', ic: 'convertidas' },
               ].map(({ n, l, c, ic }) => (
                 <div key={l} className="sol-mini" style={{ background: `${c}0d`, borderColor: `${c}22` }}>
                   <div style={{ color: c, display: 'flex', marginBottom: 6 }}>{SOL_MINI_ICON[ic]}</div>
