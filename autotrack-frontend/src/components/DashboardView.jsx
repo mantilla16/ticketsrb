@@ -347,7 +347,40 @@ const TIPO_INFO = {
 
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
-export default function DashboardView({ projects, users, solicitudes = [], onCardClick }) {
+/* Panel header: icon + title (+ optional "Ver todas") */
+function PanelHead({ icon, title, sub, onMore }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ color: 'var(--text2)', display: 'flex' }}>{icon}</span>
+        <span className="chart-title" style={{ marginBottom: 0 }}>{title}</span>
+        {onMore && (
+          <button onClick={onMore}
+            style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: 'var(--text3)', textDecoration: 'underline', fontFamily: 'var(--font)', padding: 0 }}>
+            Ver todas
+          </button>
+        )}
+      </div>
+      {sub && <div className="chart-subtitle" style={{ marginBottom: 0, marginTop: 2 }}>{sub}</div>}
+    </div>
+  );
+}
+
+const PANEL_ICON = {
+  cal:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  inbox: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>,
+  clock: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>,
+  team:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+};
+
+const SOL_MINI_ICON = {
+  recibidas: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+  revision:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  reunion:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  convertidas: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></svg>,
+};
+
+export default function DashboardView({ projects, users, solicitudes = [], onCardClick, onNavigate, role }) {
   const cnt   = { backlog: 0, progress: 0, standby: 0, testing: 0, done: 0, soporte: 0 };
   const prCnt = { high: 0, mid: 0, low: 0 };
   const tipoCnt = { automatizacion: 0, analitica: 0, compartido: 0, asignacion_flash: 0 };
@@ -502,8 +535,8 @@ export default function DashboardView({ projects, users, solicitudes = [], onCar
       {/* Entregas próximas + Solicitudes + Proyectos por área */}
       <div className="dash-panels">
         <div className="chart-box">
-          <div className="chart-title">Entregas próximas</div>
-          <div className="chart-subtitle">Proyectos activos con fecha más cercana</div>
+          <PanelHead icon={PANEL_ICON.cal} title="Entregas próximas"
+            onMore={onNavigate ? () => onNavigate('gantt') : undefined} />
           {upcoming.length === 0
             ? <div className="empty" style={{ padding: 20, fontSize: 12 }}>Sin entregas programadas</div>
             : upcoming.map(p => {
@@ -521,7 +554,10 @@ export default function DashboardView({ projects, users, solicitudes = [], onCar
                       {fmtShort(p.dueDate)}
                     </span>
                     {p.assignee && (
-                      <span className={`avatar-xs ${colorClass(p.assignee.colorIndex)}`} title={p.assignee.name}>{p.assignee.initials}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                        <span className={`avatar-xs ${colorClass(p.assignee.colorIndex)}`}>{p.assignee.initials}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text2)', whiteSpace: 'nowrap' }}>{p.assignee.name.split(' ')[0]} {p.assignee.name.split(' ')[1]?.[0] || ''}.</span>
+                      </span>
                     )}
                   </div>
                 );
@@ -531,45 +567,43 @@ export default function DashboardView({ projects, users, solicitudes = [], onCar
 
         {solTotal > 0 && (
           <div className="chart-box">
-            <div className="chart-title">Solicitudes internas</div>
-            <div className="chart-subtitle">Estado del embudo de requerimientos</div>
+            <PanelHead icon={PANEL_ICON.inbox} title="Solicitudes internas"
+              onMore={onNavigate && ['admin', 'leader_analytics'].includes(role) ? () => onNavigate('solicitudes') : undefined} />
             <div className="sol-grid-mini">
               {[
-                { n: solStats.recibidas,   l: 'Recibidas',    c: '#a86040' },
-                { n: solStats.revision,    l: 'En revisión',  c: '#D97706' },
-                { n: solStats.reunion,     l: 'Reunión agendada', c: '#7c3aed' },
-                { n: solStats.convertidas, l: 'Convertidas',  c: '#16A34A' },
-              ].map(({ n, l, c }) => (
-                <div key={l} className="sol-mini" style={{ background: `${c}0f`, borderColor: `${c}25` }}>
-                  <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--mono)', color: c, lineHeight: 1 }}>{n}</div>
-                  <div style={{ fontSize: 10.5, color: 'var(--text2)', marginTop: 4, lineHeight: 1.2 }}>{l}</div>
+                { n: solStats.recibidas,   l: 'Recibidas',              c: '#c4622d', ic: 'recibidas' },
+                { n: solStats.revision,    l: 'En revisión',            c: '#D97706', ic: 'revision' },
+                { n: solStats.reunion,     l: 'Reunión agendada',       c: '#b45309', ic: 'reunion' },
+                { n: solStats.convertidas, l: 'Convertidas en proyecto', c: '#16A34A', ic: 'convertidas' },
+              ].map(({ n, l, c, ic }) => (
+                <div key={l} className="sol-mini" style={{ background: `${c}0d`, borderColor: `${c}22` }}>
+                  <div style={{ color: c, display: 'flex', marginBottom: 6 }}>{SOL_MINI_ICON[ic]}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--text2)', lineHeight: 1.25, minHeight: 26 }}>{l}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--text)', lineHeight: 1, marginTop: 4 }}>{n}</div>
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 5 }}>
-                <span style={{ fontWeight: 700, color: 'var(--text2)' }}>Tasa de conversión</span>
-                <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--accent)' }}>{convRate}%</span>
-              </div>
-              <div className="bar-h-track" style={{ height: 8 }}>
+            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text2)', whiteSpace: 'nowrap' }}>Tasa de conversión</span>
+              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 13, color: 'var(--accent)' }}>{convRate}%</span>
+              <div className="bar-h-track" style={{ height: 8, flex: 1 }}>
                 <div className="bar-h-fill" style={{ width: `${convRate}%`, background: 'var(--accent)' }} />
               </div>
-              <div style={{ fontSize: 10.5, color: 'var(--text3)', marginTop: 4 }}>
+              <span style={{ fontSize: 10.5, color: 'var(--text3)', whiteSpace: 'nowrap' }}>
                 {solStats.convertidas} de {solTotal} solicitudes
-              </div>
+              </span>
             </div>
           </div>
         )}
 
         <div className="chart-box">
-          <div className="chart-title">Proyectos por área</div>
-          <div className="chart-subtitle">Distribución del portafolio por equipo</div>
+          <PanelHead icon={PANEL_ICON.clock} title="Proyectos por área" />
           <div className="tipo-cards">
             {Object.entries(TIPO_INFO).map(([key, info]) => (
               <div key={key} className="tipo-card" style={{ background: info.bg, borderColor: `${info.color}25` }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: info.color }}>{info.label}</div>
-                <div style={{ fontSize: 26, fontWeight: 800, fontFamily: 'var(--mono)', color: info.color, lineHeight: 1.1 }}>{tipoCnt[key]}</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)' }}>{total ? Math.round(tipoCnt[key] / total * 100) : 0}%</div>
+                <div style={{ fontSize: 26, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--text)', lineHeight: 1.1 }}>{tipoCnt[key]}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: info.color }}>{total ? Math.round(tipoCnt[key] / total * 100) : 0}%</div>
               </div>
             ))}
           </div>
@@ -578,8 +612,7 @@ export default function DashboardView({ projects, users, solicitudes = [], onCar
 
       {/* Carga del equipo — tabla */}
       <div className="chart-box" style={{ marginTop: 16 }}>
-        <div className="chart-title">Carga del equipo</div>
-        <div className="chart-subtitle" style={{ marginBottom: 14 }}>Proyectos activos por persona</div>
+        <PanelHead icon={PANEL_ICON.team} title="Carga del equipo" sub="Proyectos activos por persona" />
         {team.length === 0
           ? <div className="empty">Sin ingenieros registrados</div>
           : <TeamTable projects={projects} users={team} />}

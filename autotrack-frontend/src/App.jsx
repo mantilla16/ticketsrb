@@ -291,7 +291,7 @@ export default function App() {
             )}
 
             {section === 'dashboard' && (
-              <DashboardView projects={projects} users={users} solicitudes={solicitudes} onCardClick={openDetail} />
+              <DashboardView projects={projects} users={users} solicitudes={solicitudes} onCardClick={openDetail} onNavigate={changeSection} role={user?.role} />
             )}
 
             {section === 'my-kanban' && (
