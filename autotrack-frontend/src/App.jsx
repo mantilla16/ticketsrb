@@ -14,6 +14,7 @@ import UsersView from './components/UsersView';
 import UserModal from './components/UserModal';
 import SolicitudesView from './components/SolicitudesView';
 import ProjectSearch from './components/ProjectSearch';
+import ReportPrint from './components/ReportPrint';
 import ProjectModal from './components/ProjectModal';
 import DetailModal from './components/DetailModal';
 import Toast, { useToast } from './components/Toast';
@@ -71,6 +72,7 @@ export default function App() {
   const [projects, setProjects]       = useState([]);
   const [users, setUsers]             = useState([]);
   const [solicitudes, setSolicitudes] = useState([]);
+  const [dashPeriod, setDashPeriod]   = useState('all');
 
   const [projModal, setProjModal]     = useState({ open: false, project: null, defStatus: null, defAssigneeId: null });
   const [detailModal, setDetailModal] = useState({ open: false, projectId: null });
@@ -244,6 +246,7 @@ export default function App() {
   const showNewProject = isLeader && (section === 'my-kanban' || section === 'team-kanban');
 
   return (
+    <>
     <div className="layout">
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
       <Sidebar section={section} onSection={changeSection} user={user} onLogout={logout} isOpen={sidebarOpen} />
@@ -291,7 +294,8 @@ export default function App() {
             )}
 
             {section === 'dashboard' && (
-              <DashboardView projects={projects} users={users} solicitudes={solicitudes} onCardClick={openDetail} onNavigate={changeSection} role={user?.role} />
+              <DashboardView projects={projects} users={users} solicitudes={solicitudes} onCardClick={openDetail} onNavigate={changeSection} role={user?.role}
+                period={dashPeriod} onPeriodChange={setDashPeriod} />
             )}
 
             {section === 'my-kanban' && (
@@ -399,5 +403,18 @@ export default function App() {
 
       <Toast toasts={toasts} onRemove={removeToast} />
     </div>
+
+    {/* Informe PDF — visible solo al imprimir desde el Dashboard */}
+    {section === 'dashboard' && (
+      <ReportPrint
+        projects={dashPeriod === 'month'
+          ? projects.filter(p => { const ms = new Date(); ms.setDate(1); ms.setHours(0,0,0,0); return p.createdAt && new Date(p.createdAt) >= ms; })
+          : projects}
+        users={users}
+        solicitudes={solicitudes}
+        periodLabel={dashPeriod === 'month' ? 'Este mes' : 'Todo el portafolio'}
+      />
+    )}
+    </>
   );
 }

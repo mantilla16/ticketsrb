@@ -394,8 +394,7 @@ const SOL_MINI_ICON = {
   convertidas: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></svg>,
 };
 
-export default function DashboardView({ projects: allProjects, users, solicitudes = [], onCardClick, onNavigate, role }) {
-  const [period, setPeriod] = useState('all');
+export default function DashboardView({ projects: allProjects, users, solicitudes = [], onCardClick, onNavigate, role, period = 'all', onPeriodChange }) {
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
   const projects = period === 'month'
     ? allProjects.filter(p => p.createdAt && new Date(p.createdAt) >= monthStart)
@@ -472,7 +471,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-          <select value={period} onChange={e => setPeriod(e.target.value)}>
+          <select value={period} onChange={e => onPeriodChange?.(e.target.value)}>
             <option value="all">Todo el portafolio</option>
             <option value="month">Este mes</option>
           </select>
