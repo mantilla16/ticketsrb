@@ -398,25 +398,39 @@ export default function DashboardView({ projects: allProjects, users, solicitude
   const [exporting, setExporting] = useState(false);
 
   const exportPDF = async () => {
-    const el = document.querySelector('.print-report');
-    if (!el || exporting) { if (!el) window.print(); return; }
+    const src = document.querySelector('.print-report');
+    if (!src || exporting) { if (!src) window.print(); return; }
     setExporting(true);
+
+    // Clon visible en 0,0 (html2canvas no captura elementos fuera de pantalla),
+    // tapado por un overlay mientras se genera.
+    const overlay = document.createElement('div');
+    overlay.className = 'rp-overlay';
+    overlay.innerHTML = '<div class="rp-overlay-msg"><span class="rp-overlay-spin"></span>Generando informe PDF…</div>';
+    const clone = src.cloneNode(true);
+    clone.classList.add('rp-capture');
+    document.body.appendChild(clone);
+    document.body.appendChild(overlay);
+    const prevScroll = window.scrollY;
+    window.scrollTo(0, 0);
+
     try {
       const html2pdf = (await import('html2pdf.js')).default;
-      el.classList.add('rp-capture');
       await html2pdf().set({
         margin: 0,
         filename: `Informe_AMBARC_${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: 'jpeg', quality: 0.96 },
-        html2canvas: { scale: 2, useCORS: true, windowWidth: 794 },
+        html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
         jsPDF: { unit: 'px', format: [794, 1123], orientation: 'portrait', hotfixes: ['px_scaling'] },
         pagebreak: { mode: ['css'] },
-      }).from(el).save();
+      }).from(clone).save();
     } catch (err) {
       console.error('PDF export failed:', err);
       window.print();
     } finally {
-      el.classList.remove('rp-capture');
+      clone.remove();
+      overlay.remove();
+      window.scrollTo(0, prevScroll);
       setExporting(false);
     }
   };

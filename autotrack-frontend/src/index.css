@@ -1466,14 +1466,30 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 /* ════ INFORME PDF (ReportPrint) ════ */
 .print-report { display: none; }
 
-/* Modo captura — html2pdf renderiza fuera de pantalla con medidas A4 (794×1123 px @96dpi) */
+/* Modo captura — clon en 0,0 con medidas A4 (794×1123 px @96dpi), tapado por el overlay */
 .print-report.rp-capture {
-  display: block; position: absolute; left: -10000px; top: 0;
-  width: 794px; z-index: -1; background: #fff;
+  display: block; position: absolute; left: 0; top: 0;
+  width: 794px; z-index: 1; background: #fff;
 }
 .rp-capture .rp-page {
   width: 794px; height: 1123px; min-height: auto;
   overflow: hidden; box-sizing: border-box;
+}
+
+/* Overlay durante la generación */
+.rp-overlay {
+  position: fixed; inset: 0; z-index: 99999;
+  background: rgba(250,248,245,.98);
+  display: flex; align-items: center; justify-content: center;
+}
+.rp-overlay-msg {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--font); font-size: 15px; font-weight: 600; color: var(--text2);
+}
+.rp-overlay-spin {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2.5px solid var(--accent-light); border-top-color: var(--accent);
+  animation: spin .7s linear infinite;
 }
 
 .rp-page {
