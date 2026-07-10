@@ -158,7 +158,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
             </div>
             <div className="form-group">
               <label className="form-label">{form.tipo === 'compartido' ? 'Responsable Automatización' : 'Responsable principal'}</label>
-              <select className="form-select" value={form.assigneeId} onChange={set('assigneeId')}>
+              <select className="form-select" value={form.assigneeId} onChange={set('assigneeId')} disabled={!isLeader}>
                 <option value="">— Sin asignar —</option>
                 {users.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
               </select>
@@ -174,14 +174,14 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Responsable general</label>
-                  <select className="form-select" value={form.generalAssigneeId} onChange={set('generalAssigneeId')}>
+                  <select className="form-select" value={form.generalAssigneeId} onChange={set('generalAssigneeId')} disabled={!isLeader}>
                     <option value="">— Sin asignar —</option>
                     {users.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Responsable Analítica</label>
-                  <select className="form-select" value={form.coAssigneeId} onChange={set('coAssigneeId')}>
+                  <select className="form-select" value={form.coAssigneeId} onChange={set('coAssigneeId')} disabled={!isLeader}>
                     <option value="">— Sin asignar —</option>
                     {users.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
                   </select>
