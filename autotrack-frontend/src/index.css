@@ -1466,6 +1466,16 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 /* ════ INFORME PDF (ReportPrint) ════ */
 .print-report { display: none; }
 
+/* Modo captura — html2pdf renderiza fuera de pantalla con medidas A4 (794×1123 px @96dpi) */
+.print-report.rp-capture {
+  display: block; position: absolute; left: -10000px; top: 0;
+  width: 794px; z-index: -1; background: #fff;
+}
+.rp-capture .rp-page {
+  width: 794px; height: 1123px; min-height: auto;
+  overflow: hidden; box-sizing: border-box;
+}
+
 .rp-page {
   background: #fff; color: #1F2937; font-family: var(--font);
   padding: 40px 44px 24px; position: relative;

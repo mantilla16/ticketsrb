@@ -395,6 +395,32 @@ const SOL_MINI_ICON = {
 };
 
 export default function DashboardView({ projects: allProjects, users, solicitudes = [], onCardClick, onNavigate, role, period = 'all', onPeriodChange }) {
+  const [exporting, setExporting] = useState(false);
+
+  const exportPDF = async () => {
+    const el = document.querySelector('.print-report');
+    if (!el || exporting) { if (!el) window.print(); return; }
+    setExporting(true);
+    try {
+      const html2pdf = (await import('html2pdf.js')).default;
+      el.classList.add('rp-capture');
+      await html2pdf().set({
+        margin: 0,
+        filename: `Informe_AMBARC_${new Date().toISOString().slice(0, 10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.96 },
+        html2canvas: { scale: 2, useCORS: true, windowWidth: 794 },
+        jsPDF: { unit: 'px', format: [794, 1123], orientation: 'portrait', hotfixes: ['px_scaling'] },
+        pagebreak: { mode: ['css'] },
+      }).from(el).save();
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      window.print();
+    } finally {
+      el.classList.remove('rp-capture');
+      setExporting(false);
+    }
+  };
+
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
   const projects = period === 'month'
     ? allProjects.filter(p => p.createdAt && new Date(p.createdAt) >= monthStart)
@@ -476,12 +502,12 @@ export default function DashboardView({ projects: allProjects, users, solicitude
             <option value="month">Este mes</option>
           </select>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={() => window.print()} style={{ gap: 6 }}>
+        <button className="btn btn-ghost btn-sm" onClick={exportPDF} disabled={exporting} style={{ gap: 6 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
-          Exportar
+          {exporting ? 'Generando PDF...' : 'Exportar'}
         </button>
       </div>
 
