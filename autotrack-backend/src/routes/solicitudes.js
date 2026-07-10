@@ -32,7 +32,7 @@ const upload = multer({
 // admin → todas; user → solo las propias
 router.get('/', auth, async (req, res) => {
   try {
-    const isAdmin = ['admin', 'leader_analytics'].includes(req.user.role);
+    const isAdmin = ['admin', 'leader_analytics', 'manager'].includes(req.user.role);
     const { rows } = await pool.query(
       `SELECT s.id, s.title, s.description, s.type, s.priority, s.area,
               s.due_date, s.file_name, s.file_path, s.status, s.notes,

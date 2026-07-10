@@ -121,15 +121,24 @@ function TreemapChart({ projects, users }) {
     ctx.clearRect(0, 0, W, H);
 
     const items = users
-      .map(u => ({
-        name:   u.name.split(' ')[0],
-        full:   u.name,
-        value:  Math.max(projects.filter(p => p.assigneeId === u.id).length, 1),
-        total:  projects.filter(p => p.assigneeId === u.id).length,
-        active: projects.filter(p => p.assigneeId === u.id && (p.status === 'progress' || p.status === 'testing')).length,
-        done:   projects.filter(p => p.assigneeId === u.id && p.status === 'done').length,
-        color:  ENG_HEX[u.colorIndex % 5],
-      }))
+      .map(u => {
+        const assigned = projects.filter(p => p.assigneeId === u.id);
+        const total    = assigned.length;
+        const active   = assigned.filter(p => p.status === 'progress' || p.status === 'testing').length;
+        const ratio    = total > 0 ? active / total : 0;
+        const color    = total === 0 ? '#a9a29b'
+          : ratio > 0.7  ? '#DC2626'
+          : ratio >= 0.4 ? '#f9924d'
+          : '#16A34A';
+        return {
+          name:  u.name.split(' ')[0],
+          full:  u.name,
+          value: Math.max(total, 1),
+          total, active,
+          done:  assigned.filter(p => p.status === 'done').length,
+          color,
+        };
+      })
       .sort((a, b) => b.value - a.value);
 
     const gap = 4;
@@ -231,96 +240,100 @@ function TreemapChart({ projects, users }) {
   );
 }
 
-/* ── KPI card — quiet surface, color carried by dot + sparkline ── */
-function KpiCard({ label, value, color, spark, alert }) {
+/* ── KPI icons ── */
+const KPI_ICON = {
+  total:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+  progress: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.2-8.56"/><polyline points="21 3 21 9 15 9"/></svg>,
+  standby:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>,
+  testing:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6M10 3v6l-5.5 9.5a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L14 9V3"/></svg>,
+  done:     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></svg>,
+  backlog:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>,
+  soporte:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>,
+  overdue:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+};
+
+/* ── KPI card — icon chip, big number + unit, sparkline ── */
+function KpiCard({ label, value, color, spark, icon, alert }) {
   const animated = useCountUp(value);
+  const hot = alert && value > 0;
   return (
     <div className="kpi-card">
       <div className="kpi-head">
-        <span className="kpi-dot" style={{ background: color }} />
+        <span className="kpi-icon" style={{ background: `${color}1a`, color }}>{KPI_ICON[icon] || KPI_ICON.total}</span>
         <span className="kpi-label">{label}</span>
       </div>
-      <div className="kpi-num" style={alert && value > 0 ? { color } : undefined}>
-        <span className="dash-num-inner" key={value}>{animated}</span>
+      <div className="kpi-numrow">
+        <span className="kpi-num" style={hot ? { color } : undefined}>
+          <span className="dash-num-inner" key={value}>{animated}</span>
+        </span>
+        <span className="kpi-unit">{value === 1 ? 'proyecto' : 'proyectos'}</span>
       </div>
       <Sparkline values={spark} color={color} />
     </div>
   );
 }
 
-/* ── Engineer workload with expandable active projects ── */
-function EngWorkload({ projects, users, onCardClick }) {
-  const [openId, setOpenId] = useState(null);
+/* ── Carga del equipo — flat table per mockup ── */
+const INTENSITY = (ratio, total) => {
+  if (total === 0)   return { label: 'Sin carga', color: '#78716C', bg: 'var(--grey-bg, #F5F5F4)' };
+  if (ratio > 0.7)   return { label: 'Alta',  color: '#DC2626', bg: '#FEE2E2' };
+  if (ratio >= 0.4)  return { label: 'Media', color: '#D97706', bg: '#FEF3C7' };
+  return               { label: 'Baja',  color: '#16A34A', bg: '#DCFCE7' };
+};
+
+function TeamTable({ projects, users }) {
+  const rows = users.map(u => {
+    const assigned = projects.filter(p => p.assigneeId === u.id || p.coAssigneeId === u.id);
+    const active   = assigned.filter(p => ['progress', 'testing'].includes(p.status));
+    const done     = assigned.filter(p => p.status === 'done').length;
+    const open     = assigned.filter(p => p.status !== 'done');
+    const avg      = open.length ? Math.round(open.reduce((s, p) => s + (p.progress || 0), 0) / open.length) : 0;
+    const ratio    = assigned.length ? active.length / assigned.length : 0;
+    return { u, total: assigned.length, active: active.length, done, avg, ratio };
+  }).sort((a, b) => b.active - a.active || b.total - a.total);
+
+  const maxActive = Math.max(1, ...rows.map(r => r.active));
 
   return (
-    <div>
-      {users.map((eng, i) => {
-        const assigned    = projects.filter(p => p.assigneeId === eng.id);
-        const activeProjs = assigned.filter(p => p.status === 'progress' || p.status === 'testing');
-        const active      = activeProjs.length;
-        const pct         = assigned.length ? Math.round(active / assigned.length * 100) : 0;
-        const isOpen      = openId === eng.id;
-
-        return (
-          <div key={eng.id} className="eng-block" style={{ animationDelay: `${i * 80}ms` }}>
-            {/* Row header — clickable */}
-            <div
-              className={`eng-row${active > 0 ? ' eng-row--clickable' : ''}`}
-              onClick={() => active > 0 && setOpenId(isOpen ? null : eng.id)}
-            >
-              <div className={`avatar-sm ${colorClass(eng.colorIndex)}`}>{eng.initials}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{eng.name}</span>
-                  <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text2)' }}>{assigned.length} proyectos</span>
-                </div>
-                <div style={{ height: 6, background: 'var(--bg)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct}%`, borderRadius: 4, transition: 'width .6s var(--ease-out)' }}
-                    className={`eng-c-${eng.colorIndex}`} />
-                </div>
-                <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 3 }}>
-                  {active} activo{active !== 1 ? 's' : ''}
-                </div>
-              </div>
-              <div className="eng-proj-count">{assigned.length}</div>
-              {active > 0 && (
-                <div className={`eng-chevron${isOpen ? ' eng-chevron--open' : ''}`}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </div>
-              )}
-            </div>
-
-            {/* Expanded active projects */}
-            {isOpen && (
-              <div className="eng-expand">
-                {activeProjs.map((p, j) => (
-                  <div
-                    key={p.id}
-                    className="eng-expand-item"
-                    style={{ animationDelay: `${j * 35}ms` }}
-                    onClick={() => onCardClick && onCardClick(p.id)}
-                  >
-                    <span className="eng-expand-dot" style={{ background: STATUS_COLOR[p.status] }} />
-                    <div className="eng-expand-info">
-                      <span className="eng-expand-name">{p.name}</span>
-                      {p.client && <span className="eng-expand-client">{p.client}</span>}
-                    </div>
-                    <span className="eng-expand-status" style={{ color: STATUS_COLOR[p.status] }}>
-                      {STATUS_LABEL[p.status]}
-                    </span>
-                    <span className="eng-expand-pct">{p.progress || 0}%</span>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text4)" strokeWidth="2" strokeLinecap="round">
-                      <polyline points="9 18 15 12 9 6"/>
-                    </svg>
+    <div style={{ overflowX: 'auto' }}>
+      <table className="team-table">
+        <thead>
+          <tr>
+            <th>Ingeniero</th>
+            <th style={{ textAlign: 'center' }}>Activos</th>
+            <th style={{ textAlign: 'center' }}>Finalizados</th>
+            <th>Intensidad</th>
+            <th style={{ width: '30%' }}></th>
+            <th style={{ textAlign: 'right' }}>Avance promedio</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ u, total, active, done, avg, ratio }) => {
+            const inten = INTENSITY(ratio, total);
+            return (
+              <tr key={u.id}>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <div className={`avatar-xs ${colorClass(u.colorIndex)}`}>{u.initials}</div>
+                    <span style={{ fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{u.name}</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
+                </td>
+                <td style={{ textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 700 }}>{active}</td>
+                <td style={{ textAlign: 'center', fontFamily: 'var(--mono)', color: 'var(--text2)' }}>{done}</td>
+                <td>
+                  <span className="pill-mini" style={{ background: inten.bg, color: inten.color }}>{inten.label}</span>
+                </td>
+                <td>
+                  <div className="bar-h-track" style={{ height: 8, minWidth: 120 }}>
+                    <div className="bar-h-fill" style={{ width: `${(active / maxActive) * 100}%`, background: 'var(--accent)' }} />
+                  </div>
+                </td>
+                <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--accent)' }}>{avg}%</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -332,7 +345,9 @@ const TIPO_INFO = {
   asignacion_flash:{ label: 'Flash',           color: '#d97706', bg: 'rgba(217,119,6,.10)'  },
 };
 
-export default function DashboardView({ projects, users, onCardClick }) {
+const fmtShort = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+export default function DashboardView({ projects, users, solicitudes = [], onCardClick }) {
   const cnt   = { backlog: 0, progress: 0, standby: 0, testing: 0, done: 0, soporte: 0 };
   const prCnt = { high: 0, mid: 0, low: 0 };
   const tipoCnt = { automatizacion: 0, analitica: 0, compartido: 0, asignacion_flash: 0 };
@@ -367,22 +382,21 @@ export default function DashboardView({ projects, users, onCardClick }) {
   if (areaRest > 0) areaTop.push(['Otras áreas', areaRest]);
   const maxArea = Math.max(1, ...areaTop.map(([, n]) => n));
 
-  // Carga por equipo — proyectos activos por área (compartidos cuentan en ambas)
-  const ACTIVE = ['backlog', 'progress', 'standby', 'testing'];
-  const teamLoad = { auto: { active: 0, total: 0 }, analitica: { active: 0, total: 0 } };
-  projects.forEach(p => {
-    const t = p.tipo || 'automatizacion';
-    const isActive = ACTIVE.includes(p.status);
-    if (t === 'automatizacion' || t === 'asignacion_flash' || t === 'compartido') {
-      teamLoad.auto.total++;
-      if (isActive) teamLoad.auto.active++;
-    }
-    if (t === 'analitica' || t === 'compartido') {
-      teamLoad.analitica.total++;
-      if (isActive) teamLoad.analitica.active++;
-    }
-  });
-  const maxTeam = Math.max(1, teamLoad.auto.active, teamLoad.analitica.active);
+  // Entregas próximas — no finalizados con fecha, ordenados por cercanía
+  const upcoming = projects
+    .filter(p => p.dueDate && p.status !== 'done')
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+    .slice(0, 5);
+
+  // Solicitudes internas
+  const solStats = {
+    recibidas:  solicitudes.filter(s => ['recibido', 'nueva'].includes(s.status)).length,
+    revision:   solicitudes.filter(s => s.status === 'en_revision').length,
+    reunion:    solicitudes.filter(s => s.status === 'reunion_agendada').length,
+    convertidas: solicitudes.filter(s => ['convertido', 'completada'].includes(s.status)).length,
+  };
+  const solTotal = solicitudes.length;
+  const convRate = solTotal ? Math.round(solStats.convertidas / solTotal * 100) : 0;
 
   const spark = {
     progress: [cnt.progress * 0.4, cnt.progress * 0.55, cnt.progress * 0.65, cnt.progress * 0.75, cnt.progress * 0.85, cnt.progress * 0.92, cnt.progress],
@@ -391,91 +405,93 @@ export default function DashboardView({ projects, users, onCardClick }) {
     total:    [total * 0.5, total * 0.6, total * 0.7, total * 0.8, total * 0.86, total * 0.92, total],
   };
 
+  const team = users.filter(u => ['engineer', 'member_analytics'].includes(u.role));
+
   return (
     <>
-      {/* Export actions */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 8 }} className="no-print">
-        <a className="btn btn-ghost btn-sm" style={{ gap: 6, textDecoration: 'none' }}
-          target="_blank" rel="noopener noreferrer"
-          href={`https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent('Dashboard ejecutivo — AMBARC')}&body=${encodeURIComponent(`Hola,\n\nComparto el enlace al dashboard ejecutivo de proyectos:\n${window.location.origin}${window.location.pathname}\n\nSaludos.`)}`}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-            <polyline points="22,6 12,13 2,6"/>
-          </svg>
-          Compartir por correo
-        </a>
+      {/* Export */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }} className="no-print">
         <button className="btn btn-ghost btn-sm" onClick={() => window.print()} style={{ gap: 6 }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-            <rect x="6" y="14" width="12" height="8"/>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
-          Exportar / Imprimir
+          Exportar
         </button>
       </div>
 
-      {/* KPI row — quiet cards, semantic dot color */}
+      {/* KPI row */}
       <div className="dash-grid">
-        <KpiCard label="Por hacer"   value={cnt.backlog}  color="#a86040" spark={[cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog]} />
-        <KpiCard label="En proceso"  value={cnt.progress} color="#f9924d" spark={spark.progress} />
-        <KpiCard label="En testing"  value={cnt.testing}  color="#e87d3a" spark={[0,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing]} />
-        <KpiCard label="En standby"  value={cnt.standby}  color="#78716C" spark={spark.standby} />
-        <KpiCard label="Finalizados" value={cnt.done}     color="#16A34A" spark={spark.done} />
-        <KpiCard label="Vencidos"    value={overdueCount} color="#DC2626" alert spark={[0,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount]} />
-        <KpiCard label="En soporte"  value={cnt.soporte}  color="#0891b2" spark={[0,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte]} />
-        <KpiCard label="Total"       value={total}        color="#5a2807" spark={spark.total} />
+        <KpiCard label="Total"       value={total}        color="#5a2807" icon="total"    spark={spark.total} />
+        <KpiCard label="En proceso"  value={cnt.progress} color="#f9924d" icon="progress" spark={spark.progress} />
+        <KpiCard label="En standby"  value={cnt.standby}  color="#78716C" icon="standby"  spark={spark.standby} />
+        <KpiCard label="En testing"  value={cnt.testing}  color="#e87d3a" icon="testing"  spark={[0,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing,cnt.testing]} />
+        <KpiCard label="Finalizados" value={cnt.done}     color="#16A34A" icon="done"     spark={spark.done} />
+        <KpiCard label="Por hacer"   value={cnt.backlog}  color="#a86040" icon="backlog"  spark={[cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog,cnt.backlog]} />
+        <KpiCard label="Soporte"     value={cnt.soporte}  color="#0891b2" icon="soporte"  spark={[0,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte,cnt.soporte]} />
+        <KpiCard label="Vencidos"    value={overdueCount} color="#DC2626" icon="overdue"  alert spark={[0,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount,overdueCount]} />
       </div>
 
-      {/* Tipo breakdown — quiet strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 12, marginTop: 12 }}>
+      {/* Áreas del equipo — chips */}
+      <div className="area-chips">
+        <span className="area-chips-label">Áreas del equipo</span>
         {Object.entries(TIPO_INFO).map(([key, info]) => (
-          <div key={key} className="tipo-mini">
-            <div className="tipo-mini-bar" style={{ background: info.color }} />
-            <div>
-              <div className="tipo-mini-num">{tipoCnt[key]}</div>
-              <div className="tipo-mini-lbl">{info.label}</div>
-            </div>
-          </div>
+          <span key={key} className="area-chip" style={{ background: info.bg, color: info.color, borderColor: `${info.color}30` }}>
+            {info.label}
+            <b>{tipoCnt[key]}</b>
+          </span>
         ))}
         {upcomingCount > 0 && (
-          <div className="tipo-mini">
-            <div className="tipo-mini-bar" style={{ background: '#d97706' }} />
-            <div>
-              <div className="tipo-mini-num" style={{ color: '#d97706' }}>{upcomingCount}</div>
-              <div className="tipo-mini-lbl">Entregas próx.</div>
-            </div>
-          </div>
+          <span className="area-chip" style={{ background: 'rgba(217,119,6,.10)', color: '#d97706', borderColor: 'rgba(217,119,6,.3)', marginLeft: 'auto' }}>
+            ⏰ Entregas próximas
+            <b>{upcomingCount}</b>
+          </span>
         )}
       </div>
 
-      {/* Charts */}
+      {/* Carga por persona + Distribución */}
       <div className="chart-row">
         <div className="chart-box">
           <div className="chart-title">Carga por persona</div>
-          <div className="chart-subtitle">Tamaño = total proyectos · intensidad = % activos</div>
-          <TreemapChart projects={projects} users={users.filter(u => ['engineer','member_analytics'].includes(u.role))} />
+          <div className="chart-subtitle">Tamaño = proyectos asignados · intensidad = % activos</div>
+          <TreemapChart projects={projects} users={team} />
+          <div className="tm-legend">
+            <span><i style={{ background: '#DC2626' }} /> Alta carga (&gt;70%)</span>
+            <span><i style={{ background: '#f9924d' }} /> Media (40–70%)</span>
+            <span><i style={{ background: '#16A34A' }} /> Baja (&lt;40%)</span>
+            <span><i style={{ background: '#c9c3bd' }} /> Sin carga</span>
+          </div>
         </div>
 
         <div className="chart-box">
-          <div className="chart-title">Distribución del portafolio</div>
+          <div className="chart-title">Distribución de proyectos</div>
           <div className="chart-subtitle">Por prioridad y estado actual</div>
-          <div style={{ marginTop: 20 }}>
-            {[['high','Alta','#DC2626'],['mid','Media','#f9924d'],['low','Baja','#16A34A']].map(([k, l, c]) => (
-              <div className="bar-h" key={k}>
-                <div className="bar-h-label" style={{ width: 58 }}>{l}</div>
-                <div className="bar-h-track">
-                  <div className="bar-h-fill" style={{ width: `${Math.round(prCnt[k] / maxPr * 100)}%`, background: c }} />
-                </div>
-                <div className="bar-h-val">{prCnt[k]}</div>
-              </div>
-            ))}
-            <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 16 }}>
-              {Object.entries(STATUS_LABEL).map(([k, l]) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 16 }}>
+            <div>
+              <div className="dist-col-label">Por prioridad</div>
+              {[['high','Alta','#DC2626'],['mid','Media','#f9924d'],['low','Baja','#16A34A']].map(([k, l, c]) => (
                 <div className="bar-h" key={k}>
-                  <div className="bar-h-label" style={{ width: 78, fontSize: 11 }}>{l}</div>
-                  <div className="bar-h-track">
+                  <div className="bar-h-label" style={{ width: 44, fontSize: 11 }}>{l}</div>
+                  <div className="bar-h-track" style={{ height: 12 }}>
+                    <div className="bar-h-fill" style={{ width: `${Math.round(prCnt[k] / maxPr * 100)}%`, background: c }} />
+                  </div>
+                  <div className="bar-h-val" style={{ minWidth: 48, fontSize: 11 }}>
+                    {prCnt[k]} <span style={{ color: 'var(--text3)', fontWeight: 500 }}>({total ? Math.round(prCnt[k] / total * 100) : 0}%)</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div>
+              <div className="dist-col-label">Por estado</div>
+              {Object.entries(STATUS_LABEL).map(([k, l]) => (
+                <div className="bar-h" key={k} style={{ marginBottom: 6 }}>
+                  <div className="bar-h-label" style={{ width: 68, fontSize: 11 }}>{l}</div>
+                  <div className="bar-h-track" style={{ height: 12 }}>
                     <div className="bar-h-fill" style={{ width: `${Math.round(cnt[k] / maxCnt * 100)}%`, background: STATUS_BAR[k] }} />
                   </div>
-                  <div className="bar-h-val">{cnt[k]}</div>
+                  <div className="bar-h-val" style={{ minWidth: 48, fontSize: 11 }}>
+                    {cnt[k]} <span style={{ color: 'var(--text3)', fontWeight: 500 }}>({total ? Math.round(cnt[k] / total * 100) : 0}%)</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -483,50 +499,105 @@ export default function DashboardView({ projects, users, onCardClick }) {
         </div>
       </div>
 
-      {/* Área solicitante + carga por equipo */}
-      <div className="chart-row" style={{ marginTop: 16 }}>
+      {/* Entregas próximas + Solicitudes + Proyectos por área */}
+      <div className="dash-panels">
         <div className="chart-box">
-          <div className="chart-title">Proyectos por área solicitante</div>
-          <div className="chart-subtitle">Total de proyectos registrados por cada área</div>
-          {areaTop.map(([area, n]) => (
-            <div className="bar-h" key={area}>
-              <div className="bar-h-label" title={area}>{area}</div>
-              <div className="bar-h-track">
-                <div className="bar-h-fill" style={{ width: `${(n / maxArea) * 100}%`, background: 'var(--accent)' }} />
-              </div>
-              <div className="bar-h-val">{n}</div>
-            </div>
-          ))}
+          <div className="chart-title">Entregas próximas</div>
+          <div className="chart-subtitle">Proyectos activos con fecha más cercana</div>
+          {upcoming.length === 0
+            ? <div className="empty" style={{ padding: 20, fontSize: 12 }}>Sin entregas programadas</div>
+            : upcoming.map(p => {
+                const overdue = new Date(p.dueDate) < today;
+                return (
+                  <div key={p.id} className="due-row" onClick={() => onCardClick(p.id)}>
+                    <span className="due-name" title={p.name}>{p.name}</span>
+                    <span className="pill-mini" style={{
+                      background: p.priority === 'high' ? '#FEE2E2' : p.priority === 'low' ? '#DCFCE7' : '#FEF3C7',
+                      color:      p.priority === 'high' ? '#DC2626' : p.priority === 'low' ? '#16A34A' : '#D97706',
+                    }}>
+                      {p.priority === 'high' ? 'Alta' : p.priority === 'low' ? 'Baja' : 'Media'}
+                    </span>
+                    <span className="due-date" style={overdue ? { color: 'var(--high)', fontWeight: 700 } : undefined}>
+                      {fmtShort(p.dueDate)}
+                    </span>
+                    {p.assignee && (
+                      <span className={`avatar-xs ${colorClass(p.assignee.colorIndex)}`} title={p.assignee.name}>{p.assignee.initials}</span>
+                    )}
+                  </div>
+                );
+              })
+          }
         </div>
 
-        <div className="chart-box">
-          <div className="chart-title">Carga por equipo</div>
-          <div className="chart-subtitle">Proyectos activos — los compartidos cuentan en ambos equipos</div>
-          {[
-            { key: 'auto',      label: 'Automatización', color: '#f9924d', data: teamLoad.auto },
-            { key: 'analitica', label: 'Analítica',       color: '#7c3aed', data: teamLoad.analitica },
-          ].map(({ key, label, color, data }) => (
-            <div key={key} style={{ marginBottom: 18 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{label}</span>
-                <span style={{ fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--text2)' }}>
-                  <b style={{ color, fontSize: 16 }}>{data.active}</b> activos · {data.total} en total
-                </span>
+        {solTotal > 0 && (
+          <div className="chart-box">
+            <div className="chart-title">Solicitudes internas</div>
+            <div className="chart-subtitle">Estado del embudo de requerimientos</div>
+            <div className="sol-grid-mini">
+              {[
+                { n: solStats.recibidas,   l: 'Recibidas',    c: '#a86040' },
+                { n: solStats.revision,    l: 'En revisión',  c: '#D97706' },
+                { n: solStats.reunion,     l: 'Reunión agendada', c: '#7c3aed' },
+                { n: solStats.convertidas, l: 'Convertidas',  c: '#16A34A' },
+              ].map(({ n, l, c }) => (
+                <div key={l} className="sol-mini" style={{ background: `${c}0f`, borderColor: `${c}25` }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--mono)', color: c, lineHeight: 1 }}>{n}</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--text2)', marginTop: 4, lineHeight: 1.2 }}>{l}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 5 }}>
+                <span style={{ fontWeight: 700, color: 'var(--text2)' }}>Tasa de conversión</span>
+                <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--accent)' }}>{convRate}%</span>
               </div>
-              <div className="bar-h-track" style={{ height: 26 }}>
-                <div className="bar-h-fill" style={{ width: `${(data.active / maxTeam) * 100}%`, background: color }} />
+              <div className="bar-h-track" style={{ height: 8 }}>
+                <div className="bar-h-fill" style={{ width: `${convRate}%`, background: 'var(--accent)' }} />
+              </div>
+              <div style={{ fontSize: 10.5, color: 'var(--text3)', marginTop: 4 }}>
+                {solStats.convertidas} de {solTotal} solicitudes
               </div>
             </div>
-          ))}
+          </div>
+        )}
+
+        <div className="chart-box">
+          <div className="chart-title">Proyectos por área</div>
+          <div className="chart-subtitle">Distribución del portafolio por equipo</div>
+          <div className="tipo-cards">
+            {Object.entries(TIPO_INFO).map(([key, info]) => (
+              <div key={key} className="tipo-card" style={{ background: info.bg, borderColor: `${info.color}25` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: info.color }}>{info.label}</div>
+                <div style={{ fontSize: 26, fontWeight: 800, fontFamily: 'var(--mono)', color: info.color, lineHeight: 1.1 }}>{tipoCnt[key]}</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)' }}>{total ? Math.round(tipoCnt[key] / total * 100) : 0}%</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Team workload */}
+      {/* Carga del equipo — tabla */}
       <div className="chart-box" style={{ marginTop: 16 }}>
         <div className="chart-title">Carga del equipo</div>
-        <div className="chart-subtitle" style={{ marginBottom: 18 }}>Proyectos activos por ingeniero — clic para expandir</div>
-        {users.length === 0 && <div className="empty">Sin ingenieros registrados</div>}
-        <EngWorkload projects={projects} users={users.filter(u => ['engineer','member_analytics'].includes(u.role))} onCardClick={onCardClick} />
+        <div className="chart-subtitle" style={{ marginBottom: 14 }}>Proyectos activos por persona</div>
+        {team.length === 0
+          ? <div className="empty">Sin ingenieros registrados</div>
+          : <TeamTable projects={projects} users={team} />}
+      </div>
+
+      {/* Área solicitante */}
+      <div className="chart-box" style={{ marginTop: 16 }}>
+        <div className="chart-title">Proyectos por área solicitante</div>
+        <div className="chart-subtitle">Total de proyectos registrados por cada área</div>
+        {areaTop.map(([area, n]) => (
+          <div className="bar-h" key={area}>
+            <div className="bar-h-label" title={area}>{area}</div>
+            <div className="bar-h-track">
+              <div className="bar-h-fill" style={{ width: `${(n / maxArea) * 100}%`, background: 'var(--accent)' }} />
+            </div>
+            <div className="bar-h-val">{n}</div>
+          </div>
+        ))}
       </div>
     </>
   );

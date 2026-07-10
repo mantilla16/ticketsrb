@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './context/AuthContext';
-import { projectsAPI, usersAPI } from './services/api';
+import { projectsAPI, usersAPI, solicitudesAPI } from './services/api';
 import Login from './pages/Login';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
@@ -19,7 +19,7 @@ import DetailModal from './components/DetailModal';
 import Toast, { useToast } from './components/Toast';
 
 const TITLES = {
-  'dashboard':    { title: 'Dashboard ejecutivo',      sub: 'Resumen general del portafolio de automatización' },
+  'dashboard':    { title: 'Panorama general',         sub: 'Resumen del trabajo de Automatización y Analítica' },
   'my-kanban':    { title: 'Mi Kanban',                sub: 'Vista personal — organiza tus proyectos por estado' },
   'team-kanban':  { title: 'Equipo Automatización',    sub: 'Proyectos asignados por ingeniero' },
   'gantt':        { title: 'Cronograma',               sub: 'Línea de tiempo y progreso de todos los proyectos' },
@@ -70,6 +70,7 @@ export default function App() {
   const [sectionKey, setSectionKey]   = useState(0);
   const [projects, setProjects]       = useState([]);
   const [users, setUsers]             = useState([]);
+  const [solicitudes, setSolicitudes] = useState([]);
 
   const [projModal, setProjModal]     = useState({ open: false, project: null, defStatus: null, defAssigneeId: null });
   const [detailModal, setDetailModal] = useState({ open: false, projectId: null });
@@ -78,9 +79,15 @@ export default function App() {
   const fetchData = useCallback(async () => {
     if (!user) return;
     try {
-      const [ps, us] = await Promise.all([projectsAPI.getAll(), usersAPI.getAll()]);
+      const canSeeSols = ['admin', 'leader_analytics', 'manager'].includes(user.role);
+      const [ps, us, sols] = await Promise.all([
+        projectsAPI.getAll(),
+        usersAPI.getAll(),
+        canSeeSols ? solicitudesAPI.getAll().catch(() => []) : Promise.resolve([]),
+      ]);
       setProjects(ps);
       setUsers(us);
+      setSolicitudes(sols);
     } catch (e) { console.error(e); }
   }, [user]);
 
@@ -284,7 +291,7 @@ export default function App() {
             )}
 
             {section === 'dashboard' && (
-              <DashboardView projects={projects} users={users} onCardClick={openDetail} />
+              <DashboardView projects={projects} users={users} solicitudes={solicitudes} onCardClick={openDetail} />
             )}
 
             {section === 'my-kanban' && (
