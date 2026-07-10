@@ -380,23 +380,11 @@ export default function App() {
             )}
 
             {section === 'gantt' && (
-              <>
-                <GanttView projects={projects} onRowClick={openDetail} />
-                {users.length > 0 && (
-                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 16 }}>
-                    {users.map(u => (
-                      <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text2)' }}>
-                        <div style={{ width: 12, height: 12, borderRadius: 3 }} className={`eng-c-${u.colorIndex}`} />
-                        {u.name}
-                      </div>
-                    ))}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--high)' }}>
-                      <div style={{ width: 12, height: 2, background: 'var(--high)' }} />
-                      Hoy
-                    </div>
-                  </div>
-                )}
-              </>
+              <GanttView
+                projects={projects}
+                users={users.filter(u => ['engineer', 'member_analytics', 'leader_analytics', 'admin'].includes(u.role))}
+                onRowClick={openDetail}
+              />
             )}
 
           </div>
