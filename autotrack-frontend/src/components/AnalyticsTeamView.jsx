@@ -1,164 +1,239 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 import { colorClass } from '../utils/helpers';
 
-const STATUSES = [
-  { id: 'progress', label: 'En proceso', dot: '#f9924d' },
-  { id: 'standby',  label: 'Standby',    dot: '#78716C' },
-  { id: 'testing',  label: 'Testing',    dot: '#e87d3a' },
-  { id: 'backlog',  label: 'Por hacer',  dot: '#a86040' },
-  { id: 'done',     label: 'Finalizado', dot: '#16A34A' },
-];
+const PR = {
+  high: { l: 'Alta',  bg: '#FEF2F2', c: '#EF4444' },
+  mid:  { l: 'Media', bg: '#FFF3E8', c: '#F97316' },
+  low:  { l: 'Baja',  bg: '#ECFDF3', c: '#22C55E' },
+};
 
-const PR_ORDER = { high: 0, mid: 1, low: 2 };
+const STATUS_L = {
+  backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
+  testing: 'En testing', done: 'Finalizado', soporte: 'En soporte',
+};
+const STATUS_BG = {
+  backlog: '#F3F4F6', progress: '#FFF3E8', standby: '#F5EFE9',
+  testing: '#FEF3C7', done: '#ECFDF3', soporte: '#e0f2fe',
+};
+const STATUS_C = {
+  backlog: '#6B7280', progress: '#F97316', standby: '#A8907C',
+  testing: '#D97706', done: '#22C55E', soporte: '#0891b2',
+};
 
-const MEMBER_ORDER = ['miguel padilla', 'andres holguin'];
+const PREVIEW = 5;
 
-function MiniCard({ project, onClick, index }) {
-  const ref = useRef(null);
-  const pct = project.progress || 0;
+const fmtDM = (d) => {
+  if (!d) return null;
+  const dt = new Date(d + 'T00:00:00');
+  return { day: dt.getDate(), mon: dt.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '') };
+};
 
-  const handleMouseMove = (e) => {
-    if (!ref.current) return;
-    const el = ref.current;
-    const r  = el.getBoundingClientRect();
-    const x  = (e.clientX - r.left) / r.width;
-    const y  = (e.clientY - r.top)  / r.height;
-    const rX = (y - 0.5) * -10;
-    const rY = (x - 0.5) *  10;
-    el.style.transition  = 'box-shadow .08s';
-    el.style.transform   = `perspective(600px) rotateX(${rX}deg) rotateY(${rY}deg) translateY(-4px) scale(1.02)`;
-    el.style.boxShadow   = `${rY * 1.1}px ${Math.abs(rX) * 2 + 8}px 28px rgba(249,146,77,.2), 0 2px 6px rgba(0,0,0,.06)`;
-    el.style.borderColor = 'rgba(249,146,77,.28)';
-    el.style.setProperty('--mx', `${x * 100}%`);
-    el.style.setProperty('--my', `${y * 100}%`);
-  };
+export default function AnalyticsTeamView({ projects, users, onCardClick, onNavigate }) {
+  const [tab, setTab] = useState('all');
+  const [expanded, setExpanded] = useState(new Set());
 
-  const handleMouseLeave = () => {
-    if (!ref.current) return;
-    const el = ref.current;
-    el.style.transition  = 'transform .5s cubic-bezier(.34,1.56,.64,1), box-shadow .4s, border-color .4s';
-    el.style.transform   = '';
-    el.style.boxShadow   = '';
-    el.style.borderColor = '';
-  };
+  const anaProjects = projects.filter(p => ['analitica', 'compartido'].includes(p.tipo));
+  const byTab = p => tab === 'all' ? true : tab === 'ana' ? p.tipo === 'analitica' : p.tipo === 'compartido';
 
-  return (
-    <div
-      ref={ref}
-      className="at-mini-card"
-      onClick={() => onClick(project.id)}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{ animationDelay: `${index * 45}ms` }}
-    >
-      <div className="at-mini-name">{project.name}</div>
-      {project.client && <div className="at-mini-client">{project.client}</div>}
-      <div className="at-mini-footer">
-        <div className={`at-mini-pr at-mini-pr--${project.priority || 'mid'}`}>
-          {project.priority === 'high' ? 'Alta' : project.priority === 'low' ? 'Baja' : 'Media'}
-        </div>
-        {pct > 0 && (
-          <span className="at-mini-pct">{pct}%</span>
-        )}
-      </div>
-      <div className="at-mini-bar">
-        <div className="at-mini-bar-fill" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const week  = new Date(today); week.setDate(week.getDate() + 7);
 
-export default function AnalyticsTeamView({ projects, users, onCardClick }) {
-  const teamMembers = MEMBER_ORDER
-    .map(n => users.find(u => u.name.toLowerCase() === n))
-    .filter(Boolean);
+  const totalAna    = anaProjects.filter(p => p.tipo === 'analitica').length;
+  const totalComp   = anaProjects.filter(p => p.tipo === 'compartido').length;
+  const weekCount   = anaProjects.filter(p => p.dueDate && p.status !== 'done'
+    && new Date(p.dueDate) >= today && new Date(p.dueDate) <= week).length;
 
-  if (teamMembers.length === 0) {
-    return <div className="empty">No se encontraron los miembros del equipo de analítica.</div>;
-  }
+  const upcoming = anaProjects
+    .filter(p => p.dueDate && p.status !== 'done')
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+    .slice(0, 5);
+
+  const toggleExpand = (id) => setExpanded(s => {
+    const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+
+  const TABS = [
+    { key: 'all',  label: 'Todos', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
+    { key: 'ana',  label: 'Solo Analítica', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+    { key: 'comp', label: 'Compartidos', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+  ];
 
   return (
-    <div className="at-root">
-
-      {/* ── Tarjetas de perfil ── */}
-      <div className="at-profiles">
-        {teamMembers.map(u => {
-          const myProjects = projects.filter(p => p.assigneeId === u.id);
-          const active  = myProjects.filter(p => ['progress', 'testing'].includes(p.status)).length;
-          const done    = myProjects.filter(p => p.status === 'done').length;
-          const standby = myProjects.filter(p => p.status === 'standby').length;
-          const backlog = myProjects.filter(p => p.status === 'backlog').length;
-          return (
-            <div key={u.id} className="at-profile-card">
-              <div className="at-profile-left">
-                <div className={`at-profile-avatar ${colorClass(u.colorIndex)}`}>{u.initials}</div>
-                <div>
-                  <div className="at-profile-name">{u.name}</div>
-                  <div className="at-profile-role">Analítica de Datos</div>
-                </div>
-              </div>
-              <div className="at-profile-stats">
-                <div className="at-pstat">
-                  <div className="at-pstat-val">{myProjects.length}</div>
-                  <div className="at-pstat-lbl">Total</div>
-                </div>
-                <div className="at-pstat">
-                  <div className="at-pstat-val" style={{ color: '#f9924d' }}>{active}</div>
-                  <div className="at-pstat-lbl">Activos</div>
-                </div>
-                <div className="at-pstat at-pstat-sep">
-                  <div className="at-pstat-val" style={{ color: '#78716C' }}>{standby}</div>
-                  <div className="at-pstat-lbl">Standby</div>
-                </div>
-                <div className="at-pstat">
-                  <div className="at-pstat-val" style={{ color: '#8F95A3' }}>{backlog}</div>
-                  <div className="at-pstat-lbl">Backlog</div>
-                </div>
-                <div className="at-pstat">
-                  <div className="at-pstat-val" style={{ color: '#16A34A' }}>{done}</div>
-                  <div className="at-pstat-lbl">Listos</div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+    <div>
+      {/* Tabs */}
+      <div className="at-tabs no-print">
+        {TABS.map(t => (
+          <button key={t.key} className={`at-tab${tab === t.key ? ' at-tab--active' : ''}`} onClick={() => setTab(t.key)}>
+            {t.icon}{t.label}
+          </button>
+        ))}
       </div>
 
-      {/* ── Swimlanes ── */}
-      {teamMembers.map(u => {
-        const myProjects = projects.filter(p => p.assigneeId === u.id);
-        return (
-          <div key={u.id} className="at-swimlane">
-            <div className="at-lane-header">
-              <div className={`avatar-xs ${colorClass(u.colorIndex)}`}>{u.initials}</div>
-              <span className="at-lane-name">{u.name}</span>
-              <span className="at-lane-count">{myProjects.length} proyectos</span>
-            </div>
-            <div className="at-lane-cols">
-              {STATUSES.map(st => {
-                const cols = myProjects
-                  .filter(p => p.status === st.id)
-                  .sort((a, b) => (PR_ORDER[a.priority] || 1) - (PR_ORDER[b.priority] || 1));
-                return (
-                  <div key={st.id} className="at-col">
-                    <div className="at-col-head">
-                      <span className="at-col-dot" style={{ background: st.dot }} />
-                      <span className="at-col-label">{st.label}</span>
-                      <span className="at-col-n">{cols.length}</span>
-                    </div>
-                    <div className="at-col-body">
-                      {cols.length === 0 && <div className="at-col-empty">—</div>}
-                      {cols.map((p, i) => (
-                        <MiniCard key={p.id} project={p} onClick={onCardClick} index={i} />
-                      ))}
-                    </div>
+      <div className="at-layout">
+        {/* Columnas por persona */}
+        <div className="at-cols">
+          {users.map(u => {
+            const list = anaProjects
+              .filter(byTab)
+              .filter(p => p.assigneeId === u.id || p.coAssigneeId === u.id)
+              .sort((a, b) => (a.status === 'done') - (b.status === 'done'));
+            const active = list.filter(p => ['progress', 'testing'].includes(p.status)).length;
+            const done   = list.filter(p => p.status === 'done').length;
+            const isOpen = expanded.has(u.id);
+            const shown  = isOpen ? list : list.slice(0, PREVIEW);
+            const hidden = list.length - PREVIEW;
+
+            return (
+              <div key={u.id} className="at-col">
+                <div className="at-col-head">
+                  <div className={`avatar ${colorClass(u.colorIndex)}`}>{u.initials}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="at-col-name">{u.name}</div>
+                    <div className="at-col-count">{list.length} proyecto{list.length !== 1 ? 's' : ''}</div>
                   </div>
-                );
-              })}
+                  <div className="at-col-stats">
+                    <span><i style={{ background: '#F97316' }} />{active} activos</span>
+                    <span><i style={{ background: '#22C55E' }} />{done} finalizados</span>
+                  </div>
+                </div>
+
+                {list.length === 0 ? (
+                  <div className="at-empty">
+                    <div className="at-empty-icon">
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                        <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
+                      </svg>
+                    </div>
+                    <div className="at-empty-title">Sin proyectos asignados</div>
+                    <div className="at-empty-sub">Cuando se asignen proyectos, aparecerán aquí.</div>
+                  </div>
+                ) : (
+                  <>
+                    {shown.map(p => {
+                      const pr  = PR[p.priority] || PR.mid;
+                      const pct = p.progress || 0;
+                      const dm  = fmtDM(p.dueDate);
+                      return (
+                        <div key={p.id} className="at-card" onClick={() => onCardClick(p.id)}>
+                          <div className="at-card-top">
+                            <span className="pill-mini" style={{ background: pr.bg, color: pr.c }}>{pr.l}</span>
+                            {p.status !== 'progress' && (
+                              <span className="pill-mini" style={{ background: STATUS_BG[p.status], color: STATUS_C[p.status] }}>{STATUS_L[p.status]}</span>
+                            )}
+                            {p.client && <span className="at-card-client">{p.client}</span>}
+                          </div>
+                          <div className="at-card-main">
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div className="at-card-title">{p.name}</div>
+                              <div className="at-card-meta">
+                                <span className={`avatar-xs ${colorClass(u.colorIndex)}`}>{u.initials}</span>
+                                <span className="at-card-bar">
+                                  <span style={{ width: `${pct}%`, background: pct >= 80 ? '#22C55E' : 'var(--accent)' }} />
+                                </span>
+                                <span className="at-card-pct" style={{ color: pct >= 80 ? '#22C55E' : 'var(--accent)' }}>{pct}%</span>
+                              </div>
+                            </div>
+                            <div className="at-card-side">
+                              {p.docUrl && (
+                                <a href={p.docUrl} target="_blank" rel="noopener noreferrer" title="Abrir documentación"
+                                  onClick={e => e.stopPropagation()} className="at-card-doc">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                                  </svg>
+                                </a>
+                              )}
+                              {dm && (
+                                <span className="at-card-date">
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                  {dm.day} {dm.mon}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {p.tipo === 'compartido' && (
+                            <div className="at-card-shared">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                              Compartido con Automatización
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {hidden > 0 && (
+                      <button className="at-more" onClick={() => toggleExpand(u.id)}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                          style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
+                          <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                        {isOpen ? 'Ver menos' : `Ver todos · ${hidden} más`}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Panel lateral */}
+        <aside className="at-side">
+          <div className="chart-box" style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span className="chart-title" style={{ marginBottom: 0 }}>Resumen del equipo</span>
             </div>
+            {[
+              { n: totalAna,  l: 'Totales de Analítica', u: 'proyectos', c: '#F97316', bg: '#FFF3E8',
+                ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> },
+              { n: totalComp, l: 'Compartidos', u: 'proyectos', c: '#F97316', bg: '#FFF3E8',
+                ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+              { n: weekCount, l: 'Próximas entregas', u: 'esta semana', c: '#22C55E', bg: '#ECFDF3',
+                ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></svg> },
+            ].map(({ n, l, u: unit, c, bg, ic }) => (
+              <div key={l} className="at-sum-row">
+                <span className="at-sum-icon" style={{ background: bg, color: c }}>{ic}</span>
+                <div>
+                  <div className="at-sum-label">{l}</div>
+                  <div className="at-sum-num">{n} <span>{unit}</span></div>
+                </div>
+              </div>
+            ))}
           </div>
-        );
-      })}
+
+          <div className="chart-box">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span className="chart-title" style={{ marginBottom: 0 }}>Próximas entregas</span>
+            </div>
+            {upcoming.length === 0 && <div style={{ fontSize: 12, color: 'var(--text3)', padding: '6px 0 10px' }}>Sin entregas programadas</div>}
+            {upcoming.map(p => {
+              const dm = fmtDM(p.dueDate);
+              const pr = PR[p.priority] || PR.mid;
+              const overdue = new Date(p.dueDate) < today;
+              return (
+                <div key={p.id} className="at-due-row" onClick={() => onCardClick(p.id)}>
+                  <div className="at-due-date" style={overdue ? { color: 'var(--high)' } : undefined}>
+                    <b>{dm.day}</b>
+                    <span>{dm.mon}</span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="at-due-name">{p.name}</div>
+                    {p.client && <div className="at-due-client">{p.client}</div>}
+                  </div>
+                  <span className="pill-mini" style={{ background: pr.bg, color: pr.c }}>{pr.l}</span>
+                </div>
+              );
+            })}
+            {onNavigate && (
+              <button className="at-cal-btn" onClick={() => onNavigate('gantt')}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Ver calendario completo
+              </button>
+            )}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

@@ -24,7 +24,7 @@ const TITLES = {
   'my-kanban':    { title: 'Mi Kanban',                sub: 'Vista personal — organiza tus proyectos por estado' },
   'team-kanban':  { title: 'Equipo Automatización',    sub: 'Proyectos asignados por ingeniero' },
   'gantt':        { title: 'Cronograma',               sub: 'Línea de tiempo y progreso de todos los proyectos' },
-  'analytics':    { title: 'Equipo Analítica',         sub: 'Proyectos de Miguel Padilla y Andres Holguin' },
+  'analytics':    { title: 'Equipo Analítica',         sub: 'Seguimiento de proyectos del equipo analítico' },
   'historial':    { title: 'Historial',                sub: 'Proyectos finalizados y cerrados' },
   'users':        { title: 'Usuarios',                 sub: 'Gestión del equipo — roles, accesos y estadísticas' },
   'solicitudes':  { title: 'Centro de Solicitudes',    sub: 'Gestión de requerimientos entrantes desde otras áreas' },
@@ -356,11 +356,11 @@ export default function App() {
             )}
 
             {section === 'analytics' && (
-              <TeamKanban
+              <AnalyticsTeamView
                 projects={projects}
                 users={users.filter(u => ['member_analytics', 'leader_analytics'].includes(u.role))}
                 onCardClick={openDetail}
-                onAddClick={isLeader ? (assigneeId) => openNewProject('backlog', assigneeId) : undefined}
+                onNavigate={changeSection}
               />
             )}
 
