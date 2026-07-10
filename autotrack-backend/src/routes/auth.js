@@ -30,7 +30,7 @@ function makeToken(user) {
       email:      user.email,
       initials:   user.initials,
       colorIndex: user.color_index,
-      role:       user.role || 'engineer',
+      role:       user.role || 'user',
     },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
@@ -44,7 +44,7 @@ function fmtUser(row) {
     email:      row.email,
     initials:   row.initials,
     colorIndex: row.color_index,
-    role:       row.role || 'engineer',
+    role:       row.role || 'user',
   };
 }
 
@@ -67,9 +67,10 @@ router.post('/register', [
     const initials = genInitials(name);
     const hash = await bcrypt.hash(password, 12);
 
+    // Todo registro nuevo entra como Área Solicitante — el admin asigna roles después
     const { rows } = await pool.query(
-      'INSERT INTO users (name, email, password, initials, color_index) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [name, email, hash, initials, colorIndex]
+      'INSERT INTO users (name, email, password, initials, color_index, role) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [name, email, hash, initials, colorIndex, 'user']
     );
     res.status(201).json({ token: makeToken(rows[0]), user: fmtUser(rows[0]) });
   } catch (err) {
