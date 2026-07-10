@@ -301,6 +301,7 @@ export default function App() {
             {section === 'my-kanban' && (
               <KanbanBoard
                 projects={projects}
+                users={users.filter(u => ['engineer', 'member_analytics', 'admin', 'leader_analytics'].includes(u.role))}
                 onCardClick={openDetail}
                 onAddClick={(status) => openNewProject(status)}
                 onMoveCard={handleMoveCard}
