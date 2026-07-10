@@ -127,14 +127,41 @@ export default function App() {
 
   const openDetail = (id) => setDetailModal({ open: true, projectId: id });
 
-  const handleSaveProject = async (data) => {
+  const handleSaveProject = async (data, tasksDelta) => {
     let updated;
-    if (projModal.project) {
+    const isEdit = Boolean(projModal.project);
+    if (isEdit) {
       updated = await projectsAPI.update(projModal.project.id, data);
+    } else {
+      updated = await projectsAPI.create(data);
+    }
+
+    // Sincronizar tareas (agregadas / eliminadas / marcadas)
+    if (tasksDelta) {
+      try {
+        for (const t of tasksDelta.added) {
+          updated = await projectsAPI.addTask(updated.id, { title: t.title, dueDate: t.dueDate || null });
+          if (t.done) {
+            const created = updated.tasks[updated.tasks.length - 1];
+            if (created) updated = await projectsAPI.updateTask(updated.id, created.id, { done: true });
+          }
+        }
+        for (const id of tasksDelta.removed) {
+          updated = await projectsAPI.removeTask(updated.id, id);
+        }
+        for (const t of tasksDelta.toggled) {
+          updated = await projectsAPI.updateTask(updated.id, t.id, { done: t.done });
+        }
+      } catch (err) {
+        console.error('Task sync failed:', err);
+        showToast('Proyecto guardado, pero hubo un error con las tareas', 'error');
+      }
+    }
+
+    if (isEdit) {
       setProjects(ps => ps.map(p => p.id === updated.id ? updated : p));
       showToast(`"${updated.name}" actualizado`, 'success');
     } else {
-      updated = await projectsAPI.create(data);
       setProjects(ps => [updated, ...ps]);
       showToast(`Proyecto "${updated.name}" creado`, 'success');
     }
@@ -375,6 +402,7 @@ export default function App() {
         users={users}
         onSave={handleSaveProject}
         onDelete={handleDeleteProject}
+        onAddLog={handleAddLog}
         onClose={() => setProjModal(m => ({ ...m, open: false }))}
       />
 

@@ -63,6 +63,7 @@ function fmtProject(p, logs = [], tasks = []) {
       id: t.id,
       title: t.title,
       done: t.done,
+      dueDate: fmtDate(t.due_date),
       createdAt: t.created_at,
     })),
   };
@@ -256,8 +257,8 @@ router.post('/:id/tasks', auth, [
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
   try {
     await pool.query(
-      'INSERT INTO project_tasks (project_id, title, created_by) VALUES ($1,$2,$3)',
-      [req.params.id, req.body.title.trim(), req.user.id]
+      'INSERT INTO project_tasks (project_id, title, due_date, created_by) VALUES ($1,$2,$3,$4)',
+      [req.params.id, req.body.title.trim(), req.body.dueDate || null, req.user.id]
     );
     const project = await fetchProject(req.params.id);
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
@@ -270,13 +271,13 @@ router.post('/:id/tasks', auth, [
 
 // PATCH /api/projects/:id/tasks/:taskId
 router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
-  const { done, title } = req.body;
+  const { done, title, dueDate } = req.body;
   try {
     const result = await pool.query(
       `UPDATE project_tasks
-       SET done = COALESCE($1, done), title = COALESCE($2, title)
-       WHERE id = $3 AND project_id = $4 RETURNING id`,
-      [typeof done === 'boolean' ? done : null, title?.trim() || null, req.params.taskId, req.params.id]
+       SET done = COALESCE($1, done), title = COALESCE($2, title), due_date = COALESCE($3, due_date)
+       WHERE id = $4 AND project_id = $5 RETURNING id`,
+      [typeof done === 'boolean' ? done : null, title?.trim() || null, dueDate || null, req.params.taskId, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tarea no encontrada' });
     res.json(await fetchProject(req.params.id));
