@@ -163,11 +163,11 @@ export default function KanbanBoard({ projects, users = [], onCardClick, onAddCl
                   </svg>
                   Historial · {hiddenCount} más
                 </button>
-              ) : (
+              ) : onAddClick ? (
                 <button className="add-card-btn" onClick={() => onAddClick(key)}>
                   + Agregar
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         );

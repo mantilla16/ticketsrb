@@ -235,7 +235,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                       )}
                     </button>
                     <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
-                    {!isManager && (
+                    {isLeader && (
                       <button className="task-del" onClick={() => onDeleteTask(project.id, t.id)} title="Eliminar tarea">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -246,10 +246,10 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                 ))}
               </div>
             )}
-            {tasks.length === 0 && isManager && (
+            {tasks.length === 0 && !isLeader && (
               <div style={{ fontSize: 12, color: 'var(--text3)' }}>Sin tareas registradas</div>
             )}
-            {!isManager && (
+            {isLeader && (
               <div style={{ display: 'flex', gap: 6 }}>
                 <input
                   className="form-input"

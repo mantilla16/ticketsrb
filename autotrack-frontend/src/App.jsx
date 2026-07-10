@@ -226,9 +226,19 @@ export default function App() {
     }
   };
 
+  // Flujo permitido para ingenieros/miembros: En proceso → En testing → Finalizado o Soporte
+  const ENGINEER_FLOW = { progress: ['testing'], testing: ['done', 'soporte'] };
+
   const handleMoveCard = async (projectId, newStatus) => {
     const p = projects.find(x => x.id === projectId);
     if (!p || p.status === newStatus) return;
+    if (!isLeader) {
+      const allowed = ENGINEER_FLOW[p.status] || [];
+      if (!allowed.includes(newStatus)) {
+        showToast('Solo el líder puede realizar este cambio de estado', 'error');
+        return;
+      }
+    }
     setProjects(ps => ps.map(x => x.id === projectId ? { ...x, status: newStatus } : x));
     try {
       const updated = await projectsAPI.update(projectId, projectPayload(p, { status: newStatus }));
@@ -330,7 +340,7 @@ export default function App() {
                 projects={projects}
                 users={users.filter(u => ['engineer', 'member_analytics', 'admin', 'leader_analytics'].includes(u.role))}
                 onCardClick={openDetail}
-                onAddClick={(status) => openNewProject(status)}
+                onAddClick={isLeader ? (status) => openNewProject(status) : undefined}
                 onMoveCard={handleMoveCard}
                 onViewHistorial={() => changeSection('historial')}
               />
@@ -341,7 +351,7 @@ export default function App() {
                 projects={projects}
                 users={users.filter(u => u.role === 'engineer')}
                 onCardClick={openDetail}
-                onAddClick={(assigneeId) => openNewProject('backlog', assigneeId)}
+                onAddClick={isLeader ? (assigneeId) => openNewProject('backlog', assigneeId) : undefined}
               />
             )}
 
@@ -350,7 +360,7 @@ export default function App() {
                 projects={projects}
                 users={users.filter(u => ['member_analytics', 'leader_analytics'].includes(u.role))}
                 onCardClick={openDetail}
-                onAddClick={(assigneeId) => openNewProject('backlog', assigneeId)}
+                onAddClick={isLeader ? (assigneeId) => openNewProject('backlog', assigneeId) : undefined}
               />
             )}
 

@@ -20,10 +20,19 @@ const LEADER_ROLES = ['admin', 'leader_analytics'];
 
 const fmtShort = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
 
+// Flujo de estados permitido para ingenieros/miembros
+const ENGINEER_FLOW = { progress: ['testing'], testing: ['done', 'soporte'] };
+const STATUS_OPTS = [
+  ['backlog', 'Por hacer'], ['progress', 'En proceso'], ['standby', 'En standby'],
+  ['testing', 'En testing'], ['done', 'Finalizado'], ['soporte', 'En soporte'],
+];
+
 export default function ProjectModal({ open, project, defStatus, defAssigneeId, users, onSave, onDelete, onClose, onAddLog, currentUser }) {
   const isLeader  = LEADER_ROLES.includes(currentUser?.role);
   const canDelete = isLeader;
   const isEdit    = Boolean(project);
+  // Ingenieros/miembros editando: solo progreso y flujo de estado — el resto es del líder
+  const lockCore  = isEdit && !isLeader;
 
   const [form, setForm]         = useState(EMPTY);
   const [areaSel, setAreaSel]   = useState('automatizacion');
@@ -183,7 +192,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
             <div className="pm-step-label">1. Elige el área</div>
             <div className="pm-seg">
               {AREAS.map(a => (
-                <button key={a.value} type="button"
+                <button key={a.value} type="button" disabled={lockCore}
                   className={`pm-seg-btn${areaSel === a.value ? ' pm-seg-btn--active' : ''}`}
                   onClick={() => setAreaSel(a.value)}>
                   {areaSel === a.value && <span className="pm-seg-dot" />}
@@ -193,12 +202,12 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
             </div>
             <div className="pm-step-label" style={{ marginTop: 14 }}>2. Elige el tipo de registro</div>
             <div className="pm-seg">
-              <button type="button" className={`pm-seg-btn${typeSel === 'proyecto' ? ' pm-seg-btn--active' : ''}`}
+              <button type="button" disabled={lockCore} className={`pm-seg-btn${typeSel === 'proyecto' ? ' pm-seg-btn--active' : ''}`}
                 onClick={() => setTypeSel('proyecto')}>
                 {typeSel === 'proyecto' && <span className="pm-seg-dot" />}
                 Proyecto
               </button>
-              <button type="button" className={`pm-seg-btn${typeSel === 'flash' ? ' pm-seg-btn--active' : ''}`}
+              <button type="button" disabled={lockCore} className={`pm-seg-btn${typeSel === 'flash' ? ' pm-seg-btn--active' : ''}`}
                 onClick={() => setTypeSel('flash')}>
                 {typeSel === 'flash' && <span className="pm-seg-dot" />}
                 Asignación flash
@@ -215,7 +224,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                   Nombre *
                 </label>
-                <input className="pm-input" value={form.name} onChange={set('name')} placeholder="Ej. Dashboard de seguimiento de datos" />
+                <input className="pm-input" value={form.name} onChange={set('name')} placeholder="Ej. Dashboard de seguimiento de datos" disabled={lockCore} />
               </div>
               <div className="pm-field">
                 <label className="pm-field-label">
@@ -232,28 +241,28 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                   Área / cliente
                 </label>
-                <input className="pm-input" value={form.client} onChange={set('client')} placeholder="Ej. Admisiones" />
+                <input className="pm-input" value={form.client} onChange={set('client')} placeholder="Ej. Admisiones" disabled={lockCore} />
               </div>
               <div className="pm-field">
                 <label className="pm-field-label">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   Entrega
                 </label>
-                <input className="pm-input" type="date" value={form.dueDate} onChange={set('dueDate')} />
+                <input className="pm-input" type="date" value={form.dueDate} onChange={set('dueDate')} disabled={lockCore} />
               </div>
               <div className="pm-field">
                 <label className="pm-field-label">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   Fecha de inicio
                 </label>
-                <input className="pm-input" type="date" value={form.startDate} onChange={set('startDate')} />
+                <input className="pm-input" type="date" value={form.startDate} onChange={set('startDate')} disabled={lockCore} />
               </div>
               <div className="pm-field">
                 <label className="pm-field-label">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
                   Prioridad
                 </label>
-                <select className="pm-input" value={form.priority} onChange={set('priority')}>
+                <select className="pm-input" value={form.priority} onChange={set('priority')} disabled={lockCore}>
                   <option value="high">Alta</option>
                   <option value="mid">Media</option>
                   <option value="low">Baja</option>
@@ -265,12 +274,9 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   Estado
                 </label>
                 <select className="pm-input" value={form.status} onChange={set('status')}>
-                  <option value="backlog">Por hacer</option>
-                  <option value="progress">En proceso</option>
-                  <option value="standby">En standby</option>
-                  <option value="testing">En testing</option>
-                  <option value="done">Finalizado</option>
-                  <option value="soporte">En soporte</option>
+                  {STATUS_OPTS
+                    .filter(([k]) => !lockCore || k === form.status || (ENGINEER_FLOW[form.status] || []).includes(k))
+                    .map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                 </select>
               </div>
               {!isEdit && (
@@ -293,8 +299,12 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
               {!showDoc ? (
                 <>
                   <span style={{ color: 'var(--text3)', fontSize: 13 }}>Sin documentación</span>
-                  <button type="button" className="pm-link" onClick={() => setShowDoc(true)}>Agregar documentación</button>
+                  {!lockCore && <button type="button" className="pm-link" onClick={() => setShowDoc(true)}>Agregar documentación</button>}
                 </>
+              ) : lockCore ? (
+                <a href={form.docUrl} target="_blank" rel="noopener noreferrer" className="pm-link">
+                  Abrir carpeta de documentación
+                </a>
               ) : (
                 <>
                   <input className="pm-input" style={{ flex: 1 }} type="url" placeholder="https://drive.google.com/..."
@@ -357,23 +367,29 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
           <div className="pm-box">
             <div className="pm-box-title">Descripción</div>
             <textarea className="pm-input pm-textarea" value={form.description} onChange={set('description')}
-              placeholder="Describe el objetivo, alcance y contexto del proyecto..." rows={3} />
+              placeholder="Describe el objetivo, alcance y contexto del proyecto..." rows={3} disabled={lockCore} />
           </div>
 
           {/* ── Tareas ── */}
           <div className="pm-box">
             <div className="pm-box-title">Tareas</div>
-            <div className="pm-box-sub">Las fechas se usarán para el cronograma y próximas entregas.</div>
-            <div className="pm-task-add">
-              <input className="pm-input" style={{ flex: 1 }} placeholder="Nueva tarea..."
-                value={taskTitle} onChange={e => setTaskTitle(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addLocalTask())} />
-              <input className="pm-input" type="date" style={{ width: 150 }}
-                value={taskDate} onChange={e => setTaskDate(e.target.value)} />
-              <button type="button" className="btn btn-primary btn-sm" onClick={addLocalTask} disabled={!taskTitle.trim()}>
-                Agregar
-              </button>
+            <div className="pm-box-sub">
+              {lockCore
+                ? 'Marca las tareas completadas — solo el líder puede crearlas o modificarlas.'
+                : 'Las fechas se usarán para el cronograma y próximas entregas.'}
             </div>
+            {!lockCore && (
+              <div className="pm-task-add">
+                <input className="pm-input" style={{ flex: 1 }} placeholder="Nueva tarea..."
+                  value={taskTitle} onChange={e => setTaskTitle(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addLocalTask())} />
+                <input className="pm-input" type="date" style={{ width: 150 }}
+                  value={taskDate} onChange={e => setTaskDate(e.target.value)} />
+                <button type="button" className="btn btn-primary btn-sm" onClick={addLocalTask} disabled={!taskTitle.trim()}>
+                  Agregar
+                </button>
+              </div>
+            )}
             {tasks.length > 0 && (
               <div className="pm-task-list">
                 {tasks.map(t => (
@@ -392,9 +408,11 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                         {fmtShort(t.dueDate)}
                       </span>
                     )}
-                    <button type="button" className="task-del" style={{ opacity: 1 }} onClick={() => removeLocalTask(t)} title="Eliminar tarea">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
+                    {!lockCore && (
+                      <button type="button" className="task-del" style={{ opacity: 1 }} onClick={() => removeLocalTask(t)} title="Eliminar tarea">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

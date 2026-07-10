@@ -46,15 +46,17 @@ export default function TeamKanban({ projects, users, onCardClick, onAddClick })
                   </div>
                 )}
               </div>
-              <button
-                className="eng-add-btn"
-                onClick={() => onAddClick(eng.id)}
-                title="Asignar proyecto"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-              </button>
+              {onAddClick && (
+                <button
+                  className="eng-add-btn"
+                  onClick={() => onAddClick(eng.id)}
+                  title="Asignar proyecto"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                </button>
+              )}
             </div>
 
             <div className="kanban-cards">
