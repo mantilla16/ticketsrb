@@ -415,15 +415,25 @@ export default function DashboardView({ projects: allProjects, users, solicitude
     window.scrollTo(0, 0);
 
     try {
-      const html2pdf = (await import('html2pdf.js')).default;
-      await html2pdf().set({
-        margin: 0,
-        filename: `Informe_AMBARC_${new Date().toISOString().slice(0, 10)}.pdf`,
-        image: { type: 'jpeg', quality: 0.96 },
-        html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
-        jsPDF: { unit: 'px', format: [794, 1123], orientation: 'portrait', hotfixes: ['px_scaling'] },
-        pagebreak: { mode: ['css'] },
-      }).from(clone).save();
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+      await document.fonts.ready;
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      const pages = clone.querySelectorAll('.rp-page');
+      if (!pages.length) throw new Error('Report pages not found');
+
+      const pdf = new jsPDF({ unit: 'px', format: [794, 1123], orientation: 'portrait', hotfixes: ['px_scaling'] });
+      for (let i = 0; i < pages.length; i++) {
+        const canvas = await html2canvas(pages[i], {
+          scale: 2, backgroundColor: '#ffffff', logging: false, windowWidth: 794,
+        });
+        if (i > 0) pdf.addPage([794, 1123], 'portrait');
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 794, 1123);
+      }
+      pdf.save(`Informe_AMBARC_${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (err) {
       console.error('PDF export failed:', err);
       window.print();
