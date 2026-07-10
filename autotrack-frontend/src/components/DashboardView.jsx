@@ -511,7 +511,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
     total:    [total * 0.5, total * 0.6, total * 0.7, total * 0.8, total * 0.86, total * 0.92, total],
   };
 
-  const team = users.filter(u => ['engineer', 'member_analytics'].includes(u.role));
+  const team = users.filter(u => ['engineer', 'member_analytics', 'leader_analytics'].includes(u.role));
 
   return (
     <>

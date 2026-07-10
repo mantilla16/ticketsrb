@@ -348,7 +348,7 @@ export default function App() {
             {section === 'analytics' && (
               <TeamKanban
                 projects={projects}
-                users={users.filter(u => u.role === 'member_analytics')}
+                users={users.filter(u => ['member_analytics', 'leader_analytics'].includes(u.role))}
                 onCardClick={openDetail}
                 onAddClick={(assigneeId) => openNewProject('backlog', assigneeId)}
               />
