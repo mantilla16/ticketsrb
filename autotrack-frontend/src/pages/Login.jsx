@@ -35,6 +35,10 @@ export default function Login() {
   // Google Sign-In — solo si el servidor tiene configurado el client ID
   useEffect(() => {
     authAPI.config().then(c => setGoogleId(c.googleClientId)).catch(() => {});
+    if (localStorage.getItem('at-idle-logout')) {
+      localStorage.removeItem('at-idle-logout');
+      setError('Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.');
+    }
   }, []);
 
   useEffect(() => {

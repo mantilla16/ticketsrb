@@ -34,7 +34,7 @@ function makeToken(user) {
       role:       user.role || 'user',
     },
     process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '8h' }
   );
 }
 
@@ -100,11 +100,10 @@ router.post('/login', loginLimiter, [
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }
 
-    // Check account lockout
+    // Check account lockout — permanente hasta que el admin desbloquee
     if (user.locked_until && new Date(user.locked_until) > new Date()) {
-      const mins = Math.ceil((new Date(user.locked_until) - Date.now()) / 60000);
       return res.status(429).json({
-        error: `Cuenta bloqueada. Intenta de nuevo en ${mins} minuto${mins !== 1 ? 's' : ''}.`,
+        error: 'Cuenta bloqueada por múltiples intentos fallidos. Contacta al administrador para desbloquearla.',
         locked: true,
       });
     }
@@ -116,11 +115,11 @@ router.post('/login', loginLimiter, [
 
       if (attempts >= MAX_ATTEMPTS) {
         await pool.query(
-          `UPDATE users SET failed_attempts = $1, locked_until = NOW() + INTERVAL '${LOCK_MINUTES} minutes' WHERE id = $2`,
+          `UPDATE users SET failed_attempts = $1, locked_until = '9999-12-31' WHERE id = $2`,
           [attempts, user.id]
         );
         return res.status(429).json({
-          error: `Cuenta bloqueada por ${LOCK_MINUTES} minutos tras ${MAX_ATTEMPTS} intentos fallidos.`,
+          error: `Cuenta bloqueada tras ${MAX_ATTEMPTS} intentos fallidos. Contacta al administrador para desbloquearla.`,
           locked: true,
         });
       }
@@ -175,6 +174,13 @@ router.post('/google', loginLimiter, async (req, res) => {
     }
 
     let user = (await pool.query('SELECT * FROM users WHERE email = $1', [email])).rows[0];
+
+    if (user && user.locked_until && new Date(user.locked_until) > new Date()) {
+      return res.status(429).json({
+        error: 'Cuenta bloqueada por múltiples intentos fallidos. Contacta al administrador para desbloquearla.',
+        locked: true,
+      });
+    }
 
     if (!user) {
       // Primera vez: se crea como Área Solicitante con contraseña aleatoria (solo entrará con Google)

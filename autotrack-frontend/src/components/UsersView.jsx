@@ -13,7 +13,7 @@ function userStats(userId, projects) {
   };
 }
 
-export default function UsersView({ users, projects, currentUser, onEdit, onDelete, onAdd }) {
+export default function UsersView({ users, projects, currentUser, onEdit, onDelete, onAdd, onUnlock }) {
   const [search, setSearch]   = useState('');
   const [delConfirm, setDelConfirm] = useState(null);
 
@@ -98,6 +98,18 @@ export default function UsersView({ users, projects, currentUser, onEdit, onDele
                   <td className="uv-td uv-td-num uv-val-active">{stats.active}</td>
                   <td className="uv-td uv-td-num uv-val-done">{stats.done}</td>
                   <td className="uv-td uv-td-actions">
+                    {u.locked && (
+                      <button
+                        className="uv-action-btn"
+                        style={{ background: '#FEF2F2', color: '#EF4444', borderColor: 'rgba(239,68,68,.3)' }}
+                        onClick={() => onUnlock(u.id)}
+                        title="Cuenta bloqueada por intentos fallidos — clic para desbloquear"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                        </svg>
+                      </button>
+                    )}
                     <button className="uv-action-btn" onClick={() => onEdit(u)} title="Editar">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>

@@ -39,6 +39,7 @@ export const usersAPI = {
   create:  (data)     => api.post('/users', data),
   update:  (id, data) => api.put(`/users/${id}`, data),
   remove:  (id)       => api.delete(`/users/${id}`),
+  unlock:  (id)       => api.post(`/users/${id}/unlock`),
 };
 
 export const solicitudesAPI = {

@@ -268,6 +268,17 @@ export default function App() {
     }
   };
 
+  const handleUnlockUser = async (id) => {
+    const u = users.find(x => x.id === id);
+    try {
+      await usersAPI.unlock(id);
+      setUsers(us => us.map(x => x.id === id ? { ...x, locked: false } : x));
+      showToast(`Cuenta de "${u?.name}" desbloqueada`, 'success');
+    } catch (err) {
+      showToast(err.error || 'Error al desbloquear', 'error');
+    }
+  };
+
   const handleDeleteUser = async (id) => {
     const u = users.find(x => x.id === id);
     try {
@@ -375,6 +386,7 @@ export default function App() {
                 currentUser={user}
                 onEdit={(u) => setUserModal({ open: true, user: u })}
                 onDelete={handleDeleteUser}
+                onUnlock={handleUnlockUser}
                 onAdd={() => setUserModal({ open: true, user: null })}
               />
             )}

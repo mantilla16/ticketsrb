@@ -406,7 +406,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
             )}
             {sol.file_name && sol.file_path && (
               <a
-                href={`${API_BASE}/uploads/solicitudes/${sol.file_path}`}
+                href={`${API_BASE}/uploads/solicitudes/${sol.file_path}?token=${localStorage.getItem('at-token')}`}
                 target="_blank" rel="noopener noreferrer"
                 className="sol-file-download"
                 onClick={e => e.stopPropagation()}

@@ -13,7 +13,8 @@ router.get('/', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, name, email, initials, color_index AS "colorIndex",
-              COALESCE(role, 'engineer') AS role
+              COALESCE(role, 'engineer') AS role,
+              (locked_until IS NOT NULL AND locked_until > NOW()) AS locked
        FROM users ORDER BY name`
     );
     res.json(rows);
@@ -87,6 +88,21 @@ router.put('/:id', auth, requireRole('admin'), async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/users/:id/unlock — admin only: desbloquear cuenta tras intentos fallidos
+router.post('/:id/unlock', auth, requireRole('admin'), async (req, res) => {
+  try {
+    const { rowCount } = await pool.query(
+      'UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json({ ok: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
