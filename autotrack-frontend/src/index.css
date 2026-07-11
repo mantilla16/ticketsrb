@@ -1414,8 +1414,43 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
   border:1px solid var(--border); background:var(--surface); color:var(--text2);
   cursor:pointer; transition:.12s; white-space:nowrap;
 }
-.sol-chip:hover { background:var(--surface2); }
+.sol-chip:hover:not(.sol-chip--active) { background:var(--surface2); }
 .sol-chip--active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.sol-chip--active:hover { background:var(--accent-hover); border-color:var(--accent-hover); }
+
+/* ── Línea de tiempo de la solicitud ── */
+.sol-steps {
+  display: flex; align-items: flex-start;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 16px 14px 12px;
+}
+.sol-step { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; min-width: 0; }
+.sol-step-line {
+  position: absolute; top: 11px; right: 50%; width: 100%; height: 2.5px;
+  background: var(--border); z-index: 0; border-radius: 2px;
+}
+.sol-step-line.on { background: var(--accent); }
+.sol-step-line.rejected { background: var(--high); }
+.sol-step-dot {
+  width: 23px; height: 23px; border-radius: 50%; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: var(--surface); border: 2px solid var(--border); color: var(--text3);
+  transition: all .2s;
+}
+.sol-step-dot.done { background: var(--accent); border-color: var(--accent); color: #fff; }
+.sol-step-dot.curr {
+  border-color: var(--accent); color: var(--accent); background: var(--accent-light);
+  box-shadow: 0 0 0 4px var(--accent-muted);
+}
+.sol-step-dot.rejected { background: var(--high); border-color: var(--high); color: #fff; }
+.sol-step-label {
+  font-size: 10px; font-weight: 600; color: var(--text3);
+  margin-top: 6px; text-align: center; line-height: 1.25; max-width: 76px;
+}
+.sol-step-label.curr { color: var(--accent); font-weight: 700; }
+.sol-step-label.done { color: var(--text2); }
+.sol-step-label.rejected { color: var(--high); font-weight: 700; }
 
 /* List */
 .sol-list { display:flex; flex-direction:column; gap:10px; }

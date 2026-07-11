@@ -518,6 +518,68 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
   );
 }
 
+// ── Línea de tiempo del estado ─────────────────────────────────────────────────
+
+const FLOW_STEPS = [
+  { key: 'recibido',         label: 'Recibida' },
+  { key: 'en_revision',      label: 'En revisión' },
+  { key: 'reunion_agendada', label: 'Reunión agendada' },
+  { key: 'aceptado',         label: 'Aceptada' },
+  { key: 'convertido',       label: 'Convertida en proyecto' },
+];
+const FLOW_INDEX = {
+  recibido: 0, nueva: 0,
+  en_revision: 1, en_proceso: 1,
+  reunion_agendada: 2,
+  aceptado: 3,
+  convertido: 4, completada: 4,
+};
+
+function SolTimeline({ status }) {
+  const rejected = status === 'rechazado' || status === 'rechazada';
+  const idx = rejected ? -1 : (FLOW_INDEX[status] ?? 0);
+
+  if (rejected) {
+    return (
+      <div className="sol-steps">
+        <div className="sol-step">
+          <span className="sol-step-dot done">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+          <span className="sol-step-label done">Recibida</span>
+        </div>
+        <div className="sol-step">
+          <span className="sol-step-line rejected" />
+          <span className="sol-step-dot rejected">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </span>
+          <span className="sol-step-label rejected">Rechazada / no aplica</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="sol-steps">
+      {FLOW_STEPS.map((s, i) => {
+        const done = i < idx;
+        const curr = i === idx;
+        return (
+          <div key={s.key} className="sol-step">
+            {i > 0 && <span className={`sol-step-line${i <= idx ? ' on' : ''}`} />}
+            <span className={`sol-step-dot${done ? ' done' : ''}${curr ? ' curr' : ''}`}>
+              {done
+                ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                : i + 1}
+            </span>
+            <span className={`sol-step-label${curr ? ' curr' : ''}${done ? ' done' : ''}`}>{s.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Detail Modal (área solicitante) ────────────────────────────────────────────
 
 function UserSolicitudModal({ sol, open, onClose, onSaveInfo }) {
@@ -553,10 +615,16 @@ function UserSolicitudModal({ sol, open, onClose, onSaveInfo }) {
         </div>
 
         <div className="sol-modal-body">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="sol-badge" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+          {/* Progreso de la solicitud */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--text2)', marginBottom: 8 }}>
+              Progreso de tu solicitud
+            </div>
+            <SolTimeline status={sol.status} />
             {sol.due_date && (
-              <span style={{ fontSize: 11, color: 'var(--text3)', marginLeft: 'auto' }}>Vence: {fmtDate(sol.due_date)}</span>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8, textAlign: 'right' }}>
+                Fecha requerida: {fmtDate(sol.due_date)}
+              </div>
             )}
           </div>
 
