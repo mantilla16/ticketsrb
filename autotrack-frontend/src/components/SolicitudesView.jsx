@@ -802,19 +802,31 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
       {/* List */}
       {displayed.length === 0 ? (
         <div className="sol-empty">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: .2 }}>
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
-          </svg>
+          <div className="sol-empty-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </div>
           <div className="sol-empty-title">
-            {filter === 'all' ? 'Sin solicitudes aún' : `Sin solicitudes "${STATUS_MAP[filter]?.label || filter}"`}
+            {filter === 'all'
+              ? (isAdmin ? 'Aún no han llegado solicitudes' : 'Aún no has enviado solicitudes')
+              : `Sin solicitudes en "${STATUS_MAP[filter]?.label || filter}"`}
           </div>
           {!isAdmin && filter === 'all' && (
-            <button className="btn btn-primary" onClick={() => setNewModal(true)}>
-              Crear mi primera solicitud
-            </button>
+            <>
+              <div className="sol-empty-sub">
+                Cuéntanos qué proceso necesitas automatizar y el equipo lo revisará.
+              </div>
+              <button className="btn btn-primary" onClick={() => setNewModal(true)}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"/>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+                Enviar mi primera solicitud
+              </button>
+            </>
           )}
         </div>
       ) : (
