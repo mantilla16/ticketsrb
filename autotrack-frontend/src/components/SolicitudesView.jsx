@@ -338,7 +338,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
   return (
     <div className="um-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="sol-manage-modal">
-        <div className="sol-modal-header" style={{ borderBottom: `3px solid ${st.color}` }}>
+        <div className="sol-modal-header">
           <div>
             <div className="sol-modal-title">Gestionar solicitud</div>
             <div className="sol-modal-step">{sol.user_name} · {fmtDate(sol.created_at)}</div>
@@ -602,7 +602,7 @@ function UserSolicitudModal({ sol, open, onClose, onSaveInfo }) {
   return (
     <div className="um-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="sol-modal" style={{ maxWidth: 560 }}>
-        <div className="sol-modal-header" style={{ borderBottom: `3px solid ${st.color}` }}>
+        <div className="sol-modal-header">
           <div style={{ minWidth: 0 }}>
             <div className="sol-modal-title">{sol.title}</div>
             <div className="sol-modal-step">Enviada el {fmtDate(sol.created_at)}</div>
