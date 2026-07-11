@@ -71,7 +71,7 @@
   --neu-border:   1px solid rgba(255,255,255,.65);
   --neu-sh:       0 12px 24px rgba(175,150,130,.10), inset 0 2px 3px rgba(255,255,255,.9);
   --neu-sh-hover: 0 18px 36px rgba(175,150,130,.16), inset 0 2px 3px rgba(255,255,255,.9);
-  --neu-inset:    inset 2px 2px 5px rgba(180,160,140,.08), inset -2px -2px 5px #ffffff;
+  --neu-inset:    inset 2px 2px 6px rgba(180,160,140,.12), inset -2px -2px 6px #ffffff, inset 0 0 0 1px rgba(180,160,140,.14);
   --neu-focus:    0 0 0 4px rgba(249,115,22,.10);
 }
 
@@ -974,7 +974,12 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
   box-shadow:var(--sh-lg); flex-shrink:0; margin:auto;
   border:var(--neu-border); animation:cardIn .28s var(--ease-spring);
 }
-.modal-header { padding:22px 26px 12px; display:flex; align-items:center; justify-content:space-between; }
+.modal-header {
+  padding:22px 26px 14px; display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:5;
+  background:var(--surface); border-radius:26px 26px 0 0;
+  box-shadow:0 10px 14px -12px rgba(120,100,80,.28);
+}
 .modal-title  { font-size:17px; font-weight:700; color:var(--text); letter-spacing:-.01em; }
 .modal-close  { width:28px; height:28px; border-radius:6px; border:none; background:transparent; cursor:pointer; font-size:18px; color:var(--text3); display:flex; align-items:center; justify-content:center; transition:.12s; }
 .modal-close:hover { background:var(--bg); color:var(--text); }
@@ -1555,7 +1560,10 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
 }
 .sol-modal-header {
   display:flex; align-items:center; justify-content:space-between;
-  padding:22px 24px 12px;
+  padding:22px 24px 14px;
+  position:sticky; top:0; z-index:5;
+  background:var(--neu-bg); border-radius:26px 26px 0 0;
+  box-shadow:0 10px 14px -12px rgba(120,100,80,.28);
 }
 .sol-modal-title { font-size:17px; font-weight:700; color:var(--text); letter-spacing:-.01em; }
 .sol-modal-step  { font-size:11.5px; color:var(--text3); margin-top:2px; }
