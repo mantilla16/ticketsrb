@@ -42,6 +42,7 @@ export default function Login() {
     const init = () => {
       window.google.accounts.id.initialize({
         client_id: googleId,
+        hd: 'americana.edu.co',
         callback: async (resp) => {
           setError('');
           try { await loginGoogle(resp.credential); }
