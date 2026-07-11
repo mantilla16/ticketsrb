@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { authAPI } from '../services/api';
+
+const ALLOWED_DOMAIN = '@americana.edu.co';
 
 function pwStrength(pw) {
   if (!pw) return 0;
@@ -15,17 +18,47 @@ const STR_LABEL = ['', 'Muy débil', 'Débil', 'Regular', 'Buena', 'Fuerte'];
 const STR_COLOR = ['', '#DC2626', '#F97316', '#EAB308', '#22C55E', '#16A34A'];
 
 export default function Login() {
-  const { login, register } = useAuth();
+  const { login, register, loginGoogle } = useAuth();
   const [tab, setTab]       = useState('login');
   const [form, setForm]     = useState({ name: '', email: '', password: '' });
   const [showPw, setShowPw] = useState(false);
   const [error, setError]   = useState('');
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleId, setGoogleId] = useState(null);
+  const gBtnRef = useRef(null);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const switchTab = (t) => { setTab(t); setError(''); setLocked(false); };
+
+  // Google Sign-In — solo si el servidor tiene configurado el client ID
+  useEffect(() => {
+    authAPI.config().then(c => setGoogleId(c.googleClientId)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!googleId || !gBtnRef.current) return;
+    const init = () => {
+      window.google.accounts.id.initialize({
+        client_id: googleId,
+        callback: async (resp) => {
+          setError('');
+          try { await loginGoogle(resp.credential); }
+          catch (err) { setError(err.error || 'No se pudo iniciar sesión con Google'); }
+        },
+      });
+      window.google.accounts.id.renderButton(gBtnRef.current, {
+        theme: 'filled_black', size: 'large', width: 316, text: 'continue_with', locale: 'es', shape: 'pill',
+      });
+    };
+    if (window.google?.accounts?.id) { init(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.async = true;
+    s.onload = init;
+    document.body.appendChild(s);
+  }, [googleId]);
 
   const submit = async e => {
     e.preventDefault();
@@ -35,6 +68,10 @@ export default function Login() {
         await login(form.email, form.password);
       } else {
         if (!form.name.trim()) { setError('El nombre es requerido'); setLoading(false); return; }
+        if (!form.email.toLowerCase().endsWith(ALLOWED_DOMAIN)) {
+          setError(`Solo se permiten correos institucionales ${ALLOWED_DOMAIN}`);
+          setLoading(false); return;
+        }
         if (pwStrength(form.password) < 2) {
           setError('La contraseña es demasiado débil. Usa al menos 8 caracteres con letras y números.');
           setLoading(false); return;
@@ -107,7 +144,12 @@ export default function Login() {
 
           <div className="form-group">
             <label className="form-label">Correo electrónico</label>
-            <input className="form-input" type="email" placeholder="correo@empresa.com" value={form.email} onChange={set('email')} required />
+            <input className="form-input" type="email" placeholder="correo@americana.edu.co" value={form.email} onChange={set('email')} required />
+            {tab === 'register' && (
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 5 }}>
+                Solo correos institucionales {ALLOWED_DOMAIN}
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -170,6 +212,21 @@ export default function Login() {
             {loading ? 'Procesando...' : tab === 'login' ? 'Entrar al sistema' : 'Crear cuenta'}
           </button>
         </form>
+
+        {/* Google Sign-In */}
+        {googleId && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '18px 0 14px' }}>
+              <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.1)' }} />
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.3)' }}>o continúa con</span>
+              <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.1)' }} />
+            </div>
+            <div ref={gBtnRef} style={{ display: 'flex', justifyContent: 'center' }} />
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.25)', textAlign: 'center', marginTop: 8 }}>
+              Solo cuentas de Google {ALLOWED_DOMAIN}
+            </div>
+          </>
+        )}
 
         {tab === 'login' && (
           <p style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: 'var(--text3)' }}>
