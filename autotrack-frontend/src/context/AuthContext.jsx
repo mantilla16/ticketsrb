@@ -12,6 +12,16 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem('at-token');
     if (token) {
+      // La regla de inactividad también aplica entre recargas/cierres del navegador:
+      // si la última actividad registrada supera el límite (o no existe), la sesión expira.
+      const last = parseInt(localStorage.getItem('at-last-activity') || '0', 10);
+      if (!last || Date.now() - last > IDLE_LIMIT_MS) {
+        localStorage.removeItem('at-token');
+        localStorage.removeItem('at-last-activity');
+        localStorage.setItem('at-idle-logout', '1');
+        setLoading(false);
+        return;
+      }
       authAPI.me()
         .then(setUser)
         .catch(() => localStorage.removeItem('at-token'))
@@ -24,6 +34,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const { token, user } = await authAPI.login({ email, password });
     localStorage.setItem('at-token', token);
+    localStorage.setItem('at-last-activity', String(Date.now()));
     setUser(user);
     return user;
   };
@@ -31,6 +42,7 @@ export function AuthProvider({ children }) {
   const register = async (name, email, password) => {
     const { token, user } = await authAPI.register({ name, email, password });
     localStorage.setItem('at-token', token);
+    localStorage.setItem('at-last-activity', String(Date.now()));
     setUser(user);
     return user;
   };
@@ -38,6 +50,7 @@ export function AuthProvider({ children }) {
   const loginGoogle = async (credential) => {
     const { token, user } = await authAPI.google(credential);
     localStorage.setItem('at-token', token);
+    localStorage.setItem('at-last-activity', String(Date.now()));
     setUser(user);
     return user;
   };
@@ -55,6 +68,7 @@ export function AuthProvider({ children }) {
     const expire = () => {
       localStorage.setItem('at-idle-logout', '1');
       localStorage.removeItem('at-token');
+      localStorage.removeItem('at-last-activity');
       setUser(null);
     };
 
@@ -67,7 +81,11 @@ export function AuthProvider({ children }) {
     let last = 0;
     const onActivity = () => {
       const now = Date.now();
-      if (now - last > 5000) { last = now; reset(); } // throttle: máx. un reset cada 5s
+      if (now - last > 5000) {
+        last = now;
+        localStorage.setItem('at-last-activity', String(now));
+        reset();
+      } // throttle: máx. un reset cada 5s
     };
 
     EVENTS.forEach(e => window.addEventListener(e, onActivity, { passive: true }));
