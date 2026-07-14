@@ -38,7 +38,7 @@ router.get('/', auth, async (req, res) => {
               s.due_date, s.file_name, s.file_path, s.status, s.notes,
               s.project_created,
               s.frecuencia, s.herramientas, s.impacto, s.urgencia,
-              s.nombre_solicitante, s.correo_solicitante, s.info_adicional,
+              s.nombre_solicitante, s.correo_solicitante, s.info_adicional, s.fecha_reunion,
               s.created_at, s.updated_at,
               u.id          AS user_id,
               u.name        AS user_name,
@@ -97,7 +97,7 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
 
 // PUT /api/solicitudes/:id/status  — solo admin
 router.put('/:id/status', auth, requireRole('admin', 'leader_analytics'), async (req, res) => {
-  const { status, notes, assigneeId } = req.body;
+  const { status, notes, assigneeId, fechaReunion } = req.body;
   const valid = ['recibido','en_revision','reunion_agendada','aceptado','rechazado','convertido',
                  'nueva','en_proceso','completada','rechazada'];
   if (!valid.includes(status)) {
@@ -106,10 +106,10 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics'), async 
   try {
     const { rows } = await pool.query(
       `UPDATE solicitudes
-       SET status=$1, notes=$2, assignee_id=$3, updated_at=NOW()
-       WHERE id=$4
+       SET status=$1, notes=$2, assignee_id=$3, fecha_reunion=$4, updated_at=NOW()
+       WHERE id=$5
        RETURNING *`,
-      [status, notes || null, assigneeId || null, req.params.id]
+      [status, notes || null, assigneeId || null, fechaReunion || null, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Solicitud no encontrada' });
     res.json(rows[0]);
