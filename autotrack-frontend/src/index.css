@@ -291,8 +291,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .kb-filter-clear:hover { background: #FFF4EC; }
 
 /* ════ KANBAN ════ */
-.kanban-board { display:flex; gap:14px; overflow-x:auto; padding-bottom:16px; align-items:flex-start; }
-.kanban-col   { flex:0 0 252px; min-width:252px; }
+.kanban-board { display:flex; gap:18px; overflow-x:auto; padding-bottom:16px; align-items:flex-start; }
+.kanban-col   { flex:1 1 0; min-width:238px; }
 .kanban-col-bg {
   background: #F5F1EC; border-radius: var(--radius);
   border: none; box-shadow: var(--neu-inset); padding: 12px 10px;
@@ -417,8 +417,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 }
 
 /* ════ TEAM / ENGINEER COLUMNS ════ */
-.team-board   { display:flex; gap:14px; overflow-x:auto; padding-bottom:16px; align-items:flex-start; }
-.engineer-col { flex:1 1 260px; min-width:240px; max-width:480px; }
+.team-board   { display:flex; gap:20px; overflow-x:auto; padding-bottom:16px; align-items:flex-start; }
+.engineer-col { flex:1 1 0; min-width:260px; }
 .engineer-header {
   background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
   padding:14px 14px 12px; margin-bottom:10px; display:flex; align-items:flex-start; gap:11px;
