@@ -138,54 +138,83 @@ function SolTimeline({ status, dates = {} }) {
   );
 }
 
-// ── New Solicitud Modal ────────────────────────────────────────────────────────
+// ── Nueva Solicitud — página completa ──────────────────────────────────────────
 
-function NewSolicitudModal({ open, onClose, onSave, defaultName = '', defaultEmail = '' }) {
-  const [form,   setForm]   = useState({
-    title: '', area: '', description: '', priority: 'media',
-    frecuencia: '', herramientas: '', impacto: '', urgencia: 'media',
-    nombreSolicitante: '', dueDate: '', file: null,
+const AREAS_LIST = [
+  'Rectoría', 'Mercadeo', 'Admisiones', 'Financiamiento', 'Contabilidad',
+  'Talento Humano', 'Bienestar', 'Centro de Idiomas', 'Innovación Educativa',
+  'Internacionalización', 'Audiovisual y Diseño', 'Gestión TICS', 'Egresados', 'Virtualidad',
+];
+
+const IMPACTO_OPTIONS = [
+  { value: '', label: 'Selecciona...' },
+  { value: 'Alto',  label: 'Alto — ahorro de tiempo significativo' },
+  { value: 'Medio', label: 'Medio — reducción de errores' },
+  { value: 'Bajo',  label: 'Bajo — mejora de trazabilidad' },
+];
+
+const DESC_MAX = 1000;
+
+function SecHead({ icon, num, title, opt }) {
+  return (
+    <div className="snp-sec-head">
+      <span className="snp-sec-icon">{icon}</span>
+      <span className="snp-sec-title">{num}. {title}{opt && <span style={{ fontWeight: 500, color: 'var(--text3)' }}> (opcional)</span>}</span>
+    </div>
+  );
+}
+
+const Req = () => <span style={{ color: '#EF4444' }}> *</span>;
+
+function NewSolicitudPage({ onBack, onSave, defaultName = '', defaultEmail = '' }) {
+  const [form, setForm] = useState({
+    title: '', areaSel: '', areaOtra: '', nombre: defaultName, correos: defaultEmail,
+    dueDate: '', description: '', frecuencia: '', urgencia: 'media', impacto: '',
+    herramientas: '', file: null,
   });
-  const [correos, setCorreos] = useState(['']);
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
-
-  useEffect(() => {
-    if (open) {
-      setForm({
-        title: '', area: '', description: '', priority: 'media',
-        frecuencia: '', herramientas: '', impacto: '', urgencia: 'media',
-        nombreSolicitante: defaultName || '', dueDate: '', file: null,
-      });
-      setCorreos([defaultEmail || '']);
-      setError('');
-      setSaving(false);
-    }
-  }, [open, defaultName, defaultEmail]);
-
-  if (!open) return null;
+  const [drag,   setDrag]   = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const hoy = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  const takeFile = (f) => {
+    if (!f) return;
+    if (f.size > 10 * 1024 * 1024) { setError('El archivo supera los 10 MB.'); return; }
+    set('file', f);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!form.title.trim()) { setError('El nombre del proceso es obligatorio'); return; }
+    const area = form.areaSel === 'otra' ? form.areaOtra.trim() : form.areaSel;
+    if (!form.title.trim())      return setError('El nombre del proceso es obligatorio.');
+    if (!area)                   return setError('Selecciona el área o departamento.');
+    if (!form.nombre.trim())     return setError('El nombre del solicitante es obligatorio.');
+    const mails = form.correos.split(',').map(c => c.trim()).filter(Boolean);
+    if (!mails.length || mails.some(m => !m.includes('@')))
+      return setError('Ingresa al menos un correo de contacto válido.');
+    if (!form.dueDate)           return setError('Indica la fecha en que se requiere.');
+    if (!form.description.trim()) return setError('Describe la necesidad.');
+    if (!form.frecuencia)        return setError('Selecciona la frecuencia del proceso.');
+    if (!form.impacto)           return setError('Selecciona el impacto esperado.');
+
     setError('');
     setSaving(true);
     try {
       const fd = new FormData();
       fd.append('title',             form.title.trim());
       fd.append('description',       form.description);
-      fd.append('area',              form.area);
-      fd.append('priority',          form.priority);
+      fd.append('area',              area);
+      fd.append('priority',          form.urgencia);
       fd.append('urgencia',          form.urgencia);
       fd.append('frecuencia',        form.frecuencia);
       fd.append('herramientas',      form.herramientas);
       fd.append('impacto',           form.impacto);
-      fd.append('nombreSolicitante', form.nombreSolicitante);
-      fd.append('correoSolicitante', correos.map(c => c.trim()).filter(Boolean).join(', '));
-      if (form.dueDate) fd.append('dueDate', form.dueDate);
-      if (form.file)    fd.append('file',    form.file);
+      fd.append('nombreSolicitante', form.nombre.trim());
+      fd.append('correoSolicitante', mails.join(', '));
+      fd.append('dueDate',           form.dueDate);
+      if (form.file) fd.append('file', form.file);
       await onSave(fd);
     } catch (err) {
       setError(err.error || 'Error al enviar la solicitud');
@@ -194,210 +223,162 @@ function NewSolicitudModal({ open, onClose, onSave, defaultName = '', defaultEma
   };
 
   return (
-    <div className="um-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="sol-modal" style={{ maxWidth: 640 }}>
-        <div className="sol-modal-header">
+    <div className="snp-root">
+      <button className="snp-back" onClick={onBack}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Volver
+      </button>
+      <h2 className="snp-title">Nueva solicitud</h2>
+      <div className="snp-sub">Cuéntanos tu necesidad para que el equipo pueda ayudarte.</div>
+
+      {error && <div className="um-error" style={{ marginBottom: 14 }}>{error}</div>}
+
+      <form onSubmit={submit} className="snp-card">
+
+        {/* 1. Información general */}
+        <SecHead num={1} title="Información general"
+          icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>} />
+        <div className="snp-grid">
           <div>
-            <div className="sol-modal-title">Nueva solicitud</div>
-            <div className="sol-modal-step">Completa los campos para enviar tu requerimiento</div>
+            <label className="snp-label">Nombre del proceso o necesidad<Req /></label>
+            <input className="form-input" placeholder="Ej: Liquidación de nómina mensual"
+              value={form.title} onChange={e => set('title', e.target.value)} autoFocus />
           </div>
-          <button className="um-close" onClick={onClose}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
+          <div>
+            <label className="snp-label">Área / Departamento<Req /></label>
+            <select className="form-select" value={form.areaSel} onChange={e => set('areaSel', e.target.value)}>
+              <option value="">Selecciona el área</option>
+              {AREAS_LIST.map(a => <option key={a} value={a}>{a}</option>)}
+              <option value="otra">Otra…</option>
+            </select>
+            {form.areaSel === 'otra' && (
+              <input className="form-input" style={{ marginTop: 8 }} placeholder="Escribe el nombre del área"
+                value={form.areaOtra} onChange={e => set('areaOtra', e.target.value)} autoFocus />
+            )}
+          </div>
+          <div>
+            <label className="snp-label">Solicitante<Req /></label>
+            <input className="form-input" placeholder="Tu nombre completo"
+              value={form.nombre} onChange={e => set('nombre', e.target.value)} />
+          </div>
+          <div>
+            <label className="snp-label">Correos de contacto<Req /></label>
+            <input className="form-input" placeholder="correo@americana.edu.co, otro@americana.edu.co"
+              value={form.correos} onChange={e => set('correos', e.target.value)} />
+            <div className="snp-hint">Separa varios correos con comas — la respuesta llegará a todos</div>
+          </div>
+          <div>
+            <label className="snp-label">Fecha de registro<Req /></label>
+            <input className="form-input" value={hoy} disabled
+              style={{ color: 'var(--text3)', cursor: 'not-allowed' }} />
+          </div>
+          <div>
+            <label className="snp-label">Fecha en que se requiere<Req /></label>
+            <input className="form-input" type="date"
+              value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
+          </div>
         </div>
 
-        {error && <div className="um-error" style={{ margin: '12px 20px 0' }}>{error}</div>}
+        <div className="snp-divider" />
 
-        <form onSubmit={submit} className="sol-modal-body">
-
-          {/* Identificación */}
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--accent)', marginBottom: 10 }}>Identificación</div>
-          <div className="um-row">
-            <div className="um-field" style={{ flex: 2 }}>
-              <label className="um-label">Nombre del proceso *</label>
-              <div className="um-input-wrap">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-                <input className="um-input" type="text"
-                  placeholder="Ej. Liquidación de nómina mensual"
-                  value={form.title} onChange={e => set('title', e.target.value)}
-                  required autoFocus />
-              </div>
-            </div>
-            <div className="um-field" style={{ flex: 1 }}>
-              <label className="um-label">Área / Departamento</label>
-              <div className="um-input-wrap">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                  <polyline points="9 22 9 12 15 12 15 22"/>
-                </svg>
-                <input className="um-input" type="text" placeholder="Ej. Rectoría"
-                  value={form.area} onChange={e => set('area', e.target.value)} />
-              </div>
-            </div>
-          </div>
-
-          <div className="um-row">
-            <div className="um-field">
-              <label className="um-label">Nombre del solicitante</label>
-              <div className="um-input-wrap">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                </svg>
-                <input className="um-input" type="text" placeholder="Tu nombre completo"
-                  value={form.nombreSolicitante} onChange={e => set('nombreSolicitante', e.target.value)} />
-              </div>
-            </div>
-            <div className="um-field">
-              <label className="um-label">Fecha requerida</label>
-              <div className="um-input-wrap">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                <input className="um-input" type="date"
-                  value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
-              </div>
-            </div>
-          </div>
-
-          <div className="um-field">
-            <label className="um-label">
-              Correos de contacto
-              <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text3)' }}> · la respuesta llegará a todos</span>
-            </label>
-            {correos.map((c, i) => (
-              <div key={i} className="um-input-wrap" style={{ marginBottom: i < correos.length - 1 ? 8 : 0 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-                <input className="um-input" type="email"
-                  placeholder={i === 0 ? 'correo@americana.edu.co' : 'otro@americana.edu.co (jefe, compañero...)'}
-                  value={c}
-                  onChange={e => setCorreos(cs => cs.map((x, j) => j === i ? e.target.value : x))} />
-                {correos.length > 1 && (
-                  <button type="button"
-                    onClick={() => setCorreos(cs => cs.filter((_, j) => j !== i))}
-                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text3)', padding: 2, display: 'flex' }}
-                    title="Quitar este correo">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  </button>
-                )}
-              </div>
-            ))}
-            <button type="button"
-              onClick={() => setCorreos(cs => [...cs, ''])}
-              style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font)', padding: '4px 0 0 2px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Agregar otro correo
-            </button>
-          </div>
-
-          {/* El proceso */}
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--accent)', margin: '12px 0 10px' }}>El proceso</div>
-
-          <div className="um-field">
-            <label className="um-label">Descripción de la necesidad</label>
-            <textarea className="um-input sol-textarea"
+        {/* 2. Detalle de la necesidad */}
+        <SecHead num={2} title="Detalle de la necesidad"
+          icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>} />
+        <div>
+          <label className="snp-label">Descripción de la necesidad<Req /></label>
+          <div style={{ position: 'relative' }}>
+            <textarea className="form-textarea" rows={4} maxLength={DESC_MAX}
               placeholder="Explica con detalle el proceso, el problema o lo que necesitas automatizar..."
-              value={form.description} onChange={e => set('description', e.target.value)} rows={3} />
+              value={form.description} onChange={e => set('description', e.target.value)} />
+            <span className="snp-counter">{form.description.length}/{DESC_MAX}</span>
           </div>
-
-          <div className="um-row">
-            <div className="um-field">
-              <label className="um-label">Frecuencia del proceso</label>
-              <select className="um-input" value={form.frecuencia} onChange={e => set('frecuencia', e.target.value)}
-                style={{ cursor: 'pointer' }}>
-                {FRECUENCIA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+        </div>
+        <div className="snp-grid3">
+          <div>
+            <label className="snp-label">Frecuencia del proceso<Req /></label>
+            <select className="form-select" value={form.frecuencia} onChange={e => set('frecuencia', e.target.value)}>
+              {FRECUENCIA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="snp-label">Urgencia<Req /></label>
+            <div className="sol-priority-wrap">
+              {['alta','media','baja'].map(pKey => (
+                <button key={pKey} type="button"
+                  className="sol-prio-btn"
+                  style={form.urgencia === pKey
+                    ? { borderColor: PRIORITY_MAP[pKey].color, background: PRIORITY_MAP[pKey].bg, color: PRIORITY_MAP[pKey].color, boxShadow: 'none' }
+                    : {}}
+                  onClick={() => set('urgencia', pKey)}>
+                  {PRIORITY_MAP[pKey].label}
+                </button>
+              ))}
             </div>
-            <div className="um-field">
-              <label className="um-label">Urgencia</label>
-              <div className="sol-priority-wrap">
-                {['alta','media','baja'].map(p => (
-                  <button key={p} type="button"
-                    className={`sol-prio-btn${form.urgencia === p ? ' sol-prio-btn--active' : ''}`}
-                    style={form.urgencia === p
-                      ? { borderColor: PRIORITY_MAP[p].color, background: PRIORITY_MAP[p].bg, color: PRIORITY_MAP[p].color }
-                      : {}}
-                    onClick={() => set('urgencia', p)}>
-                    {PRIORITY_MAP[p].label}
-                  </button>
-                ))}
+          </div>
+          <div>
+            <label className="snp-label">Impacto esperado<Req /></label>
+            <select className="form-select" value={form.impacto} onChange={e => set('impacto', e.target.value)}>
+              {IMPACTO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="snp-divider" />
+
+        {/* 3. Información adicional */}
+        <SecHead num={3} title="Información adicional" opt
+          icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>} />
+        <div>
+          <label className="snp-label">Herramientas actuales</label>
+          <input className="form-input"
+            placeholder="¿Qué herramientas usas hoy? (Excel, SAP, correo, Drive...)"
+            value={form.herramientas} onChange={e => set('herramientas', e.target.value)} />
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <label className="snp-label">Archivos o documentos de apoyo</label>
+          <label
+            className={`snp-drop${drag ? ' snp-drop--over' : ''}`}
+            onDragOver={e => { e.preventDefault(); setDrag(true); }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={e => { e.preventDefault(); setDrag(false); takeFile(e.dataTransfer.files?.[0]); }}
+          >
+            <input type="file" accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg"
+              style={{ display: 'none' }}
+              onChange={e => takeFile(e.target.files?.[0])} />
+            {form.file ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                <span style={{ fontWeight: 600, color: 'var(--text)' }}>{form.file.name}</span>
+                <button type="button" className="sol-file-remove"
+                  onClick={e => { e.preventDefault(); set('file', null); }}>✕</button>
               </div>
-            </div>
-          </div>
+            ) : (
+              <>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 13 }}>Arrastra archivos aquí o haz clic para seleccionar</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text3)', marginTop: 2 }}>PDF, Excel, Word, imágenes (Máx. 10 MB por archivo)</div>
+                </div>
+              </>
+            )}
+          </label>
+        </div>
+      </form>
 
-          <div className="um-field">
-            <label className="um-label">Herramientas actuales</label>
-            <textarea className="um-input sol-textarea"
-              placeholder="¿Qué herramientas o sistemas usas actualmente para este proceso? (Excel, SAP, correo...)"
-              value={form.herramientas} onChange={e => set('herramientas', e.target.value)} rows={2} />
-          </div>
-
-          <div className="um-field">
-            <label className="um-label">Impacto esperado</label>
-            <textarea className="um-input sol-textarea"
-              placeholder="¿Qué beneficio esperas de la automatización? (ahorro de tiempo, reducción de errores...)"
-              value={form.impacto} onChange={e => set('impacto', e.target.value)} rows={2} />
-          </div>
-
-          {/* Adjunto */}
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--accent)', margin: '12px 0 10px' }}>Soporte</div>
-
-          <div className="um-field">
-            <label className="um-label">
-              Archivo de soporte
-              <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 400 }}> · PDF, Word, Excel, imagen · máx 10 MB</span>
-            </label>
-            <label className="sol-file-label">
-              <input type="file" accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg"
-                style={{ display: 'none' }}
-                onChange={e => set('file', e.target.files?.[0] || null)} />
-              {form.file
-                ? <>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-                      <polyline points="13 2 13 9 20 9"/>
-                    </svg>
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form.file.name}</span>
-                    <span className="sol-file-remove" onClick={e => { e.preventDefault(); set('file', null); }}>✕</span>
-                  </>
-                : <>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    Adjuntar archivo
-                  </>
-              }
-            </label>
-          </div>
-
-          <div className="sol-modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}
-              style={{ flex: 1, justifyContent: 'center' }}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}
-              style={{ flex: 2, justifyContent: 'center' }}>
-              {saving
-                ? <><span className="um-spinner"/>Enviando...</>
-                : <>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <line x1="22" y1="2" x2="11" y2="13"/>
-                      <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                    </svg>
-                    Enviar solicitud
-                  </>
-              }
-            </button>
-          </div>
-        </form>
+      <div className="snp-actions">
+        <button type="button" className="btn btn-ghost" onClick={onBack}>Cancelar</button>
+        <button type="button" className="btn btn-primary" disabled={saving} onClick={submit}
+          style={{ minWidth: 190, justifyContent: 'center' }}>
+          {saving
+            ? <><span className="um-spinner"/>Enviando…</>
+            : <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="22" y1="2" x2="11" y2="13"/>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+                Enviar solicitud
+              </>}
+        </button>
       </div>
     </div>
   );
@@ -866,6 +847,15 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
     <div className="empty" style={{ paddingTop: 60 }}>Cargando solicitudes…</div>
   );
 
+  if (newModal) return (
+    <NewSolicitudPage
+      onBack={() => setNewModal(false)}
+      onSave={handleCreate}
+      defaultName={user?.name || ''}
+      defaultEmail={user?.email || ''}
+    />
+  );
+
   return (
     <div className="sol-root">
 
@@ -1128,7 +1118,6 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
         </div>
       )}
 
-      <NewSolicitudModal open={newModal} onClose={() => setNewModal(false)} onSave={handleCreate} defaultName={user?.name || ''} defaultEmail={user?.email || ''} />
       <UserSolicitudModal
         sol={ownModal}
         open={Boolean(ownModal)}
