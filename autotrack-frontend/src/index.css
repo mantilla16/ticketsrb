@@ -125,7 +125,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 /* ════ LAYOUT ════ */
 .layout { display:grid; grid-template-columns:var(--sidebar-w) 1fr; min-height:100vh; }
 .main-col { display:flex; flex-direction:column; min-height:100vh; overflow-x:hidden; }
-.content  { flex:1; padding:32px 36px 72px; max-width:1560px; }
+.content  { flex:1; padding:32px 36px 72px; }
 
 /* ════ SIDEBAR — solid dark, no gradient animation ════ */
 .sidebar {
@@ -511,7 +511,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 
 /* ════ CENTRO DE CONTROL (Dashboard Gerencial) ════
    Guía propia: cards blancas · borde 1px #ECE7E2 · radio 8px · sin sombras fuertes */
-.dx-root { display: flex; flex-direction: column; gap: 16px; }
+.dx-root { display: flex; flex-direction: column; gap: 24px; }
 
 .dx-card {
   background: var(--neu-bg); border: var(--neu-border); border-radius: 22px;
@@ -547,7 +547,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .dx-export:hover { background: var(--accent-hover); transform: translateY(-2px); box-shadow: 0 14px 26px rgba(249,115,22,.32); }
 
 /* KPIs */
-.dx-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; }
+.dx-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px; }
 @media (max-width: 1350px) { .dx-kpis { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 760px)  { .dx-kpis { grid-template-columns: repeat(2, 1fr); } }
 .dx-kpi { min-height: 150px; padding: 16px 18px; }
@@ -571,8 +571,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .dx-bar span { display: block; height: 100%; border-radius: 999px; transition: width .5s var(--ease-out); }
 
 /* Filas bento */
-.dx-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
-.dx-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; align-items: stretch; }
+.dx-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch; }
+.dx-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; align-items: stretch; }
 @media (max-width: 1200px) { .dx-row3 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 1000px) { .dx-row2, .dx-row3 { grid-template-columns: 1fr; } }
 
