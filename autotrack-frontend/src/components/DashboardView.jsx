@@ -504,6 +504,16 @@ export default function DashboardView({ projects: allProjects, users, solicitude
   const solTotal = solicitudes.length;
   const convRate = solTotal ? Math.round(solStats.convertidas / solTotal * 100) : 0;
 
+  // Embudo: cuántas solicitudes alcanzaron cada etapa (o más allá)
+  const reach = (keys) => solicitudes.filter(x => keys.includes(x.status)).length;
+  const funnel = [
+    { l: 'Solicitudes recibidas', n: solTotal },
+    { l: 'En revisión',           n: reach(['en_revision', 'reunion_agendada', 'aceptado', 'convertido', 'en_proceso', 'completada']) },
+    { l: 'Reunión agendada',      n: reach(['reunion_agendada', 'aceptado', 'convertido', 'completada']) },
+    { l: 'Aceptadas',             n: reach(['aceptado', 'convertido', 'completada']) },
+    { l: 'Convertidas',           n: reach(['convertido', 'completada']) },
+  ];
+
   const spark = {
     progress: [cnt.progress * 0.4, cnt.progress * 0.55, cnt.progress * 0.65, cnt.progress * 0.75, cnt.progress * 0.85, cnt.progress * 0.92, cnt.progress],
     standby:  [cnt.standby, cnt.standby * 1.2, cnt.standby * 0.9, cnt.standby * 1.1, cnt.standby, cnt.standby * 0.85, cnt.standby],
@@ -649,31 +659,28 @@ export default function DashboardView({ projects: allProjects, users, solicitude
 
         {solTotal > 0 && (
           <div className="chart-box">
-            <PanelHead icon={PANEL_ICON.inbox} title="Solicitudes internas"
+            <PanelHead icon={PANEL_ICON.inbox} title="Flujo de solicitudes y proyectos"
               onMore={onNavigate && ['admin', 'leader_analytics'].includes(role) ? () => onNavigate('solicitudes') : undefined} />
-            <div className="sol-grid-mini">
-              {[
-                { n: solStats.recibidas,   l: 'Recibidas',              c: '#F97316', ic: 'recibidas' },
-                { n: solStats.revision,    l: 'En revisión',            c: '#F59E0B', ic: 'revision' },
-                { n: solStats.reunion,     l: 'Reunión agendada',       c: '#C96A1A', ic: 'reunion' },
-                { n: solStats.convertidas, l: 'Convertidas en proyecto', c: '#22C55E', ic: 'convertidas' },
-              ].map(({ n, l, c, ic }) => (
-                <div key={l} className="sol-mini" style={{ background: `${c}0d`, borderColor: `${c}22` }}>
-                  <div style={{ color: c, display: 'flex', marginBottom: 6 }}>{SOL_MINI_ICON[ic]}</div>
-                  <div style={{ fontSize: 10.5, color: 'var(--text2)', lineHeight: 1.25, minHeight: 26 }}>{l}</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--text)', lineHeight: 1, marginTop: 4 }}>{n}</div>
-                </div>
-              ))}
+            <div className="funnel">
+              {funnel.map((st, i) => {
+                const ratio = solTotal ? st.n / solTotal : 0;
+                const h = Math.max(30, Math.round(ratio * 104));
+                return (
+                  <div key={st.l} className="funnel-stage">
+                    <div className="funnel-label">{st.l}</div>
+                    <div className="funnel-track">
+                      <div className="funnel-block"
+                        style={{ height: h, background: `rgba(249,115,22,${(0.42 - i * 0.06).toFixed(2)})` }}>
+                        {st.n}
+                      </div>
+                    </div>
+                    <div className="funnel-pct">{Math.round(ratio * 100)}%</div>
+                  </div>
+                );
+              })}
             </div>
-            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text2)', whiteSpace: 'nowrap' }}>Tasa de conversión</span>
-              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 13, color: 'var(--accent)' }}>{convRate}%</span>
-              <div className="bar-h-track" style={{ height: 8, flex: 1 }}>
-                <div className="bar-h-fill" style={{ width: `${convRate}%`, background: 'var(--accent)' }} />
-              </div>
-              <span style={{ fontSize: 10.5, color: 'var(--text3)', whiteSpace: 'nowrap' }}>
-                {solStats.convertidas} de {solTotal} solicitudes
-              </span>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 10, textAlign: 'right' }}>
+              Tasa de conversión: <b style={{ color: 'var(--accent)' }}>{convRate}%</b> · {solStats.convertidas} de {solTotal} solicitudes
             </div>
           </div>
         )}

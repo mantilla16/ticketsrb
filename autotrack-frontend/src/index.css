@@ -616,6 +616,25 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   border-radius: var(--radius-pill); font-size: 10.5px; font-weight: 700; white-space: nowrap;
 }
 
+/* Embudo horizontal de solicitudes */
+.funnel { display: flex; gap: 8px; align-items: stretch; }
+.funnel-stage { flex: 1; min-width: 0; text-align: center; display: flex; flex-direction: column; }
+.funnel-label {
+  font-size: 10px; font-weight: 600; color: var(--text2);
+  line-height: 1.25; min-height: 26px; margin-bottom: 6px;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.funnel-track { height: 108px; display: flex; align-items: center; }
+.funnel-block {
+  width: 100%; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 1px 2px rgba(255,255,255,.6);
+  transition: height .5s var(--ease-out);
+}
+.funnel-pct { font-size: 11.5px; font-weight: 700; color: var(--text2); margin-top: 7px; }
+
 /* Solicitudes mini grid */
 .sol-grid-mini { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
 .sol-mini { border: 1px solid; border-radius: var(--radius-sm); padding: 10px 10px 8px; }
