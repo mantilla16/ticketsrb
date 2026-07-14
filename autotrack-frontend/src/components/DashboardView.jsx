@@ -78,61 +78,6 @@ function Sparkline({ values, color, height = 34 }) {
   return <canvas ref={ref} style={{ width: '100%', height, display: 'block' }} />;
 }
 
-/* ── Tendencias: líneas multi-serie ── */
-function TrendChart({ labels, series }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const canvas = ref.current;
-    if (!canvas) return;
-    const dpr = window.devicePixelRatio || 1;
-    const W = canvas.offsetWidth, H = canvas.offsetHeight;
-    if (!W) return;
-    canvas.width = W * dpr; canvas.height = H * dpr;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, W, H);
-
-    const padL = 26, padR = 10, padT = 8, padB = 22;
-    const iw = W - padL - padR, ih = H - padT - padB;
-    const max = Math.max(4, ...series.flatMap(s => s.data));
-    const stepY = max <= 8 ? 2 : max <= 20 ? 5 : 10;
-
-    // Grid + eje Y
-    ctx.font = '10px Inter, system-ui';
-    ctx.fillStyle = '#A8A29E';
-    ctx.strokeStyle = '#F0EBE6';
-    ctx.lineWidth = 1;
-    for (let y = 0; y <= max; y += stepY) {
-      const py = padT + ih - (y / max) * ih;
-      ctx.beginPath(); ctx.moveTo(padL, py); ctx.lineTo(W - padR, py); ctx.stroke();
-      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-      ctx.fillText(String(y), padL - 6, py);
-    }
-    // Eje X
-    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    labels.forEach((l, i) => {
-      const px = padL + (iw / (labels.length - 1)) * i;
-      ctx.fillText(l, px, padT + ih + 7);
-    });
-    // Series
-    series.forEach(({ data, color }) => {
-      const pts = data.map((v, i) => ({
-        x: padL + (iw / (data.length - 1)) * i,
-        y: padT + ih - (v / max) * ih,
-      }));
-      ctx.beginPath();
-      ctx.strokeStyle = color; ctx.lineWidth = 1.8; ctx.lineJoin = 'round';
-      pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-      ctx.stroke();
-      pts.forEach(p => {
-        ctx.beginPath(); ctx.fillStyle = '#fff'; ctx.arc(p.x, p.y, 3.4, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.fillStyle = color; ctx.arc(p.x, p.y, 2.4, 0, Math.PI * 2); ctx.fill();
-      });
-    });
-  }, [labels, series]);
-  return <canvas ref={ref} style={{ width: '100%', height: 190, display: 'block' }} />;
-}
-
 /* ── KPI card ── */
 function Kpi({ icon, label, value, suffix = '', chip, chipColor = '#16A34A', sub, spark, sparkColor, bar, barColor }) {
   const animated = useCountUp(value);
@@ -176,6 +121,12 @@ const ICONS = {
   embudo:    IC(<><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></>),
   demanda:   IC(<><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></>),
   tendencia: IC(<><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></>),
+  proceso:   IC(<><path d="M21 12a9 9 0 1 1-6.2-8.56"/><polyline points="21 3 21 9 15 9"/></>),
+  standby:   IC(<><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></>),
+  testing:   IC(<><path d="M9 3h6M10 3v6l-5.5 9.5a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L14 9V3"/></>),
+  backlog:   IC(<><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></>),
+  soporte:   IC(<><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></>),
+  check:     IC(<><circle cx="12" cy="12" r="9"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></>),
 };
 
 function BlockHead({ icon, title, right }) {
@@ -267,26 +218,27 @@ export default function DashboardView({ projects: allProjects, users, solicitude
     .filter(p => fArea === 'all' || (p.client || '').trim() === fArea)
     .filter(p => fStat === 'all' || p.status === fStat);
 
-  /* ── KPIs ── */
+  /* ── KPIs por estado ── */
   const isOverdue = (p) => p.dueDate && p.status !== 'done' && new Date(p.dueDate) < today;
 
-  const activos    = projects.filter(p => p.status !== 'done').length;
-  const enRiesgo   = projects.filter(isOverdue).length;
-  const nuevosMes  = allProjects.filter(p => p.createdAt && new Date(p.createdAt) >= monthStart).length;
+  const cnt = { backlog: 0, progress: 0, standby: 0, testing: 0, done: 0, soporte: 0 };
+  projects.forEach(p => { if (cnt[p.status] !== undefined) cnt[p.status]++; });
+  const total = projects.length;
 
-  const doneList   = projects.filter(p => p.status === 'done');
-  const onTime     = doneList.filter(p => !p.dueDate || (p.updatedAt && new Date(p.updatedAt) <= new Date(new Date(p.dueDate).getTime() + 86400000))).length;
-  const cumplim    = doneList.length ? Math.round(onTime / doneList.length * 100) : 100;
-
-  const solPend    = solicitudes.filter(s => ['recibido', 'nueva', 'en_revision', 'en_proceso'].includes(s.status));
-  const solViejas  = solPend.filter(s => s.created_at && (today - new Date(s.created_at)) / 86400000 > 5).length;
+  const nuevosMes = allProjects.filter(p => p.createdAt && new Date(p.createdAt) >= monthStart).length;
+  const doneMes   = allProjects.filter(p => p.status === 'done' && p.updatedAt && new Date(p.updatedAt) >= monthStart).length;
 
   const team = users.filter(u => ['engineer', 'member_analytics', 'leader_analytics'].includes(u.role));
-  const activeAssigned = projects.filter(p => ['progress', 'testing'].includes(p.status)).length;
-  const capacidad = team.length ? Math.min(100, Math.round(activeAssigned / (team.length * CAPACITY) * 100)) : 0;
 
-  const finalizados = doneList.length;
-  const altoImpacto = doneList.filter(p => p.priority === 'high').length;
+  // Distribución por área (tipo de proyecto)
+  const tipoCnt = { automatizacion: 0, analitica: 0, compartido: 0, asignacion_flash: 0 };
+  projects.forEach(p => { const t = p.tipo || 'automatizacion'; if (tipoCnt[t] !== undefined) tipoCnt[t]++; });
+  const distArea = [
+    { l: 'Automatización', n: tipoCnt.automatizacion + tipoCnt.asignacion_flash },
+    { l: 'Analítica',      n: tipoCnt.analitica },
+    { l: 'Compartidos',    n: tipoCnt.compartido },
+  ];
+  const distMax = Math.max(1, ...distArea.map(d => d.n));
 
   const flat = (v, wave = 0.15) => [v * (1 - wave * 2), v * (1 - wave), v * (1 - wave * 1.4), v * (1 - wave * 0.6), v * (1 - wave), v * (1 - wave * 0.3), v].map(x => Math.max(0, x));
 
@@ -337,22 +289,30 @@ export default function DashboardView({ projects: allProjects, users, solicitude
   const demandaTotal = demandaSrc.length || 1;
   const demandaMax = Math.max(1, ...demanda.map(([, n]) => n));
 
-  /* ── Tendencias (últimos 6 meses) ── */
-  const months = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    months.push(d);
-  }
-  const sameMonth = (a, b) => a && new Date(a).getFullYear() === b.getFullYear() && new Date(a).getMonth() === b.getMonth();
-  const trendLabels = months.map(m => m.toLocaleDateString('es-CO', { month: 'short' }).replace('.', ''));
-  const trendSols   = months.map(m => solicitudes.filter(s => sameMonth(s.created_at, m)).length);
-  const trendStart  = months.map(m => allProjects.filter(p => sameMonth(p.createdAt, m)).length);
-  const trendDone   = months.map(m => allProjects.filter(p => p.status === 'done' && sameMonth(p.updatedAt, m)).length);
-
   const isLeaderish = ['admin', 'leader_analytics'].includes(role);
 
   return (
     <div className="dx-root">
+
+      {/* ══ 1. KPIs por estado ══ */}
+      <div className="dx-kpis">
+        <Kpi icon={ICONS.activos} label="Total" value={total} sub="proyectos"
+          chip={nuevosMes > 0 ? `${nuevosMes} vs. mes anterior` : null}
+          spark={flat(Math.max(total, 1))} sparkColor="#F9924D" />
+        <Kpi icon={ICONS.proceso} label="En proceso" value={cnt.progress} sub="proyectos"
+          spark={flat(Math.max(cnt.progress, 1), 0.3)} sparkColor="#F9924D" />
+        <Kpi icon={ICONS.standby} label="En standby" value={cnt.standby} sub="proyectos"
+          spark={flat(Math.max(cnt.standby, 1), 0.25)} sparkColor="#A8907C" />
+        <Kpi icon={ICONS.testing} label="En testing" value={cnt.testing} sub="proyectos"
+          spark={flat(Math.max(cnt.testing, 1), 0.3)} sparkColor="#EAB308" />
+        <Kpi icon={ICONS.check} label="Finalizados" value={cnt.done} sub="proyectos"
+          chip={doneMes > 0 ? `${doneMes} vs. mes anterior` : null}
+          spark={flat(Math.max(cnt.done, 1), 0.18)} sparkColor="#16A34A" />
+        <Kpi icon={ICONS.backlog} label="Por hacer" value={cnt.backlog} sub="proyectos"
+          spark={flat(Math.max(cnt.backlog, 1), 0.2)} sparkColor="#9CA3AF" />
+        <Kpi icon={ICONS.soporte} label="Soporte" value={cnt.soporte} sub="proyectos"
+          spark={flat(Math.max(cnt.soporte, 1), 0.35)} sparkColor="#DC2626" />
+      </div>
 
       {/* Filtros + exportar */}
       <div className="dx-filters no-print">
@@ -386,27 +346,6 @@ export default function DashboardView({ projects: allProjects, users, solicitude
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           {exporting ? 'Generando…' : 'Exportar'}
         </button>
-      </div>
-
-      {/* ══ 1. KPIs superiores ══ */}
-      <div className="dx-kpis">
-        <Kpi icon={ICONS.activos} label="Proyectos activos" value={activos}
-          chip={nuevosMes > 0 ? `${nuevosMes} vs. mes anterior` : null}
-          spark={flat(Math.max(activos, 1))} sparkColor="#F9924D" />
-        <Kpi icon={ICONS.riesgo} label="En riesgo" value={enRiesgo}
-          chip={enRiesgo > 0 ? `${enRiesgo} requieren atención` : null} chipColor="#DC2626"
-          spark={flat(Math.max(enRiesgo, 1), 0.35)} sparkColor="#DC2626" />
-        <Kpi icon={ICONS.entregas} label="Cumplimiento de entregas" value={cumplim} suffix="%"
-          sub="Meta: 90%" bar={cumplim} barColor={cumplim >= 90 ? '#16A34A' : '#F9924D'} />
-        <Kpi icon={ICONS.evaluar} label="Pendientes de evaluación" value={solPend.length}
-          chip={solViejas > 0 ? `${solViejas} llevan más de 5 días` : null} chipColor="#D97706"
-          spark={flat(Math.max(solPend.length, 1), 0.25)} sparkColor="#F9924D" />
-        <Kpi icon={ICONS.capacidad} label="Capacidad del equipo" value={capacidad} suffix="%"
-          sub="Ocupación planificada" bar={capacidad}
-          barColor={capacidad > 90 ? '#DC2626' : '#F9924D'} />
-        <Kpi icon={ICONS.done} label="Proyectos finalizados" value={finalizados}
-          chip={altoImpacto > 0 ? `${altoImpacto} de alto impacto` : null}
-          spark={flat(Math.max(finalizados, 1), 0.2)} sparkColor="#F9924D" />
       </div>
 
       {/* ══ Fila 2: Carga del equipo + Portafolio ══ */}
@@ -528,7 +467,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
 
         {/* 5. Demanda por área */}
         <div className="dx-card">
-          <BlockHead icon={ICONS.demanda} title="Demanda por área" />
+          <BlockHead icon={ICONS.demanda} title="Demanda por área solicitante" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginTop: 4 }}>
             {demanda.map(([area, n]) => (
               <div key={area} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -545,22 +484,26 @@ export default function DashboardView({ projects: allProjects, users, solicitude
           <More label="Ver análisis por área" onClick={onNavigate ? () => onNavigate('historial') : null} />
         </div>
 
-        {/* 6. Tendencias */}
+        {/* 6. Distribución por área */}
         <div className="dx-card">
-          <BlockHead icon={ICONS.tendencia} title={<>Tendencias <span style={{ fontWeight: 500, color: INK2, fontSize: 11 }}>(últimos 6 meses)</span></>} />
-          <div className="dx-legend">
-            <span><i style={{ background: '#F9924D' }} /> Solicitudes recibidas</span>
-            <span><i style={{ background: '#EAB308' }} /> Proyectos iniciados</span>
-            <span><i style={{ background: '#16A34A' }} /> Proyectos finalizados</span>
+          <BlockHead icon={ICONS.tendencia} title="Distribución por área" />
+          <div className="dx-dist">
+            {distArea.map(({ l, n }) => {
+              const pct = total ? Math.round(n / total * 100) : 0;
+              const h = Math.max(16, Math.round((n / distMax) * 150));
+              return (
+                <div key={l} className="dx-dist-col">
+                  <div className="dx-dist-num">{n}</div>
+                  <div className="dx-dist-barwrap">
+                    <div className="dx-dist-bar" style={{ height: h }}>
+                      {h > 34 && <span>{pct}%</span>}
+                    </div>
+                  </div>
+                  <div className="dx-dist-label">{l}</div>
+                </div>
+              );
+            })}
           </div>
-          <TrendChart
-            labels={trendLabels}
-            series={[
-              { data: trendSols,  color: '#F9924D' },
-              { data: trendStart, color: '#EAB308' },
-              { data: trendDone,  color: '#16A34A' },
-            ]}
-          />
         </div>
       </div>
     </div>
