@@ -228,7 +228,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .btn-danger:hover { background: #FEE2E2; }
 
 /* ════ SECTION ENTER ════ */
-.section-enter { animation: fadeUp .3s var(--ease-out) both; }
+.section-enter { animation: fadeUp .3s var(--ease-out) backwards; }
 
 /* ════ BADGES ════ */
 .badge {

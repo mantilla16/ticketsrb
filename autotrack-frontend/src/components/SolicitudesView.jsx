@@ -54,14 +54,22 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function fmtDateTime(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+    + ', ' + dt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+}
+
 // ── New Solicitud Modal ────────────────────────────────────────────────────────
 
-function NewSolicitudModal({ open, onClose, onSave }) {
+function NewSolicitudModal({ open, onClose, onSave, defaultName = '', defaultEmail = '' }) {
   const [form,   setForm]   = useState({
     title: '', area: '', description: '', priority: 'media',
     frecuencia: '', herramientas: '', impacto: '', urgencia: 'media',
-    nombreSolicitante: '', correoSolicitante: '', dueDate: '', file: null,
+    nombreSolicitante: '', dueDate: '', file: null,
   });
+  const [correos, setCorreos] = useState(['']);
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
 
@@ -70,12 +78,13 @@ function NewSolicitudModal({ open, onClose, onSave }) {
       setForm({
         title: '', area: '', description: '', priority: 'media',
         frecuencia: '', herramientas: '', impacto: '', urgencia: 'media',
-        nombreSolicitante: '', correoSolicitante: '', dueDate: '', file: null,
+        nombreSolicitante: defaultName || '', dueDate: '', file: null,
       });
+      setCorreos([defaultEmail || '']);
       setError('');
       setSaving(false);
     }
-  }, [open]);
+  }, [open, defaultName, defaultEmail]);
 
   if (!open) return null;
 
@@ -97,7 +106,7 @@ function NewSolicitudModal({ open, onClose, onSave }) {
       fd.append('herramientas',      form.herramientas);
       fd.append('impacto',           form.impacto);
       fd.append('nombreSolicitante', form.nombreSolicitante);
-      fd.append('correoSolicitante', form.correoSolicitante);
+      fd.append('correoSolicitante', correos.map(c => c.trim()).filter(Boolean).join(', '));
       if (form.dueDate) fd.append('dueDate', form.dueDate);
       if (form.file)    fd.append('file',    form.file);
       await onSave(fd);
@@ -167,15 +176,36 @@ function NewSolicitudModal({ open, onClose, onSave }) {
               </div>
             </div>
             <div className="um-field">
-              <label className="um-label">Correo de contacto</label>
-              <div className="um-input-wrap">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-                <input className="um-input" type="email" placeholder="correo@americana.edu.co"
-                  value={form.correoSolicitante} onChange={e => set('correoSolicitante', e.target.value)} />
-              </div>
+              <label className="um-label">
+                Correos de contacto
+                <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: 'var(--text3)' }}> · la respuesta llegará a todos</span>
+              </label>
+              {correos.map((c, i) => (
+                <div key={i} className="um-input-wrap" style={{ marginBottom: i < correos.length - 1 ? 8 : 0 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                  </svg>
+                  <input className="um-input" type="email"
+                    placeholder={i === 0 ? 'correo@americana.edu.co' : 'otro@americana.edu.co (jefe, compañero...)'}
+                    value={c}
+                    onChange={e => setCorreos(cs => cs.map((x, j) => j === i ? e.target.value : x))} />
+                  {correos.length > 1 && (
+                    <button type="button"
+                      onClick={() => setCorreos(cs => cs.filter((_, j) => j !== i))}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text3)', padding: 2, display: 'flex' }}
+                      title="Quitar este correo">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button type="button"
+                onClick={() => setCorreos(cs => [...cs, ''])}
+                style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font)', padding: '4px 0 0 2px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Agregar otro correo
+              </button>
             </div>
             <div className="um-field">
               <label className="um-label">Fecha requerida</label>
@@ -341,7 +371,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
         <div className="sol-modal-header">
           <div>
             <div className="sol-modal-title">Gestionar solicitud</div>
-            <div className="sol-modal-step">{sol.user_name} · {fmtDate(sol.created_at)}</div>
+            <div className="sol-modal-step">{sol.user_name} · Enviada el {fmtDateTime(sol.created_at)}</div>
           </div>
           <button className="um-close" onClick={onClose}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -871,7 +901,7 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
                   {sol.frecuencia && <span className="sol-meta-chip">{sol.frecuencia}</span>}
                   <span style={{ flex: 1 }} />
                   <span className="sol-card-date">
-                    {fmtDate(sol.created_at)}
+                    Enviada: {fmtDateTime(sol.created_at)}
                     {sol.due_date && ` · Vence: ${fmtDate(sol.due_date)}`}
                   </span>
                 </div>
@@ -904,7 +934,7 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
         </div>
       )}
 
-      <NewSolicitudModal open={newModal} onClose={() => setNewModal(false)} onSave={handleCreate} />
+      <NewSolicitudModal open={newModal} onClose={() => setNewModal(false)} onSave={handleCreate} defaultName={user?.name || ''} defaultEmail={user?.email || ''} />
       <UserSolicitudModal
         sol={ownModal}
         open={Boolean(ownModal)}
