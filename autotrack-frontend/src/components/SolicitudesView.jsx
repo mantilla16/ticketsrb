@@ -166,7 +166,7 @@ function SecHead({ icon, num, title, opt }) {
 
 const Req = () => <span style={{ color: '#EF4444' }}> *</span>;
 
-function NewSolicitudPage({ onBack, onSave, defaultName = '', defaultEmail = '' }) {
+function NewSolicitudPage({ open, onClose, onSave, defaultName = '', defaultEmail = '' }) {
   const [form, setForm] = useState({
     title: '', areaSel: '', areaOtra: '', nombre: defaultName, correos: defaultEmail,
     dueDate: '', description: '', frecuencia: '', urgencia: 'media', impacto: '',
@@ -175,6 +175,19 @@ function NewSolicitudPage({ onBack, onSave, defaultName = '', defaultEmail = '' 
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
   const [drag,   setDrag]   = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        title: '', areaSel: '', areaOtra: '', nombre: defaultName, correos: defaultEmail,
+        dueDate: '', description: '', frecuencia: '', urgencia: 'media', impacto: '',
+        herramientas: '', file: null,
+      });
+      setError('');
+      setSaving(false);
+      setDrag(false);
+    }
+  }, [open, defaultName, defaultEmail]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const hoy = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -222,18 +235,27 @@ function NewSolicitudPage({ onBack, onSave, defaultName = '', defaultEmail = '' 
     }
   };
 
+  if (!open) return null;
+
   return (
-    <div className="snp-root">
-      <button className="snp-back" onClick={onBack}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Volver
-      </button>
-      <h2 className="snp-title">Nueva solicitud</h2>
-      <div className="snp-sub">Cuéntanos tu necesidad para que el equipo pueda ayudarte.</div>
+    <div className="um-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="sol-modal" style={{ maxWidth: 760 }}>
+        <div className="sol-modal-header">
+          <div>
+            <div className="sol-modal-title">Nueva solicitud</div>
+            <div className="sol-modal-step">Cuéntanos tu necesidad para que el equipo pueda ayudarte.</div>
+          </div>
+          <button className="um-close" onClick={onClose}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
 
-      {error && <div className="um-error" style={{ marginBottom: 14 }}>{error}</div>}
+        <div className="sol-modal-body">
+          {error && <div className="um-error">{error}</div>}
 
-      <form onSubmit={submit} className="snp-card">
+          <form onSubmit={submit} className="snp-card" style={{ boxShadow: 'none', border: 'none', padding: 0, background: 'transparent' }}>
 
         {/* 1. Información general */}
         <SecHead num={1} title="Información general"
@@ -363,22 +385,24 @@ function NewSolicitudPage({ onBack, onSave, defaultName = '', defaultEmail = '' 
             )}
           </label>
         </div>
-      </form>
+          </form>
 
-      <div className="snp-actions">
-        <button type="button" className="btn btn-ghost" onClick={onBack}>Cancelar</button>
-        <button type="button" className="btn btn-primary" disabled={saving} onClick={submit}
-          style={{ minWidth: 190, justifyContent: 'center' }}>
-          {saving
-            ? <><span className="um-spinner"/>Enviando…</>
-            : <>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="22" y1="2" x2="11" y2="13"/>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                </svg>
-                Enviar solicitud
-              </>}
-        </button>
+          <div className="snp-actions">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="button" className="btn btn-primary" disabled={saving} onClick={submit}
+              style={{ minWidth: 190, justifyContent: 'center' }}>
+              {saving
+                ? <><span className="um-spinner"/>Enviando…</>
+                : <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="22" y1="2" x2="11" y2="13"/>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                    Enviar solicitud
+                  </>}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -847,15 +871,6 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
     <div className="empty" style={{ paddingTop: 60 }}>Cargando solicitudes…</div>
   );
 
-  if (newModal) return (
-    <NewSolicitudPage
-      onBack={() => setNewModal(false)}
-      onSave={handleCreate}
-      defaultName={user?.name || ''}
-      defaultEmail={user?.email || ''}
-    />
-  );
-
   return (
     <div className="sol-root">
 
@@ -1118,6 +1133,13 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
         </div>
       )}
 
+      <NewSolicitudPage
+        open={newModal}
+        onClose={() => setNewModal(false)}
+        onSave={handleCreate}
+        defaultName={user?.name || ''}
+        defaultEmail={user?.email || ''}
+      />
       <UserSolicitudModal
         sol={ownModal}
         open={Boolean(ownModal)}
