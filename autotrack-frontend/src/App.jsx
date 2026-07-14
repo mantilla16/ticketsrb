@@ -20,7 +20,7 @@ import DetailModal from './components/DetailModal';
 import Toast, { useToast } from './components/Toast';
 
 const TITLES = {
-  'dashboard':    { title: 'Panorama general',         sub: 'Resumen del trabajo de Automatización y Analítica' },
+  'dashboard':    { title: 'Centro de Control',         sub: 'Visión ejecutiva del estado de proyectos, equipos y solicitudes' },
   'my-kanban':    { title: 'Mi Kanban',                sub: 'Vista personal — organiza tus proyectos por estado' },
   'team-kanban':  { title: 'Equipo Automatización',    sub: 'Proyectos asignados por ingeniero' },
   'gantt':        { title: 'Cronograma',               sub: 'Línea de tiempo y progreso de todos los proyectos' },
