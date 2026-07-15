@@ -28,18 +28,21 @@ const fmtDM = (d) => {
   return { day: dt.getDate(), mon: dt.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '') };
 };
 
-export default function AnalyticsTeamView({ projects, users, onCardClick, onNavigate }) {
+export default function AnalyticsTeamView({ projects, users, onCardClick, onNavigate, variant = 'ana' }) {
   const [tab, setTab] = useState('all');
   const [expanded, setExpanded] = useState(new Set());
 
-  const anaProjects = projects.filter(p => ['analitica', 'compartido'].includes(p.tipo));
-  const byTab = p => tab === 'all' ? true : tab === 'ana' ? p.tipo === 'analitica' : p.tipo === 'compartido';
+  const isAuto = variant === 'auto';
+  const ownTipos = isAuto ? ['automatizacion', 'asignacion_flash'] : ['analitica'];
+  const tipoOf = (p) => p.tipo || 'automatizacion';
+  const anaProjects = projects.filter(p => [...ownTipos, 'compartido'].includes(tipoOf(p)));
+  const byTab = p => tab === 'all' ? true : tab === 'ana' ? ownTipos.includes(tipoOf(p)) : tipoOf(p) === 'compartido';
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const week  = new Date(today); week.setDate(week.getDate() + 7);
 
-  const totalAna    = anaProjects.filter(p => p.tipo === 'analitica').length;
-  const totalComp   = anaProjects.filter(p => p.tipo === 'compartido').length;
+  const totalAna    = anaProjects.filter(p => ownTipos.includes(tipoOf(p))).length;
+  const totalComp   = anaProjects.filter(p => tipoOf(p) === 'compartido').length;
   const weekCount   = anaProjects.filter(p => p.dueDate && p.status !== 'done'
     && new Date(p.dueDate) >= today && new Date(p.dueDate) <= week).length;
 
@@ -54,7 +57,7 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
 
   const TABS = [
     { key: 'all',  label: 'Todos', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
-    { key: 'ana',  label: 'Solo Analítica', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+    { key: 'ana',  label: isAuto ? 'Solo Automatización' : 'Solo Analítica', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
     { key: 'comp', label: 'Compartidos', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
   ];
 
@@ -151,10 +154,10 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
                               )}
                             </div>
                           </div>
-                          {p.tipo === 'compartido' && (
+                          {tipoOf(p) === 'compartido' && (
                             <div className="at-card-shared">
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                              Compartido con Automatización
+                              Compartido con {isAuto ? 'Analítica' : 'Automatización'}
                             </div>
                           )}
                         </div>
@@ -184,7 +187,7 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
               <span className="chart-title" style={{ marginBottom: 0 }}>Resumen del equipo</span>
             </div>
             {[
-              { n: totalAna,  l: 'Totales de Analítica', u: 'proyectos', c: '#F97316', bg: '#FFF3E8',
+              { n: totalAna,  l: isAuto ? 'Totales de Automatización' : 'Totales de Analítica', u: 'proyectos', c: '#F97316', bg: '#FFF3E8',
                 ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> },
               { n: totalComp, l: 'Compartidos', u: 'proyectos', c: '#F97316', bg: '#FFF3E8',
                 ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },

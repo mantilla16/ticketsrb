@@ -22,7 +22,7 @@ import Toast, { useToast } from './components/Toast';
 const TITLES = {
   'dashboard':    { title: 'Dashboard Ejecutivo',       sub: 'Visión ejecutiva del estado de Automatización y Analítica' },
   'my-kanban':    { title: 'Mi Kanban',                sub: 'Vista personal — organiza tus proyectos por estado' },
-  'team-kanban':  { title: 'Equipo Automatización',    sub: 'Proyectos asignados por ingeniero' },
+  'team-kanban':  { title: 'Equipo Automatización',    sub: 'Seguimiento de proyectos del equipo de automatización' },
   'gantt':        { title: 'Cronograma',               sub: 'Línea de tiempo y progreso de todos los proyectos' },
   'analytics':    { title: 'Equipo Analítica',         sub: 'Seguimiento de proyectos del equipo analítico' },
   'historial':    { title: 'Historial',                sub: 'Proyectos finalizados y cerrados' },
@@ -358,11 +358,12 @@ export default function App() {
             )}
 
             {section === 'team-kanban' && (
-              <TeamKanban
+              <AnalyticsTeamView
+                variant="auto"
                 projects={projects}
                 users={users.filter(u => u.role === 'engineer')}
                 onCardClick={openDetail}
-                onAddClick={isLeader ? (assigneeId) => openNewProject('backlog', assigneeId) : undefined}
+                onNavigate={changeSection}
               />
             )}
 
