@@ -31,6 +31,10 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const isLeader  = LEADER_ROLES.includes(currentUser?.role);
   const canDelete = isLeader;
   const isEdit    = Boolean(project);
+  // El equipo de Analítica solo crea proyectos de Analítica o Compartidos
+  const isAnalyticsUser = ['leader_analytics', 'member_analytics'].includes(currentUser?.role);
+  const availableAreas  = isAnalyticsUser ? AREAS.filter(a => a.value !== 'automatizacion') : AREAS;
+  const defaultArea     = isAnalyticsUser ? 'analitica' : 'automatizacion';
   // Ingenieros/miembros editando: solo progreso y flujo de estado — el resto es del líder
   const lockCore  = isEdit && !isLeader;
 
@@ -90,7 +94,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         setLogs(project.logs || []);
         setLogProg(project.progress || 0);
       } else {
-        setAreaSel('automatizacion');
+        setAreaSel(defaultArea);
         setTypeSel('proyecto');
         setShowDoc(false);
         setForm({ ...EMPTY, status: defStatus || 'backlog', assigneeId: defAssigneeId != null ? String(defAssigneeId) : '' });
@@ -191,7 +195,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
             <div className="pm-box-title">Tipo de registro</div>
             <div className="pm-step-label">1. Elige el área</div>
             <div className="pm-seg">
-              {AREAS.map(a => (
+              {availableAreas.map(a => (
                 <button key={a.value} type="button" disabled={lockCore}
                   className={`pm-seg-btn${areaSel === a.value ? ' pm-seg-btn--active' : ''}`}
                   onClick={() => setAreaSel(a.value)}>
