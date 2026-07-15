@@ -78,8 +78,8 @@ function Sparkline({ values, color, height = 34 }) {
   return <canvas ref={ref} style={{ width: '100%', height, display: 'block' }} />;
 }
 
-/* ── KPI card ── */
-function Kpi({ icon, label, value, suffix = '', chip, chipColor = '#16A34A', sub, spark, sparkColor, bar, barColor }) {
+/* ── KPI card — compacta: nombre + valor ── */
+function Kpi({ icon, label, value, suffix = '' }) {
   const animated = useCountUp(value);
   return (
     <div className="dx-card dx-kpi">
@@ -88,19 +88,6 @@ function Kpi({ icon, label, value, suffix = '', chip, chipColor = '#16A34A', sub
         <span className="dx-kpi-label">{label}</span>
       </div>
       <div className="dx-kpi-num">{animated}{suffix}</div>
-      {chip && (
-        <div className="dx-kpi-chip" style={{ color: chipColor }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-          {chip}
-        </div>
-      )}
-      {sub && <div className="dx-kpi-sub">{sub}</div>}
-      {spark && <div style={{ marginTop: 'auto' }}><Sparkline values={spark} color={sparkColor || '#F9924D'} /></div>}
-      {bar !== undefined && (
-        <div style={{ marginTop: 'auto' }}>
-          <div className="dx-bar"><span style={{ width: `${Math.min(100, bar)}%`, background: barColor || '#F9924D' }} /></div>
-        </div>
-      )}
     </div>
   );
 }
@@ -225,9 +212,6 @@ export default function DashboardView({ projects: allProjects, users, solicitude
   projects.forEach(p => { if (cnt[p.status] !== undefined) cnt[p.status]++; });
   const total = projects.length;
 
-  const nuevosMes = allProjects.filter(p => p.createdAt && new Date(p.createdAt) >= monthStart).length;
-  const doneMes   = allProjects.filter(p => p.status === 'done' && p.updatedAt && new Date(p.updatedAt) >= monthStart).length;
-
   const team = users.filter(u => ['engineer', 'member_analytics', 'leader_analytics'].includes(u.role));
 
   // Distribución por área (tipo de proyecto)
@@ -239,8 +223,6 @@ export default function DashboardView({ projects: allProjects, users, solicitude
     { l: 'Compartidos',    n: tipoCnt.compartido },
   ];
   const distMax = Math.max(1, ...distArea.map(d => d.n));
-
-  const flat = (v, wave = 0.15) => [v * (1 - wave * 2), v * (1 - wave), v * (1 - wave * 1.4), v * (1 - wave * 0.6), v * (1 - wave), v * (1 - wave * 0.3), v].map(x => Math.max(0, x));
 
   /* ── Carga del equipo ── */
   const teamRows = team.map(u => {
@@ -296,22 +278,13 @@ export default function DashboardView({ projects: allProjects, users, solicitude
 
       {/* ══ 1. KPIs por estado ══ */}
       <div className="dx-kpis">
-        <Kpi icon={ICONS.activos} label="Total" value={total} sub="proyectos"
-          chip={nuevosMes > 0 ? `${nuevosMes} vs. mes anterior` : null}
-          spark={flat(Math.max(total, 1))} sparkColor="#F9924D" />
-        <Kpi icon={ICONS.proceso} label="En proceso" value={cnt.progress} sub="proyectos"
-          spark={flat(Math.max(cnt.progress, 1), 0.3)} sparkColor="#F9924D" />
-        <Kpi icon={ICONS.standby} label="En standby" value={cnt.standby} sub="proyectos"
-          spark={flat(Math.max(cnt.standby, 1), 0.25)} sparkColor="#A8907C" />
-        <Kpi icon={ICONS.testing} label="En testing" value={cnt.testing} sub="proyectos"
-          spark={flat(Math.max(cnt.testing, 1), 0.3)} sparkColor="#EAB308" />
-        <Kpi icon={ICONS.check} label="Finalizados" value={cnt.done} sub="proyectos"
-          chip={doneMes > 0 ? `${doneMes} vs. mes anterior` : null}
-          spark={flat(Math.max(cnt.done, 1), 0.18)} sparkColor="#16A34A" />
-        <Kpi icon={ICONS.backlog} label="Por hacer" value={cnt.backlog} sub="proyectos"
-          spark={flat(Math.max(cnt.backlog, 1), 0.2)} sparkColor="#9CA3AF" />
-        <Kpi icon={ICONS.soporte} label="Soporte" value={cnt.soporte} sub="proyectos"
-          spark={flat(Math.max(cnt.soporte, 1), 0.35)} sparkColor="#DC2626" />
+        <Kpi icon={ICONS.activos} label="Total" value={total} />
+        <Kpi icon={ICONS.proceso} label="En proceso" value={cnt.progress} />
+        <Kpi icon={ICONS.standby} label="En standby" value={cnt.standby} />
+        <Kpi icon={ICONS.testing} label="En testing" value={cnt.testing} />
+        <Kpi icon={ICONS.check} label="Finalizados" value={cnt.done} />
+        <Kpi icon={ICONS.backlog} label="Por hacer" value={cnt.backlog} />
+        <Kpi icon={ICONS.soporte} label="Soporte" value={cnt.soporte} />
       </div>
 
       {/* Filtros + exportar */}
