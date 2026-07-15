@@ -18,7 +18,7 @@ const ALL_SECTIONS = [
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
   },
   {
-    id: 'my-kanban', label: 'Mi Kanban', roles: ['admin', 'leader_analytics', 'member_analytics'],
+    id: 'my-kanban', label: 'Mi Kanban', roles: ['admin', 'leader_analytics'],
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="13" rx="1"/><rect x="17" y="3" width="4" height="16" rx="1"/></svg>,
   },
   {

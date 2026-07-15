@@ -38,7 +38,7 @@ const STATUS_NAMES = {
 
 function defaultSection(role) {
   if (role === 'user')             return 'solicitudes';
-  if (role === 'member_analytics') return 'my-kanban';
+  if (role === 'member_analytics') return 'analytics';
   return 'dashboard';
 }
 
