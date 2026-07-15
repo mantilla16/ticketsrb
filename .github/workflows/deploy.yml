@@ -24,7 +24,7 @@ jobs:
       - name: Build frontend
         run: |
           cd autotrack-frontend
-          VITE_API_URL=/autotrack-api npx vite build --base=/AMBARC/
+          VITE_API_URL=/api npx vite build --base=/
 
       - name: SCP — copiar dist al servidor
         uses: appleboy/scp-action@v0.1.7
