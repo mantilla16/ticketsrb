@@ -17,7 +17,7 @@ const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', c
 
 export default function DetailModal({ open, project, onClose, onEdit, onAddLog, onCloseSupport, onAddTask, onToggleTask, onDeleteTask, currentUser, users = [] }) {
   const isManager = currentUser?.role === 'manager';
-  const isLeader  = ['admin','leader_analytics'].includes(currentUser?.role);
+  const isLeader  = ['admin', 'leader_analytics', 'member_analytics'].includes(currentUser?.role);
   const [logText, setLogText] = useState('');
   const [logProg, setLogProg] = useState(0);
   const [saving, setSaving]   = useState(false);

@@ -114,9 +114,11 @@ const validators = [
 router.get('/', auth, async (req, res) => {
   try {
     let { rows } = await pool.query(`${PROJECT_JOIN} ORDER BY p.created_at DESC`);
-    // Ingenieros de automatización no ven proyectos exclusivos de Analítica
+    // Visibilidad por equipo: cada equipo ve lo suyo + compartidos
     if (req.user.role === 'engineer') {
       rows = rows.filter(r => (r.tipo || 'automatizacion') !== 'analitica');
+    } else if (req.user.role === 'member_analytics') {
+      rows = rows.filter(r => ['analitica', 'compartido'].includes(r.tipo || 'automatizacion'));
     }
     if (!rows.length) return res.json([]);
 

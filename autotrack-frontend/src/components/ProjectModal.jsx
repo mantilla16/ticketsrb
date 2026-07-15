@@ -16,7 +16,7 @@ const AREAS = [
   { value: 'compartido',     label: 'Compartido' },
 ];
 
-const LEADER_ROLES = ['admin', 'leader_analytics'];
+const LEADER_ROLES = ['admin', 'leader_analytics', 'member_analytics'];
 
 const fmtShort = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
 

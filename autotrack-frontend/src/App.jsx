@@ -108,10 +108,12 @@ export default function App() {
   );
   if (!user) return <Login />;
 
-  // Ingenieros de automatización: sin visibilidad de proyectos de Analítica
+  // Visibilidad por equipo: ingenieros no ven Analítica; miembros de Analítica solo ven Analítica y Compartidos
   const visibleProjects = user.role === 'engineer'
     ? projects.filter(p => (p.tipo || 'automatizacion') !== 'analitica')
-    : projects;
+    : user.role === 'member_analytics'
+      ? projects.filter(p => ['analitica', 'compartido'].includes(p.tipo || 'automatizacion'))
+      : projects;
 
   const detailProject = detailModal.projectId ? visibleProjects.find(p => p.id === detailModal.projectId) : null;
   const { title, sub } = TITLES[section] || TITLES['dashboard'];
@@ -237,7 +239,7 @@ export default function App() {
   const handleMoveCard = async (projectId, newStatus) => {
     const p = projects.find(x => x.id === projectId);
     if (!p || p.status === newStatus) return;
-    if (!isLeader) {
+    if (!canManage) {
       const allowed = ENGINEER_FLOW[p.status] || [];
       if (!allowed.includes(newStatus)) {
         showToast('Solo el líder puede realizar este cambio de estado', 'error');
@@ -295,8 +297,9 @@ export default function App() {
     }
   };
 
-  const isLeader = LEADER_ROLES.includes(user?.role);
-  const showNewProject = isLeader && (section === 'my-kanban' || section === 'team-kanban');
+  const isLeader  = LEADER_ROLES.includes(user?.role);
+  const canManage = ['admin', 'leader_analytics', 'member_analytics'].includes(user?.role);
+  const showNewProject = canManage && ['my-kanban', 'team-kanban', 'analytics'].includes(section);
 
   return (
     <>
@@ -356,7 +359,7 @@ export default function App() {
                 projects={projects}
                 users={users.filter(u => ['engineer', 'member_analytics', 'admin', 'leader_analytics'].includes(u.role))}
                 onCardClick={openDetail}
-                onAddClick={isLeader ? (status) => openNewProject(status) : undefined}
+                onAddClick={canManage ? (status) => openNewProject(status) : undefined}
                 onMoveCard={handleMoveCard}
                 onViewHistorial={() => changeSection('historial')}
               />
