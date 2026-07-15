@@ -18,7 +18,7 @@ const ALL_SECTIONS = [
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
   },
   {
-    id: 'my-kanban', label: 'Mi Kanban', roles: ENGINEERS,
+    id: 'my-kanban', label: 'Mi Kanban', roles: ['admin', 'leader_analytics', 'member_analytics'],
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="13" rx="1"/><rect x="17" y="3" width="4" height="16" rx="1"/></svg>,
   },
   {
@@ -26,7 +26,7 @@ const ALL_SECTIONS = [
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a3.5 3.5 0 0 0-3-3.47"/></svg>,
   },
   {
-    id: 'analytics', label: 'Equipo Analítica', roles: [...ENGINEERS, 'manager'],
+    id: 'analytics', label: 'Equipo Analítica', roles: ['admin', 'leader_analytics', 'member_analytics', 'manager'],
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>,
   },
   {

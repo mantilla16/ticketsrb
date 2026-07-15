@@ -113,7 +113,11 @@ const validators = [
 // GET /api/projects
 router.get('/', auth, async (req, res) => {
   try {
-    const { rows } = await pool.query(`${PROJECT_JOIN} ORDER BY p.created_at DESC`);
+    let { rows } = await pool.query(`${PROJECT_JOIN} ORDER BY p.created_at DESC`);
+    // Ingenieros de automatización no ven proyectos exclusivos de Analítica
+    if (req.user.role === 'engineer') {
+      rows = rows.filter(r => (r.tipo || 'automatizacion') !== 'analitica');
+    }
     if (!rows.length) return res.json([]);
 
     const ids = rows.map(p => p.id);

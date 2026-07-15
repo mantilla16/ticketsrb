@@ -108,7 +108,12 @@ export default function App() {
   );
   if (!user) return <Login />;
 
-  const detailProject = detailModal.projectId ? projects.find(p => p.id === detailModal.projectId) : null;
+  // Ingenieros de automatización: sin visibilidad de proyectos de Analítica
+  const visibleProjects = user.role === 'engineer'
+    ? projects.filter(p => (p.tipo || 'automatizacion') !== 'analitica')
+    : projects;
+
+  const detailProject = detailModal.projectId ? visibleProjects.find(p => p.id === detailModal.projectId) : null;
   const { title, sub } = TITLES[section] || TITLES['dashboard'];
 
   const changeSection = (id) => {
@@ -315,7 +320,7 @@ export default function App() {
           </div>
           <div className="topbar-right">
             {user?.role !== 'user' && (
-              <ProjectSearch projects={projects} onSelect={openDetail} />
+              <ProjectSearch projects={visibleProjects} onSelect={openDetail} />
             )}
             {showNewProject && (
               <button className="btn btn-primary" onClick={() => openNewProject('backlog')}>
@@ -342,7 +347,7 @@ export default function App() {
             )}
 
             {section === 'dashboard' && (
-              <DashboardView projects={projects} users={users} solicitudes={solicitudes} onCardClick={openDetail} onNavigate={changeSection} role={user?.role}
+              <DashboardView projects={visibleProjects} users={users} solicitudes={solicitudes} onCardClick={openDetail} onNavigate={changeSection} role={user?.role}
                 period={dashPeriod} onPeriodChange={setDashPeriod} />
             )}
 
@@ -360,7 +365,7 @@ export default function App() {
             {section === 'team-kanban' && (
               <AnalyticsTeamView
                 variant="auto"
-                projects={projects}
+                projects={visibleProjects}
                 users={users.filter(u => u.role === 'engineer')}
                 onCardClick={openDetail}
                 onNavigate={changeSection}
@@ -377,7 +382,7 @@ export default function App() {
             )}
 
             {section === 'historial' && (
-              <HistorialView projects={projects} users={users} onCardClick={openDetail} />
+              <HistorialView projects={visibleProjects} users={users} onCardClick={openDetail} />
             )}
 
             {section === 'users' && user?.role === 'admin' && (
@@ -394,7 +399,7 @@ export default function App() {
 
             {section === 'gantt' && (
               <GanttView
-                projects={projects}
+                projects={visibleProjects}
                 users={users.filter(u => ['engineer', 'member_analytics', 'leader_analytics', 'admin'].includes(u.role))}
                 onRowClick={openDetail}
               />
