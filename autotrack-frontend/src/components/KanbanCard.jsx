@@ -1,11 +1,20 @@
 import { useRef } from 'react';
-import { fmtDate, dateStatus, colorClass } from '../utils/helpers';
+import { dateStatus, colorClass } from '../utils/helpers';
 
-const PR_PILL  = { high: 'pp-high', mid: 'pp-mid', low: 'pp-low' };
-const PR_LABEL = { high: 'Alta',   mid: 'Media',  low: 'Baja'   };
+const PR = {
+  high: { l: 'Alta',  bg: '#FEF2F2', c: '#EF4444' },
+  mid:  { l: 'Media', bg: '#FFF3E8', c: '#F97316' },
+  low:  { l: 'Baja',  bg: '#ECFDF3', c: '#22C55E' },
+};
 
 const TIPO_LABEL = { automatizacion: 'Auto', analitica: 'Analítica', compartido: 'Compartido', asignacion_flash: 'Flash' };
 const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', compartido: 'tipo-compartido', asignacion_flash: 'tipo-flash' };
+
+const fmtDM = (d) => {
+  if (!d) return null;
+  const dt = new Date(d + 'T00:00:00');
+  return `${dt.getDate()} ${dt.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '')}`;
+};
 
 export default function KanbanCard({ project, onClick, compact = false, index = 0, isDragging = false, onDragStart, onDragEnd }) {
   const cardRef = useRef(null);
@@ -57,43 +66,54 @@ export default function KanbanCard({ project, onClick, compact = false, index = 
       onClick={() => !isDragging && onClick(project.id)}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      style={{ animationDelay: `${index * 55}ms` }}
+      style={{ animationDelay: `${index * 55}ms`, padding: '12px 14px' }}
     >
-      {/* Priority + tipo + client */}
-      <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:8, flexWrap:'wrap' }}>
-        <span className={`priority-pill ${PR_PILL[pr]}`}>{PR_LABEL[pr]}</span>
+      {/* Pills: prioridad + tipo + área */}
+      <div className="at-card-top">
+        <span className="pill-mini" style={{ background: PR[pr].bg, color: PR[pr].c }}>{PR[pr].l}</span>
         <span className={`tipo-badge ${TIPO_CLS[tipo]}`}>{TIPO_LABEL[tipo]}</span>
-        {project.client && (
-          <span style={{ fontSize:11, color:'var(--text3)', maxWidth:90, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginLeft:'auto' }}>
-            {project.client}
-          </span>
-        )}
+        {project.client && <span className="at-card-client" style={{ marginLeft: 'auto', maxWidth: 96, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.client}</span>}
       </div>
 
-      {/* Title */}
-      <div className="card-title" style={{ marginBottom:10 }}>{project.name}</div>
-
-      {/* Footer */}
-      <div className="card-footer">
-        {eng ? (
-          <div className="card-assignee">
-            <div className={`avatar-xs ${colorClass(eng.colorIndex)}`}>{eng.initials}</div>
-            {!compact && <span className="card-assignee-name">{eng.name.split(' ')[0]}</span>}
+      {/* Cuerpo estilo Equipo Analítica */}
+      <div className="at-card-main">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="at-card-title">{project.name}</div>
+          <div className="at-card-meta">
+            {eng
+              ? <span className={`avatar-xs ${colorClass(eng.colorIndex)}`} title={eng.name}>{eng.initials}</span>
+              : <span style={{ fontSize: 10.5, color: 'var(--text4)', whiteSpace: 'nowrap' }}>Sin asignar</span>}
+            <span className="at-card-bar">
+              <span style={{ width: `${pct}%`, background: pct >= 80 ? '#22C55E' : 'var(--accent)' }} />
+            </span>
+            <span className="at-card-pct" style={{ color: pct >= 80 ? '#22C55E' : 'var(--accent)' }}>{pct}%</span>
           </div>
-        ) : (
-          <span style={{ fontSize:11, color:'var(--text4)' }}>Sin asignar</span>
-        )}
-        {project.dueDate && (
-          <div className={`card-date ${dSt}`}>
-            {dSt === 'overdue' ? '⚑ ' : ''}{fmtDate(project.dueDate)}
-          </div>
-        )}
+        </div>
+        <div className="at-card-side">
+          {project.docUrl && (
+            <a href={project.docUrl} target="_blank" rel="noopener noreferrer" title="Abrir documentación"
+              onClick={e => e.stopPropagation()} className="at-card-doc">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </a>
+          )}
+          {project.dueDate && (
+            <span className="at-card-date" style={dSt === 'overdue' ? { color: 'var(--high)', fontWeight: 700 } : undefined}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              {fmtDM(project.dueDate)}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Progress — flush bottom */}
-      <div className="card-progress">
-        <div className={`card-progress-fill${pct >= 100 ? ' done' : ''}`} style={{ width:`${pct}%` }} />
-      </div>
+      {/* Chip de compartido */}
+      {tipo === 'compartido' && (
+        <div className="at-card-shared" style={{ marginTop: 8 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Compartido Auto + Analítica
+        </div>
+      )}
     </div>
   );
 }
