@@ -6,13 +6,23 @@ const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 const auth = require('../middleware/auth');
 
-// Strict rate limiter for login: 10 attempts per 15 min per IP
-const loginLimiter = rateLimit({
+// Red de seguridad por IP — amplia, solo frena ataques masivos desde una misma red
+const ipLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas peticiones desde esta red. Intenta de nuevo en unos minutos.' },
+});
+
+// Límite POR USUARIO: 10 intentos / 15 min por correo — no afecta a los demás
+const emailLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Demasiados intentos de acceso. Espera 15 minutos e intenta de nuevo.' },
+  keyGenerator: (req) => (req.body?.email || '').toLowerCase().trim() || req.ip,
+  message: { error: 'Demasiados intentos para este usuario. Espera 15 minutos e intenta de nuevo.' },
 });
 
 const MAX_ATTEMPTS = 5;
@@ -84,7 +94,7 @@ router.post('/register', [
 });
 
 // POST /api/auth/login
-router.post('/login', loginLimiter, [
+router.post('/login', ipLimiter, emailLimiter, [
   body('email').isEmail().normalizeEmail().withMessage('Email inválido'),
   body('password').notEmpty().withMessage('Contraseña requerida'),
 ], async (req, res) => {
@@ -150,7 +160,7 @@ router.get('/config', (_req, res) => {
 });
 
 // POST /api/auth/google — login con Google (cuentas @americana.edu.co)
-router.post('/google', loginLimiter, async (req, res) => {
+router.post('/google', ipLimiter, async (req, res) => {
   const { credential } = req.body;
   if (!credential) return res.status(400).json({ error: 'Credencial de Google requerida' });
   if (!process.env.GOOGLE_CLIENT_ID) {
