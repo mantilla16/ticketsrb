@@ -186,6 +186,9 @@ export default function DashboardView({ projects: allProjects, users, solicitude
     }
   };
 
+  /* ── Alcance por rol: cada equipo solo ve sus propios valores ── */
+  const teamScope = role === 'engineer' ? 'auto' : role === 'member_analytics' ? 'ana' : 'all';
+
   /* ── Filtros ── */
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
@@ -212,7 +215,10 @@ export default function DashboardView({ projects: allProjects, users, solicitude
   projects.forEach(p => { if (cnt[p.status] !== undefined) cnt[p.status]++; });
   const total = projects.length;
 
-  const team = users.filter(u => ['engineer', 'member_analytics', 'leader_analytics'].includes(u.role));
+  const team = users
+    .filter(u => ['engineer', 'member_analytics', 'leader_analytics'].includes(u.role))
+    .filter(u => teamScope === 'all'
+      || (teamScope === 'auto' ? u.role === 'engineer' : ['member_analytics', 'leader_analytics'].includes(u.role)));
 
   // Distribución por área (tipo de proyecto)
   const tipoCnt = { automatizacion: 0, analitica: 0, compartido: 0, asignacion_flash: 0 };
@@ -221,7 +227,9 @@ export default function DashboardView({ projects: allProjects, users, solicitude
     { l: 'Automatización', n: tipoCnt.automatizacion + tipoCnt.asignacion_flash },
     { l: 'Analítica',      n: tipoCnt.analitica },
     { l: 'Compartidos',    n: tipoCnt.compartido },
-  ];
+  ].filter(d => teamScope === 'all'
+    || d.l === 'Compartidos'
+    || (teamScope === 'auto' ? d.l === 'Automatización' : d.l === 'Analítica'));
   const distMax = Math.max(1, ...distArea.map(d => d.n));
 
   /* ── Carga del equipo ── */
@@ -296,13 +304,15 @@ export default function DashboardView({ projects: allProjects, users, solicitude
             <option value="month">Este mes</option>
           </select>
         </div>
-        <div className="dx-select">
-          <select value={fTeam} onChange={e => setFTeam(e.target.value)}>
-            <option value="all">Todos los equipos</option>
-            <option value="auto">Automatización</option>
-            <option value="ana">Analítica</option>
-          </select>
-        </div>
+        {teamScope === 'all' && (
+          <div className="dx-select">
+            <select value={fTeam} onChange={e => setFTeam(e.target.value)}>
+              <option value="all">Todos los equipos</option>
+              <option value="auto">Automatización</option>
+              <option value="ana">Analítica</option>
+            </select>
+          </div>
+        )}
         <div className="dx-select">
           <select value={fArea} onChange={e => setFArea(e.target.value)}>
             <option value="all">Todas las áreas</option>

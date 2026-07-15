@@ -116,7 +116,11 @@ export default function App() {
       : projects;
 
   const detailProject = detailModal.projectId ? visibleProjects.find(p => p.id === detailModal.projectId) : null;
-  const { title, sub } = TITLES[section] || TITLES['dashboard'];
+  let { title, sub } = TITLES[section] || TITLES['dashboard'];
+  if (section === 'dashboard') {
+    if (user.role === 'engineer') sub = 'Visión ejecutiva del estado de Automatización';
+    else if (user.role === 'member_analytics') sub = 'Visión ejecutiva del estado de Analítica';
+  }
 
   const changeSection = (id) => {
     setSection(id);
