@@ -24,7 +24,11 @@ app.use(rateLimit({
 }));
 
 app.use(cors({
-  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'https://n8n.americana.edu.co'],
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'https://n8n.americana.edu.co',
+    'https://ambarc.americana.edu.co',
+  ],
   credentials: true,
 }));
 app.use(express.json({ limit: '1mb' }));
