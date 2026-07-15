@@ -230,19 +230,6 @@ export default function GanttView({ projects, users = [], onRowClick }) {
             </table>
           </div>
 
-          {/* Leyenda */}
-          <div className="gv-legend">
-            {users.map(u => (
-              <span key={u.id} className="gv-legend-item">
-                <span className={`avatar-xs ${colorClass(u.colorIndex)}`}>{u.initials}</span>
-                {u.name}
-              </span>
-            ))}
-            <span className="gv-legend-item" style={{ marginLeft: 'auto', color: 'var(--high)', fontWeight: 700 }}>
-              <span style={{ width: 18, borderTop: '2px dashed var(--high)', display: 'inline-block' }} />
-              Hoy
-            </span>
-          </div>
         </div>
       )}
     </div>

@@ -82,23 +82,22 @@ export default function HistorialView({ projects, users, onCardClick }) {
                 onClick={() => onCardClick(p.id)}
                 style={{ animationDelay: `${i * 30}ms` }}
               >
-                <div className="hist-card-top">
-                  <div className="hist-card-name">{p.name}</div>
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                    <span className={`tipo-badge ${TIPO_CLS[p.tipo || 'automatizacion']}`} style={{ fontSize: 10 }}>
-                      {TIPO_LABEL[p.tipo || 'automatizacion']}
-                    </span>
-                    <span className={`priority-pill ${PR_CLASS[p.priority] || 'pp-mid'}`}>
-                      {PR_LABEL[p.priority] || 'Media'}
-                    </span>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                  <span className={`tipo-badge ${TIPO_CLS[p.tipo || 'automatizacion']}`} style={{ fontSize: 10 }}>
+                    {TIPO_LABEL[p.tipo || 'automatizacion']}
+                  </span>
+                  <span className="hist-done-badge" style={{ marginLeft: 'auto' }}
+                    {...(p.supportClosed ? { 'data-soporte': true } : {})}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    {p.supportClosed ? 'Soporte cerrado' : 'Finalizado'}
+                  </span>
                 </div>
+
+                <div className="hist-card-name">{p.name}</div>
 
                 {p.client && <div className="hist-card-client">{p.client}</div>}
-
-                <div className="hist-card-bar">
-                  <div className="hist-bar-fill" style={{ width: `${p.progress || 100}%` }} />
-                </div>
 
                 <div className="hist-card-footer">
                   {user ? (
@@ -112,13 +111,6 @@ export default function HistorialView({ projects, users, onCardClick }) {
                   </div>
                 </div>
 
-                <div className="hist-done-badge"
-                  style={p.supportClosed ? { background: 'var(--c-soporte-bg)', color: 'var(--c-soporte)' } : undefined}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  {p.supportClosed ? 'Soporte cerrado' : 'Finalizado'}
-                </div>
               </div>
             );
           })}

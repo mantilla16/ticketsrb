@@ -384,16 +384,16 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .hist-empty { padding:40px; text-align:center; color:var(--text3); font-size:13px; }
 .hist-grid {
   display:grid;
-  grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns:repeat(auto-fill, minmax(215px, 1fr));
   gap:12px;
 }
 .hist-card {
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius); padding:16px;
-  cursor:pointer; transition:box-shadow .18s, transform .18s, border-color .18s;
-  display:flex; flex-direction:column; gap:10px;
+  background:var(--surface); border:var(--neu-border);
+  border-radius:16px; padding:13px 15px;
+  cursor:pointer; transition:box-shadow .25s ease-out, transform .25s ease-out;
+  display:flex; flex-direction:column; gap:7px;
   animation:cardIn .3s var(--ease-out) both;
-  position:relative;
+  position:relative; box-shadow:var(--sh);
 }
 .hist-card:hover { box-shadow:var(--sh-md); transform:translateY(-2px); border-color:var(--border2); }
 .hist-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
@@ -403,6 +403,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .hist-card-footer { display:flex; align-items:center; justify-content:space-between; }
 .hist-card-user { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text2); }
 .hist-card-date { font-size:11px; color:var(--text3); font-variant-numeric:tabular-nums; }
+.hist-done-badge[data-soporte] { background:var(--c-soporte-bg); color:var(--c-soporte); }
 .hist-done-badge {
   display:inline-flex; align-items:center; gap:4px;
   padding:3px 8px; border-radius:4px;
