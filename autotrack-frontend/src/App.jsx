@@ -81,7 +81,7 @@ export default function App() {
   const fetchData = useCallback(async () => {
     if (!user) return;
     try {
-      const canSeeSols = ['admin', 'leader_analytics', 'manager'].includes(user.role);
+      const canSeeSols = ['admin', 'leader_analytics', 'member_analytics', 'manager'].includes(user.role);
       const [ps, us, sols] = await Promise.all([
         projectsAPI.getAll(),
         usersAPI.getAll(),

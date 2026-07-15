@@ -32,13 +32,18 @@ const upload = multer({
 // admin → todas; user → solo las propias
 router.get('/', auth, async (req, res) => {
   try {
-    const isAdmin = ['admin', 'leader_analytics', 'manager'].includes(req.user.role);
+    const role = req.user.role;
+    const isAdmin = ['admin', 'leader_analytics', 'manager'].includes(role);
+    const isAnalytics = role === 'member_analytics';
+    const whereClause = isAdmin ? ''
+      : isAnalytics ? "WHERE s.equipo IN ('analitica', 'compartido')"
+      : 'WHERE s.user_id = $1';
     const { rows } = await pool.query(
       `SELECT s.id, s.title, s.description, s.type, s.priority, s.area,
               s.due_date, s.file_name, s.file_path, s.status, s.notes,
               s.project_created,
               s.frecuencia, s.herramientas, s.impacto, s.urgencia,
-              s.nombre_solicitante, s.correo_solicitante, s.info_adicional, s.fecha_reunion,
+              s.nombre_solicitante, s.correo_solicitante, s.info_adicional, s.fecha_reunion, s.equipo,
               s.created_at, s.updated_at,
               u.id          AS user_id,
               u.name        AS user_name,
@@ -51,9 +56,9 @@ router.get('/', auth, async (req, res) => {
        FROM solicitudes s
        LEFT JOIN users u ON s.user_id    = u.id
        LEFT JOIN users a ON s.assignee_id = a.id
-       ${isAdmin ? '' : 'WHERE s.user_id = $1'}
+       ${whereClause}
        ORDER BY s.created_at DESC`,
-      isAdmin ? [] : [req.user.id]
+      isAdmin || isAnalytics ? [] : [req.user.id]
     );
     res.json(rows);
   } catch (err) {
@@ -96,20 +101,29 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
 });
 
 // PUT /api/solicitudes/:id/status  — solo admin
-router.put('/:id/status', auth, requireRole('admin', 'leader_analytics'), async (req, res) => {
-  const { status, notes, assigneeId, fechaReunion } = req.body;
+router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member_analytics'), async (req, res) => {
+  const { status, notes, assigneeId, fechaReunion, equipo } = req.body;
   const valid = ['recibido','en_revision','reunion_agendada','aceptado','rechazado','convertido',
                  'nueva','en_proceso','completada','rechazada'];
   if (!valid.includes(status)) {
     return res.status(400).json({ error: 'Estado inválido' });
   }
   try {
+    // Los miembros de Analítica solo gestionan solicitudes de su equipo
+    if (req.user.role === 'member_analytics') {
+      const cur = await pool.query('SELECT equipo FROM solicitudes WHERE id=$1', [req.params.id]);
+      if (!cur.rows.length) return res.status(404).json({ error: 'Solicitud no encontrada' });
+      if (!['analitica', 'compartido'].includes(cur.rows[0].equipo)) {
+        return res.status(403).json({ error: 'Esta solicitud no pertenece al equipo de Analítica' });
+      }
+    }
     const { rows } = await pool.query(
       `UPDATE solicitudes
-       SET status=$1, notes=$2, assignee_id=$3, fecha_reunion=$4, updated_at=NOW()
-       WHERE id=$5
+       SET status=$1, notes=$2, assignee_id=$3, fecha_reunion=$4,
+           equipo=COALESCE($5, equipo), updated_at=NOW()
+       WHERE id=$6
        RETURNING *`,
-      [status, notes || null, assigneeId || null, fechaReunion || null, req.params.id]
+      [status, notes || null, assigneeId || null, fechaReunion || null, equipo || null, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Solicitud no encontrada' });
     res.json(rows[0]);
@@ -142,7 +156,7 @@ router.put('/:id/info', auth, async (req, res) => {
 });
 
 // PATCH /api/solicitudes/:id/project-created  — solo admin
-router.patch('/:id/project-created', auth, requireRole('admin', 'leader_analytics'), async (req, res) => {
+router.patch('/:id/project-created', auth, requireRole('admin', 'leader_analytics', 'member_analytics'), async (req, res) => {
   try {
     await pool.query(
       'UPDATE solicitudes SET project_created=TRUE WHERE id=$1',

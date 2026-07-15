@@ -422,7 +422,7 @@ function KV({ k, children }) {
   );
 }
 
-function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
+function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDelete = true }) {
   const [status,       setStatus]       = useState('recibido');
   const [notes,        setNotes]        = useState('');
   const [assigneeId,   setAssigneeId]   = useState('');
@@ -437,7 +437,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
       setStatus(sol.status || 'recibido');
       setNotes(sol.notes || '');
       setAssigneeId(sol.assignee_id ? String(sol.assignee_id) : '');
-      setTipoProyecto('automatizacion');
+      setTipoProyecto(sol.equipo === 'analitica' ? 'analitica' : sol.equipo === 'compartido' ? 'compartido' : 'automatizacion');
       setFechaReunion(dateOnly(sol.fecha_reunion));
     }
     setDelConfirm(false);
@@ -468,6 +468,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
         status: finalStatus, notes,
         assigneeId: assigneeId || null,
         tipoProyecto,
+        equipo: tipoProyecto === 'analitica' ? 'analitica' : tipoProyecto === 'compartido' ? 'compartido' : 'automatizacion',
         fechaReunion: fechaReunion || null,
       });
     } finally { setSaving(false); }
@@ -617,7 +618,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [] }) {
 
               {/* Eliminar */}
               <div style={{ marginTop: 'auto' }}>
-                {!delConfirm ? (
+                {!canDelete ? null : !delConfirm ? (
                   <button type="button" className="pm-link" style={{ color: 'var(--text3)', fontSize: 12 }}
                     onClick={() => setDelConfirm(true)}>
                     Eliminar esta solicitud…
@@ -746,7 +747,8 @@ const STAT_ICONS = {
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function SolicitudesView({ user, showToast, users = [], onProjectCreated }) {
-  const isAdmin = ['admin', 'leader_analytics'].includes(user?.role);
+  const isAdmin  = ['admin', 'leader_analytics', 'member_analytics'].includes(user?.role);
+  const canDelete = ['admin', 'leader_analytics'].includes(user?.role);
 
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -1153,6 +1155,7 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
         onSave={handleUpdateStatus}
         onDelete={handleDelete}
         users={users}
+        canDelete={canDelete}
       />
     </div>
   );
