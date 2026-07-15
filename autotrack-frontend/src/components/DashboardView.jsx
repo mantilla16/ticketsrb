@@ -374,7 +374,10 @@ export default function DashboardView({ projects: allProjects, users, solicitude
               </tbody>
             </table>
           </div>
-          <More label="Ver capacidad detallada del equipo" onClick={onNavigate ? () => onNavigate('team-kanban') : null} />
+          <More label="Ver capacidad detallada del equipo"
+            onClick={onNavigate && role !== 'manager'
+              ? () => onNavigate(teamScope === 'ana' ? 'analytics' : 'team-kanban')
+              : null} />
         </div>
 
         {/* 3. Portafolio de proyectos */}
