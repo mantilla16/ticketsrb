@@ -42,6 +42,11 @@ export const usersAPI = {
   unlock:  (id)       => api.post(`/users/${id}/unlock`),
 };
 
+export const notificationsAPI = {
+  getAll:      () => api.get('/notifications'),
+  markAllRead: () => api.patch('/notifications/read-all'),
+};
+
 export const solicitudesAPI = {
   getAll:             ()          => api.get('/solicitudes'),
   create:             (formData)  => api.post('/solicitudes', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),

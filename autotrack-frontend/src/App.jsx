@@ -14,6 +14,7 @@ import UsersView from './components/UsersView';
 import UserModal from './components/UserModal';
 import SolicitudesView from './components/SolicitudesView';
 import ProjectSearch from './components/ProjectSearch';
+import NotificationBell from './components/NotificationBell';
 import ReportPrint from './components/ReportPrint';
 import ProjectModal from './components/ProjectModal';
 import DetailModal from './components/DetailModal';
@@ -329,6 +330,7 @@ export default function App() {
             {user?.role !== 'user' && (
               <ProjectSearch projects={visibleProjects} onSelect={openDetail} />
             )}
+            {user?.role !== 'user' && <NotificationBell onOpenProject={openDetail} />}
             {showNewProject && (
               <button className="btn btn-primary" onClick={() => openNewProject('backlog')}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">

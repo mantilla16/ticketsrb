@@ -2,6 +2,26 @@ const router = require('express').Router();
 const pool = require('../config/database');
 const auth = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
+const { notify } = require('../utils/notify');
+
+const STATUS_LABEL = {
+  backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
+  testing: 'En testing', done: 'Finalizado', soporte: 'Soporte',
+};
+
+// Responsables actuales de un proyecto (para notificaciones)
+async function projectPeople(id) {
+  const { rows } = await pool.query(
+    'SELECT name, assignee_id, co_assignee_id, general_assignee_id, status FROM projects WHERE id=$1', [id]
+  );
+  if (!rows.length) return null;
+  const p = rows[0];
+  return {
+    name: p.name,
+    status: p.status,
+    ids: [p.assignee_id, p.co_assignee_id, p.general_assignee_id],
+  };
+}
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -173,6 +193,9 @@ router.post('/', auth, validators, async (req, res) => {
         participationAuto || null, participationAnalitica || null,
         progressAuto || 0, progressAnalitica || 0, req.user.id]);
 
+    notify([assigneeId, coAssigneeId, generalAssigneeId], req.user.id, id,
+      'assign', `te asignó el proyecto «${name}»`);
+
     const project = await fetchProject(id);
     res.status(201).json(project);
   } catch (err) {
@@ -190,6 +213,7 @@ router.put('/:id', auth, validators, async (req, res) => {
           coAssigneeId, generalAssigneeId, participationAuto, participationAnalitica, progressAuto, progressAnalitica,
           supportClosed } = req.body;
   try {
+    const before = await projectPeople(req.params.id);
     const result = await pool.query(`
       UPDATE projects SET
         name=$1, description=$2, client=$3, status=$4, priority=$5,
@@ -209,6 +233,23 @@ router.put('/:id', auth, validators, async (req, res) => {
         supportClosed === undefined ? null : supportClosed === true, req.params.id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
+
+    if (before) {
+      const oldIds = before.ids.filter(Boolean).map(Number);
+      const newIds = [assigneeId, coAssigneeId, generalAssigneeId].filter(Boolean).map(Number);
+      const added  = newIds.filter(uid => !oldIds.includes(uid));
+      const kept   = newIds.filter(uid => oldIds.includes(uid));
+      if (added.length) {
+        notify(added, req.user.id, req.params.id, 'assign', `te asignó el proyecto «${name}»`);
+      }
+      if (before.status !== status) {
+        notify(kept, req.user.id, req.params.id, 'status',
+          `cambió el estado de «${name}» a ${STATUS_LABEL[status] || status}`);
+      } else if (kept.length) {
+        notify(kept, req.user.id, req.params.id, 'update', `actualizó el proyecto «${name}»`);
+      }
+    }
+
     res.json(await fetchProject(req.params.id));
   } catch (err) {
     console.error(err);
@@ -248,6 +289,13 @@ router.post('/:id/logs', auth, [
     );
     const project = await fetchProject(req.params.id);
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
+
+    const people = await projectPeople(req.params.id);
+    if (people) {
+      notify(people.ids, req.user.id, req.params.id, 'log',
+        `registró un avance del ${progress}% en «${people.name}»`);
+    }
+
     res.json(project);
   } catch (err) {
     console.error(err);
@@ -268,6 +316,13 @@ router.post('/:id/tasks', auth, [
     );
     const project = await fetchProject(req.params.id);
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
+
+    const people = await projectPeople(req.params.id);
+    if (people) {
+      notify(people.ids, req.user.id, req.params.id, 'task',
+        `agregó la tarea «${req.body.title.trim()}» en «${people.name}»`);
+    }
+
     res.status(201).json(project);
   } catch (err) {
     console.error(err);
@@ -286,6 +341,15 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
       [typeof done === 'boolean' ? done : null, title?.trim() || null, dueDate || null, req.params.taskId, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tarea no encontrada' });
+
+    if (done === true) {
+      const people = await projectPeople(req.params.id);
+      if (people) {
+        notify(people.ids, req.user.id, req.params.id, 'task',
+          `completó una tarea en «${people.name}»`);
+      }
+    }
+
     res.json(await fetchProject(req.params.id));
   } catch (err) {
     console.error(err);

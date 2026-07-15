@@ -2209,3 +2209,49 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
   }
   .rp-kpi, .rp-person, .rp-sol, .rp-card { break-inside: avoid; }
 }
+
+/* ── Notificaciones (campana del topbar) ─────────────────────────────── */
+.nb-root { position: relative; }
+.nb-bell {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 12px; cursor: pointer;
+  background: var(--neu-bg); border: var(--neu-border);
+  box-shadow: 0 4px 10px rgba(175,150,130,.12), inset 0 2px 3px rgba(255,255,255,.9);
+  color: var(--text2); transition: box-shadow .18s, color .18s;
+}
+.nb-bell:hover { color: var(--accent); box-shadow: var(--neu-sh-hover); }
+.nb-bell--open { box-shadow: var(--neu-inset); color: var(--accent); }
+.nb-badge {
+  position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px;
+  padding: 0 4px; border-radius: 9px; background: #F97316; color: #fff;
+  font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px rgba(249,115,22,.4);
+}
+.nb-panel {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 200;
+  width: 350px; max-width: calc(100vw - 32px);
+  background: var(--neu-bg); border: var(--neu-border); border-radius: 18px;
+  box-shadow: 0 22px 44px rgba(175,150,130,.22), inset 0 2px 3px rgba(255,255,255,.9);
+  overflow: hidden; animation: fadeUp .18s ease backwards;
+}
+.nb-panel-head {
+  padding: 13px 16px 10px; font-size: 13px; font-weight: 700; color: var(--text1);
+}
+.nb-empty { padding: 26px 16px 30px; text-align: center; font-size: 12.5px; color: var(--text2); }
+.nb-list { max-height: 380px; overflow-y: auto; padding: 0 8px 10px; }
+.nb-item {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left;
+  padding: 10px 10px; border: none; border-radius: 12px; background: transparent;
+  cursor: pointer; transition: box-shadow .15s, background .15s;
+}
+.nb-item:hover { box-shadow: var(--neu-inset); }
+.nb-item--new { background: rgba(249,146,77,.06); }
+.nb-item-ico { font-size: 16px; line-height: 22px; }
+.nb-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nb-item-text { font-size: 12.5px; color: var(--text1); line-height: 1.45; }
+.nb-item-text b { font-weight: 700; }
+.nb-item-time { font-size: 11px; color: var(--text2); }
+.nb-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: #F97316;
+  margin-top: 6px; flex-shrink: 0;
+}
