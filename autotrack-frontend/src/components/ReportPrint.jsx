@@ -27,11 +27,7 @@ function PageShell({ title, periodLabel, page, children }) {
     <div className="rp-page">
       <div className="rp-head">
         <div className="rp-brand">
-          <span className="rp-brand-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-          </span>
+          <img src="/logo-symbol-192.png" alt="" className="rp-brand-icon" />
           AMBARC
         </div>
         <span className="rp-period">{periodLabel}</span>

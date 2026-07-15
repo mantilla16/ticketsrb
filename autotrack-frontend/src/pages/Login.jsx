@@ -105,16 +105,8 @@ export default function Login() {
 
       <div className="login-box" style={{ position: 'relative', zIndex: 1 }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <div style={{ width: 40, height: 40, background: 'var(--accent)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-          </div>
-          <div>
-            <div className="login-logo">AMBAR<span>C</span></div>
-            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: -2 }}>Gestión de Proyectos</div>
-          </div>
+        <div className="login-logo-plate">
+          <img src="/Logo_horizontal.png" alt="AMBARC — Gestión de Proyectos" />
         </div>
 
         <div className="login-sub">Plataforma de gestión de los equipos de Automatización y Analítica</div>

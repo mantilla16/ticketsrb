@@ -55,11 +55,7 @@ export default function Sidebar({ section, onSection, user, onLogout, isOpen }) 
     <aside className={`sidebar${isOpen ? ' open' : ''}`}>
       {/* Logo */}
       <div className="sidebar-logo">
-        <div className="sidebar-logo-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-        </div>
+        <img src="/logo-symbol-192.png" alt="AMBARC" className="sidebar-logo-icon" />
         <div className="sidebar-logo-text">
           AMBARC
           <span>Gestión de Proyectos</span>

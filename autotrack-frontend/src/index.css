@@ -143,8 +143,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   display: flex; align-items: center; gap: 11px; margin-bottom: 6px;
 }
 .sidebar-logo-icon {
-  width: 30px; height: 30px; background: var(--accent); border-radius: 7px;
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 34px; height: 34px; object-fit: contain; flex-shrink: 0;
 }
 .sidebar-logo-text { font-size: 14px; font-weight: 800; color: #fff; letter-spacing: -.3px; }
 .sidebar-logo-text span { display: block; font-size: 10px; color: var(--sb-text); font-weight: 400; letter-spacing: .3px; margin-top: 1px; }
@@ -1211,6 +1210,12 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
 }
 .login-logo { font-size:22px; font-weight:800; color:#fff; margin-bottom:4px; letter-spacing:-.4px; }
 .login-logo span { color:var(--accent); }
+.login-logo-plate {
+  background:#fff; border-radius:14px; padding:14px 20px; margin-bottom:24px;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 14px 30px rgba(0,0,0,.28);
+}
+.login-logo-plate img { width:100%; max-width:230px; height:auto; display:block; }
 .login-sub  { font-size:13px; color:rgba(255,255,255,.35); margin-bottom:28px; }
 .login-tabs {
   display:flex; margin-bottom:22px; background:rgba(255,255,255,.05);
@@ -2098,10 +2103,7 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
 .rp-page:last-child { page-break-after: auto; break-after: auto; }
 .rp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
 .rp-brand { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
-.rp-brand-icon {
-  width: 34px; height: 34px; background: #F97316; border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
-}
+.rp-brand-icon { width: 32px; height: 32px; object-fit: contain; }
 .rp-period {
   font-size: 12px; font-weight: 700; color: #C96A1A;
   border-bottom: 2px solid #F97316; padding-bottom: 3px;
