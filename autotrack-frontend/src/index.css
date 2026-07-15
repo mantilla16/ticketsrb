@@ -1119,9 +1119,6 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
 }
 .modal-header {
   padding:22px 26px 14px; display:flex; align-items:center; justify-content:space-between;
-  position:sticky; top:0; z-index:5;
-  background:var(--surface); border-radius:26px 26px 0 0;
-  box-shadow:0 10px 14px -12px rgba(120,100,80,.28);
 }
 .modal-title  { font-size:17px; font-weight:700; color:var(--text); letter-spacing:-.01em; }
 .modal-close  { width:28px; height:28px; border-radius:6px; border:none; background:transparent; cursor:pointer; font-size:18px; color:var(--text3); display:flex; align-items:center; justify-content:center; transition:.12s; }
