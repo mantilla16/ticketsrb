@@ -5,6 +5,10 @@ const requireRole = require('../middleware/requireRole');
 const multer = require('multer');
 const path   = require('path');
 const fs     = require('fs');
+const { notifyInApp } = require('../utils/notify');
+const { sendNotificationEmail } = require('../utils/mailer');
+
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 
 const uploadDir = path.join(__dirname, '../../uploads/solicitudes');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -126,7 +130,26 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member
       [status, notes || null, assigneeId || null, fechaReunion || null, equipo || null, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Solicitud no encontrada' });
-    res.json(rows[0]);
+    const sol = rows[0];
+
+    if (['rechazado', 'rechazada'].includes(status)) {
+      if (sol.user_id) {
+        notifyInApp(sol.user_id, req.user.id, 'solicitud',
+          `rechazó tu solicitud «${sol.title}»${notes ? `: ${notes}` : '.'}`);
+      }
+      if (sol.correo_solicitante) {
+        const actor = await pool.query('SELECT name, email FROM users WHERE id=$1', [req.user.id]);
+        sendNotificationEmail({
+          to: sol.correo_solicitante,
+          title: `Tu solicitud "${sol.title}" fue rechazada`,
+          message: `rechazó tu solicitud «${escapeHtml(sol.title)}»${notes ? `.<br><br><b>Motivo:</b> ${escapeHtml(notes)}` : '.'}`,
+          actorName:  actor.rows[0]?.name  || null,
+          actorEmail: actor.rows[0]?.email || null,
+        });
+      }
+    }
+
+    res.json(sol);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });

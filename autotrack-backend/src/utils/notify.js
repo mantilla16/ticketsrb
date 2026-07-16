@@ -2,11 +2,12 @@ const pool = require('../config/database');
 const { sendNotificationEmail } = require('./mailer');
 
 const TYPE_TITLE = {
-  assign: 'Nueva asignación en AMBARC',
-  status: 'Cambio de estado en AMBARC',
-  update: 'Actualización de proyecto en AMBARC',
-  log:    'Avance registrado en AMBARC',
-  task:   'Actividad de tarea en AMBARC',
+  assign:    'Nueva asignación en AMBARC',
+  status:    'Cambio de estado en AMBARC',
+  update:    'Actualización de proyecto en AMBARC',
+  log:       'Avance registrado en AMBARC',
+  task:      'Actividad de tarea en AMBARC',
+  solicitud: 'Actualización de tu solicitud en AMBARC',
 };
 
 // La tabla se crea desde el propio usuario de la app para evitar problemas de GRANT
@@ -66,4 +67,21 @@ async function notify(recipientIds, actorId, projectId, type, message) {
   }
 }
 
-module.exports = { notify, ensureTable };
+/**
+ * Notificación solo en la campana (sin correo) — para casos donde el correo
+ * ya se envía por otra vía (p.ej. a una lista de contactos de una solicitud).
+ */
+async function notifyInApp(userId, actorId, type, message) {
+  try {
+    if (!userId || Number(userId) === Number(actorId)) return;
+    await ensureTable();
+    await pool.query(
+      'INSERT INTO notifications (user_id, actor_id, project_id, type, message) VALUES ($1,$2,NULL,$3,$4)',
+      [userId, actorId || null, type, message]
+    );
+  } catch (err) {
+    console.error('notifyInApp failed:', err.message);
+  }
+}
+
+module.exports = { notify, notifyInApp, ensureTable };

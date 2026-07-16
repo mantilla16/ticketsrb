@@ -3,11 +3,12 @@ import { notificationsAPI } from '../services/api';
 import { colorClass } from '../utils/helpers';
 
 const TYPE_ICON = {
-  assign: '👤',
-  status: '🔄',
-  update: '✏️',
-  log:    '📈',
-  task:   '✅',
+  assign:    '👤',
+  status:    '🔄',
+  update:    '✏️',
+  log:       '📈',
+  task:      '✅',
+  solicitud: '📨',
 };
 
 function timeAgo(d) {
