@@ -898,7 +898,6 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
       <div className="sol-stats" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
         {[
           { key: 'all',              num: stats.total,      label: 'Total',                  sub: 'solicitudes', color: '#F97316', ic: 'total' },
-          { key: 'recibido',         num: stats.recibido,   label: 'Recibidas',              sub: 'nuevas',      color: '#a86040', ic: 'recibido' },
           { key: 'en_revision',      num: stats.revision,   label: 'En revisión',            sub: 'en proceso',  color: '#7c3aed', ic: 'revision' },
           { key: 'reunion_agendada', num: stats.reunion,    label: 'Reunión agendada',       sub: 'pendientes',  color: '#D97706', ic: 'reunion' },
           { key: 'convertido',       num: stats.convertido, label: 'Convertidas',            sub: 'en proyecto', color: '#16A34A', ic: 'convertido' },
