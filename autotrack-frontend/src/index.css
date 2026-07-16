@@ -516,7 +516,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .dx-card {
   background: var(--neu-bg); border: var(--neu-border); border-radius: 22px;
   box-shadow: var(--sh); padding: 22px;
-  display: flex; flex-direction: column;
+  display: flex; flex-direction: column; min-width: 0;
   transition: box-shadow .25s ease-out, transform .25s ease-out;
 }
 .dx-card:hover { box-shadow: var(--neu-sh-hover); transform: translateY(-2px); }
