@@ -180,7 +180,7 @@ function NewSolicitudPage({ open, onClose, onSave, defaultName = '', defaultEmai
     if (open) {
       setForm({
         title: '', areaSel: '', areaOtra: '', nombre: defaultName, correos: defaultEmail,
-        dueDate: '', description: '', frecuencia: '', urgencia: 'media', impacto: '',
+        description: '', frecuencia: '', urgencia: 'media', impacto: '',
         herramientas: '', file: null,
       });
       setError('');
@@ -207,7 +207,6 @@ function NewSolicitudPage({ open, onClose, onSave, defaultName = '', defaultEmai
     const mails = form.correos.split(',').map(c => c.trim()).filter(Boolean);
     if (!mails.length || mails.some(m => !m.includes('@')))
       return setError('Ingresa al menos un correo de contacto válido.');
-    if (!form.dueDate)           return setError('Indica la fecha en que se requiere.');
     if (!form.description.trim()) return setError('Describe la necesidad.');
     if (!form.frecuencia)        return setError('Selecciona la frecuencia del proceso.');
     if (!form.impacto)           return setError('Selecciona el impacto esperado.');
@@ -226,7 +225,6 @@ function NewSolicitudPage({ open, onClose, onSave, defaultName = '', defaultEmai
       fd.append('impacto',           form.impacto);
       fd.append('nombreSolicitante', form.nombre.trim());
       fd.append('correoSolicitante', mails.join(', '));
-      fd.append('dueDate',           form.dueDate);
       if (form.file) fd.append('file', form.file);
       await onSave(fd);
     } catch (err) {
@@ -293,11 +291,6 @@ function NewSolicitudPage({ open, onClose, onSave, defaultName = '', defaultEmai
             <label className="snp-label">Fecha de registro<Req /></label>
             <input className="form-input" value={hoy} disabled
               style={{ color: 'var(--text3)', cursor: 'not-allowed' }} />
-          </div>
-          <div>
-            <label className="snp-label">Fecha en que se requiere<Req /></label>
-            <input className="form-input" type="date"
-              value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
           </div>
         </div>
 
