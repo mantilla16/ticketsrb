@@ -76,12 +76,13 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
         {/* Columnas por persona */}
         <div className="at-cols">
           {users.map(u => {
-            const list = anaProjects
+            const allForUser = anaProjects
               .filter(byTab)
-              .filter(p => p.assigneeId === u.id || p.coAssigneeId === u.id)
-              .sort((a, b) => (a.status === 'done') - (b.status === 'done'));
+              .filter(p => p.assigneeId === u.id || p.coAssigneeId === u.id);
+            // Los finalizados quedan solo en Historial — aquí no se listan como tarjetas
+            const list   = allForUser.filter(p => p.status !== 'done');
             const active = list.filter(p => ['progress', 'testing'].includes(p.status)).length;
-            const done   = list.filter(p => p.status === 'done').length;
+            const done   = allForUser.filter(p => p.status === 'done').length;
             const isOpen = expanded.has(u.id);
             const shown  = isOpen ? list : list.slice(0, PREVIEW);
             const hidden = list.length - PREVIEW;
@@ -108,8 +109,10 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
                         <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
                       </svg>
                     </div>
-                    <div className="at-empty-title">Sin proyectos asignados</div>
-                    <div className="at-empty-sub">Cuando se asignen proyectos, aparecerán aquí.</div>
+                    <div className="at-empty-title">{done > 0 ? 'Sin proyectos activos' : 'Sin proyectos asignados'}</div>
+                    <div className="at-empty-sub">
+                      {done > 0 ? `Tiene ${done} finalizado${done !== 1 ? 's' : ''} — puedes verlos en Historial.` : 'Cuando se asignen proyectos, aparecerán aquí.'}
+                    </div>
                   </div>
                 ) : (
                   <>
