@@ -50,6 +50,7 @@ const FRECUENCIA_OPTIONS = [
 ];
 
 const PER_PAGE = 6;
+const OWN_PREVIEW = 5;
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -762,6 +763,7 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
   const [fResp,       setFResp]       = useState('all');
   const [fDate,       setFDate]       = useState('');
   const [page,        setPage]        = useState(1);
+  const [ownExpanded, setOwnExpanded] = useState(false);
 
   useEffect(() => {
     solicitudesAPI.getAll()
@@ -770,7 +772,7 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { setPage(1); }, [filter, search, fArea, fUrg, fResp, fDate]);
+  useEffect(() => { setPage(1); setOwnExpanded(false); }, [filter, search, fArea, fUrg, fResp, fDate]);
 
   const handleCreate = async (fd) => {
     const created = await solicitudesAPI.create(fd);
@@ -855,6 +857,11 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
   const pageItems = displayed.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
   const from = displayed.length === 0 ? 0 : (safePage - 1) * PER_PAGE + 1;
   const to = Math.min(safePage * PER_PAGE, displayed.length);
+
+  // El solicitante ve una lista simple (máx. 5 con "Ver todas"), sin paginación
+  const ownHidden  = displayed.length - OWN_PREVIEW;
+  const ownItems   = ownExpanded ? displayed : displayed.slice(0, OWN_PREVIEW);
+  const visibleItems = isAdmin ? pageItems : ownItems;
 
   const hasAdv = fArea !== 'all' || fUrg !== 'all' || fResp !== 'all' || Boolean(fDate);
   const clearAdv = () => { setFArea('all'); setFUrg('all'); setFResp('all'); setFDate(''); };
@@ -967,7 +974,7 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
       )}
 
       {/* List */}
-      {pageItems.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <div className="sol-empty">
           <div className="sol-empty-icon">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -998,7 +1005,7 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
         </div>
       ) : (
         <div className="sol-list">
-          {pageItems.map(sol => {
+          {visibleItems.map(sol => {
             const st = STATUS_MAP[sol.status] || STATUS_MAP.recibido;
             const ur = PRIORITY_MAP[sol.urgencia] || null;
             const pr = PRIORITY_MAP[sol.priority] || PRIORITY_MAP.media;
@@ -1116,21 +1123,34 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
             );
           })}
 
-          {/* Paginación */}
-          <div className="sol-pager">
-            <span className="sol-pager-info">
-              Mostrando {from} a {to} de {displayed.length} solicitud{displayed.length !== 1 ? 'es' : ''}
-            </span>
-            <div className="sol-pager-btns">
-              <button disabled={safePage <= 1} onClick={() => setPage(p => p - 1)}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-              </button>
-              <span className="sol-pager-page">{safePage}</span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
+          {/* Paginación (líderes) */}
+          {isAdmin && (
+            <div className="sol-pager">
+              <span className="sol-pager-info">
+                Mostrando {from} a {to} de {displayed.length} solicitud{displayed.length !== 1 ? 'es' : ''}
+              </span>
+              <div className="sol-pager-btns">
+                <button disabled={safePage <= 1} onClick={() => setPage(p => p - 1)}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <span className="sol-pager-page">{safePage}</span>
+                <button disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* "Ver todas" (solicitante) */}
+          {!isAdmin && ownHidden > 0 && (
+            <button className="at-more" style={{ margin: '4px auto 0' }} onClick={() => setOwnExpanded(e => !e)}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: ownExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+              {ownExpanded ? 'Ver menos' : `Ver todas · ${ownHidden} más`}
+            </button>
+          )}
         </div>
       )}
 
