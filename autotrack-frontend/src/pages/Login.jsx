@@ -113,8 +113,6 @@ export default function Login() {
           <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.35)', marginTop: 2, letterSpacing: '.04em' }}>GESTIÓN DE PROYECTOS</div>
         </div>
 
-        <div className="login-sub">Plataforma de gestión de los equipos de Automatización y Analítica</div>
-
         <div className="login-tabs">
           <button className={`login-tab${tab === 'login' ? ' active' : ''}`} onClick={() => switchTab('login')}>
             Iniciar sesión
