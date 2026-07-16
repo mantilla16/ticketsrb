@@ -151,6 +151,7 @@ const IMPACTO_OPTIONS = [
   { value: 'Alto',  label: 'Alto — ahorro de tiempo significativo' },
   { value: 'Medio', label: 'Medio — reducción de errores' },
   { value: 'Bajo',  label: 'Bajo — mejora de trazabilidad' },
+  { value: 'otro',  label: 'Otro…' },
 ];
 
 const DESC_MAX = 1000;
@@ -169,7 +170,7 @@ const Req = () => <span style={{ color: '#EF4444' }}> *</span>;
 function NewSolicitudPage({ open, onClose, onSave, defaultName = '', defaultEmail = '' }) {
   const [form, setForm] = useState({
     title: '', areaSel: '', areaOtra: '', nombre: defaultName, correos: defaultEmail,
-    dueDate: '', description: '', frecuencia: '', urgencia: 'media', impacto: '',
+    description: '', frecuencia: '', urgencia: 'media', impacto: '', impactoOtro: '',
     herramientas: '', file: null,
   });
   const [saving, setSaving] = useState(false);
@@ -180,7 +181,7 @@ function NewSolicitudPage({ open, onClose, onSave, defaultName = '', defaultEmai
     if (open) {
       setForm({
         title: '', areaSel: '', areaOtra: '', nombre: defaultName, correos: defaultEmail,
-        description: '', frecuencia: '', urgencia: 'media', impacto: '',
+        description: '', frecuencia: '', urgencia: 'media', impacto: '', impactoOtro: '',
         herramientas: '', file: null,
       });
       setError('');
@@ -201,6 +202,7 @@ function NewSolicitudPage({ open, onClose, onSave, defaultName = '', defaultEmai
   const submit = async (e) => {
     e.preventDefault();
     const area = form.areaSel === 'otra' ? form.areaOtra.trim() : form.areaSel;
+    const impacto = form.impacto === 'otro' ? form.impactoOtro.trim() : form.impacto;
     if (!form.title.trim())      return setError('El nombre del proceso es obligatorio.');
     if (!area)                   return setError('Selecciona el área o departamento.');
     if (!form.nombre.trim())     return setError('El nombre del solicitante es obligatorio.');
@@ -210,6 +212,7 @@ function NewSolicitudPage({ open, onClose, onSave, defaultName = '', defaultEmai
     if (!form.description.trim()) return setError('Describe la necesidad.');
     if (!form.frecuencia)        return setError('Selecciona la frecuencia del proceso.');
     if (!form.impacto)           return setError('Selecciona el impacto esperado.');
+    if (form.impacto === 'otro' && !impacto) return setError('Describe el impacto esperado.');
 
     setError('');
     setSaving(true);
@@ -222,7 +225,7 @@ function NewSolicitudPage({ open, onClose, onSave, defaultName = '', defaultEmai
       fd.append('urgencia',          form.urgencia);
       fd.append('frecuencia',        form.frecuencia);
       fd.append('herramientas',      form.herramientas);
-      fd.append('impacto',           form.impacto);
+      fd.append('impacto',           impacto);
       fd.append('nombreSolicitante', form.nombre.trim());
       fd.append('correoSolicitante', mails.join(', '));
       if (form.file) fd.append('file', form.file);
@@ -335,6 +338,10 @@ function NewSolicitudPage({ open, onClose, onSave, defaultName = '', defaultEmai
             <select className="form-select" value={form.impacto} onChange={e => set('impacto', e.target.value)}>
               {IMPACTO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+            {form.impacto === 'otro' && (
+              <input className="form-input" style={{ marginTop: 8 }} placeholder="Describe el impacto esperado"
+                value={form.impactoOtro} onChange={e => set('impactoOtro', e.target.value)} autoFocus />
+            )}
           </div>
         </div>
 
