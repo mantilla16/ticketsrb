@@ -64,7 +64,21 @@ function fmtDateTime(d) {
     + ', ' + dt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
 }
 
+// fecha_reunion se guarda como hora "de pared" (sin zona horaria real) — se formatea
+// forzando UTC para mostrar exactamente la hora que el líder eligió, sin desfases.
+function fmtReunion(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })
+    + ', ' + dt.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' });
+}
+
 const dateOnly = (d) => d ? String(d).slice(0, 10) : '';
+const timeOnly = (d) => {
+  if (!d) return '';
+  const m = String(d).match(/T(\d{2}:\d{2})/);
+  return m ? m[1] : '';
+};
 
 // ── Línea de tiempo del estado ─────────────────────────────────────────────────
 
@@ -429,6 +443,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
   const [assigneeId,   setAssigneeId]   = useState('');
   const [tipoProyecto, setTipoProyecto] = useState('automatizacion');
   const [fechaReunion, setFechaReunion] = useState('');
+  const [horaReunion,  setHoraReunion]  = useState('');
   const [saving,       setSaving]       = useState(false);
   const [error,        setError]        = useState('');
   const [delConfirm,   setDelConfirm]   = useState(false);
@@ -440,6 +455,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
       setAssigneeId(sol.assignee_id ? String(sol.assignee_id) : '');
       setTipoProyecto(sol.equipo === 'analitica' ? 'analitica' : sol.equipo === 'compartido' ? 'compartido' : 'automatizacion');
       setFechaReunion(dateOnly(sol.fecha_reunion));
+      setHoraReunion(timeOnly(sol.fecha_reunion));
     }
     setDelConfirm(false);
     setSaving(false);
@@ -463,6 +479,10 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
       setError('Para convertir en proyecto primero asigna un responsable.');
       return;
     }
+    if (finalStatus === 'aceptado' && (!fechaReunion || !horaReunion)) {
+      setError('Selecciona la fecha y hora de la reunión de levantamiento antes de aceptar.');
+      return;
+    }
     setSaving(true); setError('');
     try {
       await onSave(sol.id, {
@@ -470,7 +490,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
         assigneeId: assigneeId || null,
         tipoProyecto,
         equipo: tipoProyecto === 'analitica' ? 'analitica' : tipoProyecto === 'compartido' ? 'compartido' : 'automatizacion',
-        fechaReunion: fechaReunion || null,
+        fechaReunion: fechaReunion ? `${fechaReunion}T${horaReunion || '09:00'}:00` : null,
       });
     } finally { setSaving(false); }
   };
@@ -591,16 +611,32 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
                   </select>
                 </div>
 
-                <label className="um-label" style={{ marginBottom: 5 }}>Fecha tentativa de reunión</label>
-                <div className="um-input-wrap">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
-                  </svg>
-                  <input className="um-input" type="date" value={fechaReunion}
-                    onChange={e => setFechaReunion(e.target.value)} />
+                <label className="um-label" style={{ marginBottom: 5 }}>
+                  Fecha y hora de la reunión{status === 'aceptado' && <Req />}
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div className="um-input-wrap" style={{ flex: 1.3 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2"/>
+                      <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                      <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    <input className="um-input" type="date" value={fechaReunion}
+                      onChange={e => setFechaReunion(e.target.value)} />
+                  </div>
+                  <div className="um-input-wrap" style={{ flex: 1 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>
+                    </svg>
+                    <input className="um-input" type="time" value={horaReunion}
+                      onChange={e => setHoraReunion(e.target.value)} />
+                  </div>
                 </div>
+                {status === 'aceptado' && (
+                  <div className="snp-hint" style={{ marginTop: 5 }}>
+                    Al aceptar, se le avisa al solicitante la fecha y hora de la reunión de levantamiento.
+                  </div>
+                )}
               </div>
 
               <div>
@@ -698,7 +734,7 @@ function UserSolicitudModal({ sol, open, onClose, onSaveInfo }) {
             <SolTimeline status={sol.status} dates={{ recibido: sol.created_at, reunion: sol.fecha_reunion }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>
               {sol.fecha_reunion
-                ? <span>Reunión tentativa: <b style={{ color: '#7c3aed' }}>{fmtDate(sol.fecha_reunion)}</b></span>
+                ? <span>Reunión: <b style={{ color: '#7c3aed' }}>{fmtReunion(sol.fecha_reunion)}</b></span>
                 : <span />}
               {sol.due_date && <span>Fecha requerida: {fmtDate(sol.due_date)}</span>}
             </div>

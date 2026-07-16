@@ -112,6 +112,9 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member
   if (!valid.includes(status)) {
     return res.status(400).json({ error: 'Estado inválido' });
   }
+  if (status === 'aceptado' && !fechaReunion) {
+    return res.status(400).json({ error: 'Selecciona la fecha y hora de la reunión antes de aceptar la solicitud.' });
+  }
   try {
     // Los miembros de Analítica solo gestionan solicitudes de su equipo
     if (req.user.role === 'member_analytics') {
@@ -143,6 +146,24 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member
           to: sol.correo_solicitante,
           title: `Tu solicitud "${sol.title}" fue rechazada`,
           message: `rechazó tu solicitud «${escapeHtml(sol.title)}»${notes ? `.<br><br><b>Motivo:</b> ${escapeHtml(notes)}` : '.'}`,
+          actorName:  actor.rows[0]?.name  || null,
+          actorEmail: actor.rows[0]?.email || null,
+        });
+      }
+    } else if (status === 'aceptado' && sol.fecha_reunion) {
+      const when = new Date(sol.fecha_reunion).toLocaleString('es-CO', {
+        weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC',
+      });
+      if (sol.user_id) {
+        notifyInApp(sol.user_id, req.user.id, 'solicitud',
+          `aceptó tu solicitud «${sol.title}» y agendó la reunión de levantamiento para el ${when}`);
+      }
+      if (sol.correo_solicitante) {
+        const actor = await pool.query('SELECT name, email FROM users WHERE id=$1', [req.user.id]);
+        sendNotificationEmail({
+          to: sol.correo_solicitante,
+          title: `Reunión agendada — "${sol.title}"`,
+          message: `aceptó tu solicitud «${escapeHtml(sol.title)}» y agendó la reunión de levantamiento para el <b>${when}</b>.${notes ? `<br><br><b>Nota:</b> ${escapeHtml(notes)}` : ''}`,
           actorName:  actor.rows[0]?.name  || null,
           actorEmail: actor.rows[0]?.email || null,
         });
