@@ -1210,12 +1210,6 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
 }
 .login-logo { font-size:22px; font-weight:800; color:#fff; margin-bottom:4px; letter-spacing:-.4px; }
 .login-logo span { color:var(--accent); }
-.login-logo-plate {
-  background:#fff; border-radius:14px; padding:14px 20px; margin-bottom:24px;
-  display:flex; align-items:center; justify-content:center;
-  box-shadow:0 14px 30px rgba(0,0,0,.28);
-}
-.login-logo-plate img { width:100%; max-width:230px; height:auto; display:block; }
 .login-sub  { font-size:13px; color:rgba(255,255,255,.35); margin-bottom:28px; }
 .login-tabs {
   display:flex; margin-bottom:22px; background:rgba(255,255,255,.05);
