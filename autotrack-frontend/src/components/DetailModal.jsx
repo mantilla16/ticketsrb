@@ -90,7 +90,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
 
         <div className="modal-body" style={{ paddingBottom: 8 }}>
           {/* Info grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 16, background: 'var(--bg)', borderRadius: 'var(--radius-sm)', padding: '14px 16px' }}>
+          <div className="detail-info-grid" style={{ marginBottom: 16, background: 'var(--bg)', borderRadius: 'var(--radius-sm)', padding: '14px 16px' }}>
             {project.generalAssignee && (
               <div>
                 <div className="detail-label">Resp. general</div>

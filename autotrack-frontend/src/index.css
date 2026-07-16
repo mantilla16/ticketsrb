@@ -1027,6 +1027,10 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 
 .pm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 640px) { .pm-grid { grid-template-columns: 1fr; } }
+
+.detail-info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 560px) { .detail-info-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 380px) { .detail-info-grid { grid-template-columns: 1fr; } }
 .pm-field {
   border: none; background: var(--neu-input-bg); border-radius: var(--radius-sm);
   padding: 11px 15px; transition: box-shadow .25s ease-out;
@@ -1340,10 +1344,12 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
   /* Hamburger visible */
   .hamburger { display: flex; }
 
-  /* Topbar */
-  .topbar { padding: 0 14px; height: 52px; }
+  /* Topbar — apila buscador/acciones si no caben en una fila */
+  .topbar { padding: 0 14px; height: auto; min-height: 52px; flex-wrap: wrap; gap: 8px 0; padding-top: 8px; padding-bottom: 8px; }
   .page-title { font-size: 14px; }
   .page-subtitle { display: none; }
+  .topbar-left  { flex: 1 1 auto; min-width: 0; }
+  .topbar-right { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 
   /* Content */
   .content { padding: 14px 12px 40px; }
@@ -1355,14 +1361,15 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
   /* Charts */
   .chart-row { grid-template-columns: 1fr; }
 
-  /* Modal — bottom sheet */
-  .modal-backdrop { padding: 0; align-items: flex-end; }
-  .modal {
+  /* Modal — bottom sheet (aplica a los 3 sistemas de modal de la app) */
+  .modal-overlay, .um-backdrop { padding: 0; align-items: flex-end; }
+  .modal, .sol-modal, .um-modal {
     max-width: 100%; width: 100%;
     border-radius: 18px 18px 0 0;
     max-height: 92vh; overflow-y: auto;
     padding: 24px 18px 32px;
   }
+  .sol-modal, .um-modal { padding: 0; } /* estos ya traen su propio padding interno por sección */
 
   /* Toast */
   .toast-container { right: 10px; left: 10px; bottom: 10px; min-width: unset; max-width: unset; }
