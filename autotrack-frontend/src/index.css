@@ -2231,7 +2231,7 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
   overflow: hidden; animation: fadeUp .18s ease backwards;
 }
 .nb-panel-head {
-  padding: 13px 16px 10px; font-size: 13px; font-weight: 700; color: var(--text1);
+  padding: 13px 16px 10px; font-size: 13px; font-weight: 700; color: var(--text);
 }
 .nb-empty { padding: 26px 16px 30px; text-align: center; font-size: 12.5px; color: var(--text2); }
 .nb-list { max-height: 380px; overflow-y: auto; padding: 0 8px 10px; }
@@ -2244,7 +2244,7 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
 .nb-item--new { background: rgba(249,146,77,.06); }
 .nb-item-ico { font-size: 16px; line-height: 22px; }
 .nb-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.nb-item-text { font-size: 12.5px; color: var(--text1); line-height: 1.45; }
+.nb-item-text { font-size: 12.5px; color: var(--text); line-height: 1.45; }
 .nb-item-text b { font-weight: 700; }
 .nb-item-time { font-size: 11px; color: var(--text2); }
 .nb-dot {
