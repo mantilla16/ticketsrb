@@ -200,6 +200,7 @@ export default function App() {
     }
     setProjects(ps => ps.map(p => p.id === updated.id ? updated : p));
     showToast(block ? 'Bloqueo reportado — proyecto en standby' : 'Avance registrado', block ? 'error' : 'success');
+    return updated;
   };
 
   const handleAddTask = async (id, title) => {

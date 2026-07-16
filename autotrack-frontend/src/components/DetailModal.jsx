@@ -24,7 +24,6 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
     .filter(v => v != null).map(Number).includes(Number(currentUser?.id));
   const canEdit = isLeader || (isRestricted && isOwner);
   const [logText, setLogText] = useState('');
-  const [logProg, setLogProg] = useState(0);
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
   const [taskText, setTaskText]     = useState('');
@@ -43,7 +42,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
     if (!logText.trim()) { setError('Escribe el avance de la reunión'); return; }
     setSaving(true); setError('');
     try {
-      await onAddLog(project.id, { text: logText.trim(), progress: logProg, block: isBlock });
+      await onAddLog(project.id, { text: logText.trim(), block: isBlock });
       setLogText('');
       setIsBlock(false);
     } catch (err) {
@@ -293,10 +292,11 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
           {canEdit && (
             <div style={{ marginTop: 14, background: 'var(--bg)', borderRadius: 'var(--radius-sm)', padding: 16, border: '1px solid var(--border)' }}>
               {error && <div className="login-error" style={{ marginBottom: 10 }}>{error}</div>}
-              <div style={{ marginBottom: 8 }}>
-                <label className="form-label">Actualizar progreso</label>
-                <input type="range" min={0} max={100} step={5} value={logProg} onChange={e => setLogProg(parseInt(e.target.value))} style={{ marginTop: 4 }} />
-                <div style={{ textAlign: 'right', fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--accent)' }}>{logProg}%</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>Registrar avance</label>
+                <span style={{ fontSize: 12, color: 'var(--text3)' }}>
+                  Progreso: <b style={{ color: 'var(--accent)' }}>{pct}%</b> (según tareas completadas)
+                </span>
               </div>
               <textarea
                 className="form-textarea"

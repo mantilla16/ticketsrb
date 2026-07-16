@@ -27,6 +27,22 @@ async function projectPeople(id) {
   };
 }
 
+// El progreso lo determinan las tareas: % de tareas completadas. Sin tareas, se deja como está.
+async function recalcProgress(id) {
+  const { rows } = await pool.query(
+    'SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE done)::int AS done FROM project_tasks WHERE project_id=$1',
+    [id]
+  );
+  const { total, done } = rows[0];
+  if (total === 0) {
+    const cur = await pool.query('SELECT progress FROM projects WHERE id=$1', [id]);
+    return cur.rows[0]?.progress ?? 0;
+  }
+  const progress = Math.round((done / total) * 100);
+  await pool.query('UPDATE projects SET progress=$1, updated_at=NOW() WHERE id=$2', [progress, id]);
+  return progress;
+}
+
 // Los líderes (admin/leader_analytics) gestionan todo; ingenieros/miembros solo lo suyo.
 // Devuelve true si puede continuar; si no, ya envió la respuesta 403/404.
 async function assertProjectAccess(req, res, projectId) {
@@ -211,7 +227,7 @@ router.post('/', auth, requireRole('admin', 'leader_analytics', 'member_analytic
         co_assignee_id, general_assignee_id, participation_auto, participation_analitica, progress_auto, progress_analitica, created_by, was_soporte)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
     `, [id, name, description || null, client || null, status, priority,
-        assigneeId || null, startDate || null, dueDate || null, progress || 0,
+        assigneeId || null, startDate || null, dueDate || null, 0, // el progreso arranca en 0 — lo suben las tareas
         tipo || 'automatizacion', docUrl || null,
         coAssigneeId || null, generalAssigneeId || null,
         participationAuto || null, participationAnalitica || null,
@@ -239,10 +255,11 @@ router.put('/:id', auth, validators, async (req, res) => {
   try {
     if (!(await assertProjectAccess(req, res, req.params.id))) return;
     const before = await projectPeople(req.params.id);
+    // El progreso ya no se recibe del cliente: lo determinan las tareas (ver recalcProgress).
     const result = await pool.query(`
       UPDATE projects SET
         name=$1, description=$2, client=$3, status=$4, priority=$5,
-        assignee_id=$6, start_date=$7, due_date=$8, progress=$9,
+        assignee_id=$6, start_date=$7, due_date=$8,
         tipo=$10, doc_url=$11,
         co_assignee_id=$12, general_assignee_id=$13,
         participation_auto=$14, participation_analitica=$15,
@@ -259,6 +276,7 @@ router.put('/:id', auth, validators, async (req, res) => {
         supportClosed === undefined ? null : supportClosed === true, req.params.id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
+    await recalcProgress(req.params.id);
 
     if (before) {
       const oldIds = before.ids.filter(Boolean).map(Number);
@@ -296,23 +314,20 @@ router.delete('/:id', auth, requireRole('admin', 'leader_analytics'), async (req
 });
 
 // POST /api/projects/:id/logs
+// El progreso ya no lo elige quien escribe el avance: lo determinan las tareas completadas.
 router.post('/:id/logs', auth, [
   body('text').notEmpty().trim().withMessage('Texto requerido'),
-  body('progress').isInt({ min: 0, max: 100 }),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { text, progress } = req.body;
+  const { text } = req.body;
   try {
     if (!(await assertProjectAccess(req, res, req.params.id))) return;
+    const progress = await recalcProgress(req.params.id);
     await pool.query(
       'INSERT INTO project_logs (project_id, author_id, text, progress) VALUES ($1,$2,$3,$4)',
       [req.params.id, req.user.id, text, progress]
-    );
-    await pool.query(
-      'UPDATE projects SET progress=$1, updated_at=NOW() WHERE id=$2',
-      [progress, req.params.id]
     );
     const project = await fetchProject(req.params.id);
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
@@ -341,6 +356,7 @@ router.post('/:id/tasks', auth, requireRole(...TEAM_LEADS), [
       'INSERT INTO project_tasks (project_id, title, due_date, created_by) VALUES ($1,$2,$3,$4)',
       [req.params.id, req.body.title.trim(), req.body.dueDate || null, req.user.id]
     );
+    await recalcProgress(req.params.id);
     const project = await fetchProject(req.params.id);
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
 
@@ -370,6 +386,8 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tarea no encontrada' });
 
+    if (typeof done === 'boolean') await recalcProgress(req.params.id);
+
     if (done === true) {
       const people = await projectPeople(req.params.id);
       if (people) {
@@ -393,6 +411,7 @@ router.delete('/:id/tasks/:taskId', auth, requireRole(...TEAM_LEADS), async (req
       [req.params.taskId, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tarea no encontrada' });
+    await recalcProgress(req.params.id);
     res.json(await fetchProject(req.params.id));
   } catch (err) {
     console.error(err);

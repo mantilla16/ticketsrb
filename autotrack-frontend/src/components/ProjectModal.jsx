@@ -57,7 +57,6 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const [logs, setLogs]         = useState([]);
   const [showAllLogs, setShowAllLogs] = useState(false);
   const [logText, setLogText]   = useState('');
-  const [logProg, setLogProg]   = useState(0);
   const [isBlock, setIsBlock]   = useState(false);
   const [logSaving, setLogSaving] = useState(false);
 
@@ -93,7 +92,6 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         });
         setTasks((project.tasks || []).map(t => ({ ...t })));
         setLogs(project.logs || []);
-        setLogProg(project.progress || 0);
       } else {
         setAreaSel(defaultArea);
         setTypeSel('proyecto');
@@ -101,7 +99,6 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         setForm({ ...EMPTY, status: defStatus || 'backlog', assigneeId: defAssigneeId != null ? String(defAssigneeId) : '' });
         setTasks([]);
         setLogs([]);
-        setLogProg(0);
       }
     }
   }, [open, project, defStatus, defAssigneeId]);
@@ -126,6 +123,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
 
   const handleSave = async () => {
     if (!form.name.trim()) { setError('El nombre del proyecto es obligatorio'); return; }
+    if (!isEdit && tasks.length === 0) { setError('Agrega al menos una tarea para crear el proyecto'); return; }
     setSaving(true); setError('');
     try {
       const tasksDelta = {
@@ -166,9 +164,10 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
     if (!logText.trim() || logSaving) return;
     setLogSaving(true);
     try {
-      await onAddLog(project.id, { text: logText.trim(), progress: logProg, block: isBlock });
-      setLogs(l => [{ id: `tmp${Date.now()}`, text: (isBlock ? '⚠ BLOQUEO: ' : '') + logText.trim(), progress: logProg, createdAt: new Date().toISOString(), author: { name: currentUser?.name } }, ...l]);
-      setForm(f => ({ ...f, progress: logProg, status: isBlock ? 'standby' : f.status }));
+      const updated = await onAddLog(project.id, { text: logText.trim(), block: isBlock });
+      const newProgress = updated?.progress ?? form.progress;
+      setLogs(l => [{ id: `tmp${Date.now()}`, text: (isBlock ? '⚠ BLOQUEO: ' : '') + logText.trim(), progress: newProgress, createdAt: new Date().toISOString(), author: { name: currentUser?.name } }, ...l]);
+      setForm(f => ({ ...f, progress: newProgress, status: isBlock ? 'standby' : f.status }));
       setLogText(''); setIsBlock(false);
     } finally { setLogSaving(false); }
   };
@@ -284,17 +283,12 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                     .map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                 </select>
               </div>
-              {!isEdit && (
-                <div className="pm-field">
-                  <label className="pm-field-label" style={{ justifyContent: 'space-between' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Progreso inicial</span>
-                    <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{form.progress}%</span>
-                  </label>
-                  <input type="range" min={0} max={100} step={5} value={form.progress}
-                    onChange={e => setForm(f => ({ ...f, progress: parseInt(e.target.value) }))} style={{ marginTop: 10 }} />
-                </div>
-              )}
             </div>
+            {!isEdit && (
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
+                El progreso se calcula solo, según las tareas que completes más abajo — agrega al menos una.
+              </div>
+            )}
 
             {/* Documentación */}
             <div className="pm-doc-row">
@@ -381,7 +375,9 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
             <div className="pm-box-sub">
               {lockCore
                 ? 'Marca las tareas completadas — solo el líder puede crearlas o modificarlas.'
-                : 'Las fechas se usarán para el cronograma y próximas entregas.'}
+                : isEdit
+                  ? 'Las fechas se usarán para el cronograma y próximas entregas. El progreso del proyecto se calcula según las tareas completadas.'
+                  : 'Obligatorio: agrega al menos una tarea. El progreso del proyecto se calculará según las que vayas completando.'}
             </div>
             {!lockCore && (
               <div className="pm-task-add">
@@ -451,12 +447,13 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
 
               <div className="pm-box" style={{ margin: 0 }}>
                 <div className="pm-box-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  Actualizar progreso
-                  <span style={{ color: 'var(--accent)' }}>{logProg}%</span>
+                  Registrar avance
+                  <span style={{ color: 'var(--accent)' }}>{form.progress}% completado</span>
                 </div>
-                <input type="range" min={0} max={100} step={5} value={logProg}
-                  onChange={e => setLogProg(parseInt(e.target.value))} />
-                <textarea className="pm-input pm-textarea" style={{ marginTop: 10 }} rows={2}
+                <div style={{ fontSize: 11.5, color: 'var(--text3)', marginTop: -4, marginBottom: 10 }}>
+                  El progreso se actualiza solo al completar tareas — aquí solo dejas la nota del avance.
+                </div>
+                <textarea className="pm-input pm-textarea" rows={2}
                   placeholder={isBlock ? 'Describe el bloqueo...' : 'Registra el avance de la reunión semanal...'}
                   value={logText} onChange={e => setLogText(e.target.value)} />
                 <label style={{ display: 'flex', alignItems: 'center', gap: 7, margin: '10px 0', cursor: 'pointer', fontSize: 12, color: isBlock ? 'var(--high)' : 'var(--text2)', fontWeight: isBlock ? 600 : 400 }}>
