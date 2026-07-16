@@ -75,7 +75,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                 {PR_L[pr]}
               </span>
               <span className={`tipo-badge ${TIPO_CLS[tipo]}`}>{TIPO_LABEL[tipo]}</span>
-              {project.supportClosed && <span className="badge status-soporte">Soporte cerrado</span>}
+              {project.wasSoporte && project.status !== 'soporte' && <span className="badge status-soporte">Pasó por soporte</span>}
             </div>
             <div className="modal-title">{project.name}</div>
             <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>

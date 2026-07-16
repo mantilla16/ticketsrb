@@ -90,6 +90,7 @@ function fmtProject(p, logs = [], tasks = []) {
     progressAuto:            p.progress_auto            ?? 0,
     progressAnalitica:       p.progress_analitica       ?? 0,
     supportClosed:           p.support_closed           || false,
+    wasSoporte:              p.was_soporte              || p.status === 'soporte' || false,
     startDate: fmtDate(p.start_date),
     dueDate: fmtDate(p.due_date),
     progress: p.progress,
@@ -207,14 +208,14 @@ router.post('/', auth, requireRole('admin', 'leader_analytics', 'member_analytic
   try {
     await pool.query(`
       INSERT INTO projects (id, name, description, client, status, priority, assignee_id, start_date, due_date, progress, tipo, doc_url,
-        co_assignee_id, general_assignee_id, participation_auto, participation_analitica, progress_auto, progress_analitica, created_by)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+        co_assignee_id, general_assignee_id, participation_auto, participation_analitica, progress_auto, progress_analitica, created_by, was_soporte)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
     `, [id, name, description || null, client || null, status, priority,
         assigneeId || null, startDate || null, dueDate || null, progress || 0,
         tipo || 'automatizacion', docUrl || null,
         coAssigneeId || null, generalAssigneeId || null,
         participationAuto || null, participationAnalitica || null,
-        progressAuto || 0, progressAnalitica || 0, req.user.id]);
+        progressAuto || 0, progressAnalitica || 0, req.user.id, status === 'soporte']);
 
     notify([assigneeId, coAssigneeId, generalAssigneeId], req.user.id, id,
       'assign', `te asignó el proyecto «${name}»`);
@@ -246,7 +247,8 @@ router.put('/:id', auth, validators, async (req, res) => {
         co_assignee_id=$12, general_assignee_id=$13,
         participation_auto=$14, participation_analitica=$15,
         progress_auto=$16, progress_analitica=$17,
-        support_closed=COALESCE($18, support_closed), updated_at=NOW()
+        support_closed=COALESCE($18, support_closed),
+        was_soporte=(COALESCE(was_soporte, FALSE) OR $4='soporte'), updated_at=NOW()
       WHERE id=$19 RETURNING id
     `, [name, description || null, client || null, status, priority,
         assigneeId || null, startDate || null, dueDate || null, progress || 0,

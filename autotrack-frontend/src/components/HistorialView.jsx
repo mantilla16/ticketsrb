@@ -6,7 +6,7 @@ const PR_CLASS = { high: 'pp-high', mid: 'pp-mid', low: 'pp-low' };
 
 const TIPO_LABEL = { automatizacion: 'Automatización', analitica: 'Analítica', compartido: 'Compartido', asignacion_flash: 'Flash' };
 const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', compartido: 'tipo-compartido', asignacion_flash: 'tipo-flash' };
-const TIPO_FILTERS = ['all', 'automatizacion', 'analitica', 'compartido', 'asignacion_flash', 'soporte_cerrado'];
+const TIPO_FILTERS = ['all', 'automatizacion', 'analitica', 'compartido', 'asignacion_flash', 'paso_soporte'];
 
 function fmt(d) {
   if (!d) return '—';
@@ -23,7 +23,7 @@ export default function HistorialView({ projects, users, onCardClick }) {
 
   const filtered = done
     .filter(p => tipoFilter === 'all'
-      || (tipoFilter === 'soporte_cerrado' ? p.supportClosed : (p.tipo || 'automatizacion') === tipoFilter))
+      || (tipoFilter === 'paso_soporte' ? p.wasSoporte : (p.tipo || 'automatizacion') === tipoFilter))
     .filter(p => !search.trim() || (
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       (p.client || '').toLowerCase().includes(search.toLowerCase())
@@ -63,7 +63,7 @@ export default function HistorialView({ projects, users, onCardClick }) {
             className={`sol-chip${tipoFilter === t ? ' sol-chip--active' : ''}`}
             onClick={() => setTipoFilter(t)}
           >
-            {t === 'all' ? 'Todos' : t === 'soporte_cerrado' ? 'Soporte cerrado' : TIPO_LABEL[t]}
+            {t === 'all' ? 'Todos' : t === 'paso_soporte' ? 'Pasó por soporte' : TIPO_LABEL[t]}
           </button>
         ))}
       </div>
@@ -87,12 +87,20 @@ export default function HistorialView({ projects, users, onCardClick }) {
                     {TIPO_LABEL[p.tipo || 'automatizacion']}
                   </span>
                   <span className="hist-done-badge" style={{ marginLeft: 'auto' }}
-                    {...(p.supportClosed ? { 'data-soporte': true } : {})}>
+                    {...(p.wasSoporte ? { 'data-soporte': true } : {})}>
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>
-                    {p.supportClosed ? 'Soporte cerrado' : 'Finalizado'}
+                    Finalizado
                   </span>
+                  {p.wasSoporte && (
+                    <span className="hist-done-badge" data-soporte="true">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+                      </svg>
+                      Pasó por soporte
+                    </span>
+                  )}
                 </div>
 
                 <div className="hist-card-name">{p.name}</div>
