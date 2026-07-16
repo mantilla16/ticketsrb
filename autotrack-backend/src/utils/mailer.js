@@ -1,23 +1,24 @@
-const nodemailer = require('nodemailer');
+const { JWT } = require('google-auth-library');
+const MailComposer = require('nodemailer/lib/mail-composer');
 
 const APP_URL = process.env.FRONTEND_URL_PUBLIC || 'https://ambarc.americana.edu.co';
+const SENDER  = process.env.REPORT_FROM_EMAIL;
 
-let transporter = null;
-function getTransporter() {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) return null;
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD,
-      },
+let jwtClient = null;
+function getClient() {
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !SENDER) return null;
+  if (!jwtClient) {
+    jwtClient = new JWT({
+      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      scopes: ['https://www.googleapis.com/auth/gmail.send'],
+      subject: SENDER, // impersona a este buzón vía Domain-Wide Delegation
     });
   }
-  return transporter;
+  return jwtClient;
 }
 
-function template({ title, message, actorName }) {
+function template({ message, actorName }) {
   return `
   <div style="background:#F4F1EC;padding:32px 16px;font-family:Segoe UI,Arial,sans-serif;">
     <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #ECE7E2;">
@@ -41,17 +42,29 @@ function template({ title, message, actorName }) {
   </div>`;
 }
 
-/** Envía un correo de notificación. Nunca lanza — falla en silencio si no hay SMTP configurado. */
+function buildRawMessage({ to, subject, html }) {
+  const mail = new MailComposer({ from: `"AMBARC" <${SENDER}>`, to, subject, html });
+  return new Promise((resolve, reject) => {
+    mail.compile().build((err, message) => {
+      if (err) return reject(err);
+      resolve(message.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''));
+    });
+  });
+}
+
+/** Envía un correo de notificación vía Gmail API (cuenta de servicio + DWD). Nunca lanza. */
 async function sendNotificationEmail({ to, title, message, actorName }) {
   try {
-    const t = getTransporter();
-    if (!t || !to) return;
-    await t.sendMail({
-      from: `"AMBARC" <${process.env.EMAIL_USER}>`,
-      to,
-      subject: title,
-      html: template({ title, message, actorName }),
+    const client = getClient();
+    if (!client || !to) return;
+    const { token } = await client.getAccessToken();
+    const raw = await buildRawMessage({ to, subject: title, html: template({ message, actorName }) });
+    const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw }),
     });
+    if (!res.ok) console.error('Gmail API send failed:', res.status, await res.text());
   } catch (err) {
     console.error('sendNotificationEmail failed:', err.message);
   }
