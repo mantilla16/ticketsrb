@@ -916,7 +916,7 @@ export default function SolicitudesView({ user, showToast, users = [], onProject
 
       {/* Chips de estado */}
       <div className="sol-filter-chips">
-        {[{ key: 'all', label: 'Todas' }, ...STATUSES.map(s => ({ key: s, label: STATUS_MAP[s].label }))].map(({ key, label }) => (
+        {[{ key: 'all', label: 'Todas' }, ...STATUSES.filter(s => s !== 'recibido').map(s => ({ key: s, label: STATUS_MAP[s].label }))].map(({ key, label }) => (
           <button key={key}
             className={`sol-chip${filter === key ? ' sol-chip--active' : ''}`}
             onClick={() => setFilter(key)}>
