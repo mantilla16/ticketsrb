@@ -96,24 +96,18 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      <div style={{
-        position: 'fixed', inset: 0, overflow: 'hidden', zIndex: 0, pointerEvents: 'none',
-      }}>
-        <div style={{ position: 'absolute', top: -120, left: -120, width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(67,97,238,.18) 0%, transparent 70%)' }} />
-        <div style={{ position: 'absolute', bottom: -100, right: -80, width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,196,140,.12) 0%, transparent 70%)' }} />
-      </div>
-
       <div className="login-box" style={{ position: 'relative', zIndex: 1 }}>
         {/* Logo */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-          <img src="/logo-symbol-192.png" alt="" style={{ width: 60, height: 60, objectFit: 'contain' }} />
+        <div className="login-anim" style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, position: 'relative' }}>
+          <span className="login-logo-glow" />
+          <img src="/logo-symbol-192.png" alt="" className="login-logo-float" style={{ width: 60, height: 60, objectFit: 'contain' }} />
         </div>
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+        <div className="login-anim" style={{ textAlign: 'center', marginBottom: 20, animationDelay: '70ms' }}>
           <div className="login-logo" style={{ fontSize: 26 }}>AMBAR<span>C</span></div>
           <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.35)', marginTop: 2, letterSpacing: '.04em' }}>GESTIÓN DE PROYECTOS</div>
         </div>
 
-        <div className="login-tabs">
+        <div className="login-anim login-tabs" style={{ animationDelay: '140ms' }}>
           <button className={`login-tab${tab === 'login' ? ' active' : ''}`} onClick={() => switchTab('login')}>
             Iniciar sesión
           </button>
@@ -133,7 +127,7 @@ export default function Login() {
           </div>
         )}
 
-        <form onSubmit={submit}>
+        <form onSubmit={submit} className="login-anim" style={{ animationDelay: '200ms' }}>
           {tab === 'register' && (
             <div className="form-group">
               <label className="form-label">Nombre completo</label>
@@ -214,7 +208,7 @@ export default function Login() {
 
         {/* Google Sign-In */}
         {googleId && (
-          <>
+          <div className="login-anim" style={{ animationDelay: '260ms' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '18px 0 14px' }}>
               <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.1)' }} />
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,.3)' }}>o continúa con</span>
@@ -224,11 +218,11 @@ export default function Login() {
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.25)', textAlign: 'center', marginTop: 8 }}>
               Solo cuentas de Google {ALLOWED_DOMAIN}
             </div>
-          </>
+          </div>
         )}
 
         {tab === 'login' && (
-          <p style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: 'var(--text3)' }}>
+          <p className="login-anim" style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: 'var(--text3)', animationDelay: '320ms' }}>
             ¿No tienes cuenta?{' '}
             <button onClick={() => switchTab('register')} style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'var(--font)' }}>
               Regístrate aquí
