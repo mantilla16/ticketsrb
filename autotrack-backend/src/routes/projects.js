@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const pool = require('../config/database');
 const auth = require('../middleware/auth');
+const requireRole = require('../middleware/requireRole');
 const { body, validationResult } = require('express-validator');
 const { notify } = require('../utils/notify');
 
@@ -8,6 +9,9 @@ const STATUS_LABEL = {
   backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
   testing: 'En testing', done: 'Finalizado', soporte: 'Soporte',
 };
+
+const TEAM_LEADS        = ['admin', 'leader_analytics'];
+const RESTRICTED_EDITORS = ['engineer', 'member_analytics'];
 
 // Responsables actuales de un proyecto (para notificaciones)
 async function projectPeople(id) {
@@ -21,6 +25,25 @@ async function projectPeople(id) {
     status: p.status,
     ids: [p.assignee_id, p.co_assignee_id, p.general_assignee_id],
   };
+}
+
+// Los líderes (admin/leader_analytics) gestionan todo; ingenieros/miembros solo lo suyo.
+// Devuelve true si puede continuar; si no, ya envió la respuesta 403/404.
+async function assertProjectAccess(req, res, projectId) {
+  const role = req.user.role;
+  if (TEAM_LEADS.includes(role)) return true;
+  if (!RESTRICTED_EDITORS.includes(role)) {
+    res.status(403).json({ error: 'No tienes permisos para esta acción' });
+    return false;
+  }
+  const people = await projectPeople(projectId);
+  if (!people) { res.status(404).json({ error: 'Proyecto no encontrado' }); return false; }
+  const owns = people.ids.filter(Boolean).map(Number).includes(Number(req.user.id));
+  if (!owns) {
+    res.status(403).json({ error: 'Solo puedes modificar proyectos asignados a ti' });
+    return false;
+  }
+  return true;
 }
 
 function uid() {
@@ -174,7 +197,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // POST /api/projects
-router.post('/', auth, validators, async (req, res) => {
+router.post('/', auth, requireRole('admin', 'leader_analytics', 'member_analytics'), validators, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
@@ -213,6 +236,7 @@ router.put('/:id', auth, validators, async (req, res) => {
           coAssigneeId, generalAssigneeId, participationAuto, participationAnalitica, progressAuto, progressAnalitica,
           supportClosed } = req.body;
   try {
+    if (!(await assertProjectAccess(req, res, req.params.id))) return;
     const before = await projectPeople(req.params.id);
     const result = await pool.query(`
       UPDATE projects SET
@@ -258,7 +282,7 @@ router.put('/:id', auth, validators, async (req, res) => {
 });
 
 // DELETE /api/projects/:id
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, requireRole('admin', 'leader_analytics'), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM projects WHERE id=$1 RETURNING id', [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
@@ -279,6 +303,7 @@ router.post('/:id/logs', auth, [
 
   const { text, progress } = req.body;
   try {
+    if (!(await assertProjectAccess(req, res, req.params.id))) return;
     await pool.query(
       'INSERT INTO project_logs (project_id, author_id, text, progress) VALUES ($1,$2,$3,$4)',
       [req.params.id, req.user.id, text, progress]
@@ -303,8 +328,8 @@ router.post('/:id/logs', auth, [
   }
 });
 
-// POST /api/projects/:id/tasks
-router.post('/:id/tasks', auth, [
+// POST /api/projects/:id/tasks — solo líderes crean tareas
+router.post('/:id/tasks', auth, requireRole(...TEAM_LEADS), [
   body('title').notEmpty().trim().withMessage('Título requerido'),
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -334,6 +359,7 @@ router.post('/:id/tasks', auth, [
 router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
   const { done, title, dueDate } = req.body;
   try {
+    if (!(await assertProjectAccess(req, res, req.params.id))) return;
     const result = await pool.query(
       `UPDATE project_tasks
        SET done = COALESCE($1, done), title = COALESCE($2, title), due_date = COALESCE($3, due_date)
@@ -357,8 +383,8 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/projects/:id/tasks/:taskId
-router.delete('/:id/tasks/:taskId', auth, async (req, res) => {
+// DELETE /api/projects/:id/tasks/:taskId — solo líderes eliminan tareas
+router.delete('/:id/tasks/:taskId', auth, requireRole(...TEAM_LEADS), async (req, res) => {
   try {
     const result = await pool.query(
       'DELETE FROM project_tasks WHERE id = $1 AND project_id = $2 RETURNING id',

@@ -1,21 +1,21 @@
 const { JWT } = require('google-auth-library');
 const MailComposer = require('nodemailer/lib/mail-composer');
 
-const APP_URL = process.env.FRONTEND_URL_PUBLIC || 'https://ambarc.americana.edu.co';
-const SENDER  = process.env.REPORT_FROM_EMAIL;
+const APP_URL   = process.env.FRONTEND_URL_PUBLIC || 'https://ambarc.americana.edu.co';
+const FALLBACK_SENDER = process.env.REPORT_FROM_EMAIL;
 
-let jwtClient = null;
-function getClient() {
-  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !SENDER) return null;
-  if (!jwtClient) {
-    jwtClient = new JWT({
+const clients = new Map(); // un JWT client por buzón impersonado (el autor de cada cambio)
+function getClient(email) {
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !email) return null;
+  if (!clients.has(email)) {
+    clients.set(email, new JWT({
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
       key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
       scopes: ['https://www.googleapis.com/auth/gmail.send'],
-      subject: SENDER, // impersona a este buzón vía Domain-Wide Delegation
-    });
+      subject: email, // impersona este buzón vía Domain-Wide Delegation
+    }));
   }
-  return jwtClient;
+  return clients.get(email);
 }
 
 function template({ message, actorName }) {
@@ -42,8 +42,9 @@ function template({ message, actorName }) {
   </div>`;
 }
 
-function buildRawMessage({ to, subject, html }) {
-  const mail = new MailComposer({ from: `"AMBARC" <${SENDER}>`, to, subject, html });
+function buildRawMessage({ to, subject, html, fromEmail, fromName }) {
+  const from = fromName ? `"${fromName}" <${fromEmail}>` : fromEmail;
+  const mail = new MailComposer({ from, to, subject, html });
   return new Promise((resolve, reject) => {
     mail.compile().build((err, message) => {
       if (err) return reject(err);
@@ -52,13 +53,21 @@ function buildRawMessage({ to, subject, html }) {
   });
 }
 
-/** Envía un correo de notificación vía Gmail API (cuenta de servicio + DWD). Nunca lanza. */
-async function sendNotificationEmail({ to, title, message, actorName }) {
+/**
+ * Envía un correo de notificación vía Gmail API (cuenta de servicio + DWD).
+ * Sale desde el buzón de quien hizo el cambio (actorEmail) — así las respuestas
+ * le llegan directo a esa persona, no a una cuenta genérica. Nunca lanza.
+ */
+async function sendNotificationEmail({ to, title, message, actorName, actorEmail }) {
   try {
-    const client = getClient();
+    const senderEmail = actorEmail || FALLBACK_SENDER;
+    const client = getClient(senderEmail);
     if (!client || !to) return;
     const { token } = await client.getAccessToken();
-    const raw = await buildRawMessage({ to, subject: title, html: template({ message, actorName }) });
+    const raw = await buildRawMessage({
+      to, subject: title, html: template({ message, actorName }),
+      fromEmail: senderEmail, fromName: actorName,
+    });
     const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

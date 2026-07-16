@@ -17,7 +17,12 @@ const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', c
 
 export default function DetailModal({ open, project, onClose, onEdit, onAddLog, onCloseSupport, onAddTask, onToggleTask, onDeleteTask, currentUser, users = [] }) {
   const isManager = currentUser?.role === 'manager';
-  const isLeader  = ['admin', 'leader_analytics', 'member_analytics'].includes(currentUser?.role);
+  // Líderes reales gestionan todo; ingenieros/miembros de Analítica solo lo suyo.
+  const isLeader     = ['admin', 'leader_analytics'].includes(currentUser?.role);
+  const isRestricted = ['engineer', 'member_analytics'].includes(currentUser?.role);
+  const isOwner = project && [project.assigneeId, project.coAssigneeId, project.generalAssigneeId]
+    .filter(v => v != null).map(Number).includes(Number(currentUser?.id));
+  const canEdit = isLeader || (isRestricted && isOwner);
   const [logText, setLogText] = useState('');
   const [logProg, setLogProg] = useState(0);
   const [saving, setSaving]   = useState(false);
@@ -78,7 +83,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            {!isManager && <button className="btn btn-ghost btn-sm" onClick={() => onEdit(project.id)}>Editar</button>}
+            {canEdit && <button className="btn btn-ghost btn-sm" onClick={() => onEdit(project.id)}>Editar</button>}
             <button className="modal-close" onClick={onClose}>×</button>
           </div>
         </div>
@@ -225,8 +230,8 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                   <div key={t.id} className="task-row">
                     <button
                       className={`task-check${t.done ? ' task-check--done' : ''}`}
-                      disabled={isManager}
-                      onClick={() => !isManager && onToggleTask(project.id, t.id, !t.done)}
+                      disabled={!canEdit}
+                      onClick={() => canEdit && onToggleTask(project.id, t.id, !t.done)}
                     >
                       {t.done && (
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
@@ -284,8 +289,8 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
             )}
           </div>
 
-          {/* Add log — hidden for managers */}
-          {!isManager && (
+          {/* Add log — solo el responsable del proyecto o un líder */}
+          {canEdit && (
             <div style={{ marginTop: 14, background: 'var(--bg)', borderRadius: 'var(--radius-sm)', padding: 16, border: '1px solid var(--border)' }}>
               {error && <div className="login-error" style={{ marginBottom: 10 }}>{error}</div>}
               <div style={{ marginBottom: 8 }}>
@@ -313,10 +318,15 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
               </button>
             </div>
           )}
+          {!canEdit && !isManager && (
+            <div style={{ marginTop: 14, fontSize: 12, color: 'var(--text3)', textAlign: 'center', padding: '10px 0' }}>
+              Solo el responsable de este proyecto puede actualizarlo — tú puedes ver la información, pero no editarla.
+            </div>
+          )}
         </div>
 
         <div className="modal-footer">
-          {project.status === 'soporte' && isLeader && (
+          {project.status === 'soporte' && canEdit && (
             <button
               className="btn btn-sm"
               style={{ marginRight: 'auto', background: 'var(--c-soporte-bg)', color: 'var(--c-soporte)' }}

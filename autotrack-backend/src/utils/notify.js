@@ -53,12 +53,13 @@ async function notify(recipientIds, actorId, projectId, type, message) {
 
     const [{ rows: recipients }, { rows: actorRows }] = await Promise.all([
       pool.query('SELECT id, email, name FROM users WHERE id = ANY($1)', [targets]),
-      actorId ? pool.query('SELECT name FROM users WHERE id = $1', [actorId]) : { rows: [] },
+      actorId ? pool.query('SELECT name, email FROM users WHERE id = $1', [actorId]) : { rows: [] },
     ]);
-    const actorName = actorRows[0]?.name || null;
+    const actorName  = actorRows[0]?.name  || null;
+    const actorEmail = actorRows[0]?.email || null;
     const title = TYPE_TITLE[type] || 'Notificación de AMBARC';
     await Promise.allSettled(
-      recipients.map(r => sendNotificationEmail({ to: r.email, title, message, actorName }))
+      recipients.map(r => sendNotificationEmail({ to: r.email, title, message, actorName, actorEmail }))
     );
   } catch (err) {
     console.error('notify failed:', err.message);

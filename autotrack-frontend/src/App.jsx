@@ -244,7 +244,13 @@ export default function App() {
   const handleMoveCard = async (projectId, newStatus) => {
     const p = projects.find(x => x.id === projectId);
     if (!p || p.status === newStatus) return;
-    if (!canManage) {
+    if (!isLeader) {
+      const owns = [p.assigneeId, p.coAssigneeId, p.generalAssigneeId]
+        .filter(v => v != null).map(Number).includes(Number(user.id));
+      if (!owns) {
+        showToast('Solo el responsable de este proyecto puede modificarlo', 'error');
+        return;
+      }
       const allowed = ENGINEER_FLOW[p.status] || [];
       if (!allowed.includes(newStatus)) {
         showToast('Solo el líder puede realizar este cambio de estado', 'error');
