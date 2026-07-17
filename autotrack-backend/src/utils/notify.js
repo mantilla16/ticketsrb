@@ -50,7 +50,7 @@ function ensureTable() {
  * Crea notificaciones para los destinatarios indicados.
  * Ignora nulos, duplicados y al propio actor. Nunca lanza (fire-and-forget).
  */
-async function notify(recipientIds, actorId, projectId, type, message) {
+async function notify(recipientIds, actorId, projectId, type, message, meta) {
   try {
     const targets = [...new Set(recipientIds.filter(Boolean))]
       .filter(id => Number(id) !== Number(actorId));
@@ -78,7 +78,7 @@ async function notify(recipientIds, actorId, projectId, type, message) {
     const actorEmail = actorRows[0]?.email || null;
     const title = TYPE_TITLE[type] || 'Notificación de AMBARC';
     await Promise.allSettled(
-      recipients.map(r => sendNotificationEmail({ to: r.email, title, message, actorName, actorEmail }))
+      recipients.map(r => sendNotificationEmail({ to: r.email, title, message, actorName, actorEmail, type, projectId, meta }))
     );
   } catch (err) {
     console.error('notify failed:', err.message);

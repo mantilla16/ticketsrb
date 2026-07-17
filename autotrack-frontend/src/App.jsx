@@ -101,6 +101,19 @@ export default function App() {
     if (user) setSection(defaultSection(user.role));
   }, [user?.role]);
 
+  // Enlace directo desde un correo de notificación (?project=<id>) — abre el detalle una vez cargados los proyectos
+  useEffect(() => {
+    if (!projects.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const pid = params.get('project');
+    if (pid && projects.some(p => p.id === pid)) {
+      setDetailModal({ open: true, projectId: pid });
+      params.delete('project');
+      const rest = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (rest ? `?${rest}` : ''));
+    }
+  }, [projects]);
+
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--text2)', fontFamily: 'var(--font)', gap: 10 }}>
       <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', animation: 'dotPulse 1s ease-in-out infinite' }} />

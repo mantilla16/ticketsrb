@@ -192,6 +192,8 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member
           message: `rechazó tu solicitud «${escapeHtml(sol.title)}»${notes ? `.<br><br><b>Motivo:</b> ${escapeHtml(notes)}` : '.'}`,
           actorName:  actor.rows[0]?.name  || null,
           actorEmail: actor.rows[0]?.email || null,
+          type: 'solicitud',
+          meta: { projectName: sol.title },
         });
       }
     } else if (status === 'aceptado' && sol.fecha_reunion) {
@@ -212,6 +214,8 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member
           title: `Reunión agendada — "${sol.title}"`,
           message: `aceptó tu solicitud «${escapeHtml(sol.title)}» y agendó la reunión de levantamiento para el <b>${when}</b>.${notes ? `<br><br><b>Nota:</b> ${escapeHtml(notes)}` : ''}`,
           actorName, actorEmail,
+          type: 'solicitud',
+          meta: { projectName: sol.title },
         });
       }
 
