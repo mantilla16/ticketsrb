@@ -255,6 +255,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .avatar    { width:36px; height:36px; border-radius:50%; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; }
 .avatar-sm { width:28px; height:28px; border-radius:50%; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; }
 .avatar-xs { width:22px; height:22px; border-radius:50%; font-size:9px;  font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; }
+.at-card-avatars { display: flex; align-items: center; flex-shrink: 0; }
+.at-card-avatars .avatar-xs { border: 2px solid var(--surface); margin-left: -7px; }
+.at-card-avatars .avatar-xs:first-child { margin-left: 0; }
+.at-card-avatar-more {
+  width: 22px; height: 22px; border-radius: 50%; margin-left: -7px;
+  border: 2px solid var(--surface); background: var(--text3); color: #fff;
+  font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
 .eng-c-0 { background:#F97316; }
 .eng-c-1 { background:#C96A1A; }
 .eng-c-2 { background:#92400E; }
@@ -1044,6 +1052,21 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .pm-field-label svg { color: var(--accent); flex-shrink: 0; }
 .pm-field .pm-input { border: none; padding: 0; width: 100%; background: transparent; box-shadow: none; }
 .pm-field .pm-input:focus { box-shadow: none; }
+
+.pm-assignee-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.pm-assignee-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 12px 6px 6px; border-radius: var(--radius-pill);
+  border: var(--neu-border); background: var(--surface);
+  font-size: 12.5px; font-weight: 600; color: var(--text2);
+  font-family: var(--font); cursor: pointer; transition: all .2s ease-out;
+  box-shadow: 0 3px 8px rgba(175,150,130,.10);
+}
+.pm-assignee-chip:hover { border-color: var(--accent); color: var(--accent); }
+.pm-assignee-chip--active {
+  border-color: var(--accent); background: var(--accent-light); color: #C96A1A;
+}
+.pm-assignee-chip:disabled { cursor: not-allowed; opacity: .6; }
 .pm-input {
   border: none; border-radius: var(--radius-sm);
   padding: 10px 13px; font-size: 13px; color: var(--text);

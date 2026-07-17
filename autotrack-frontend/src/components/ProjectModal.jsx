@@ -3,7 +3,7 @@ import { colorClass, fmtLogDate } from '../utils/helpers';
 
 const EMPTY = {
   name: '', description: '', client: '',
-  status: 'backlog', priority: 'mid', assigneeId: '',
+  status: 'backlog', priority: 'mid', assigneeIds: [],
   startDate: '', dueDate: '', progress: 0,
   docUrl: '',
   coAssigneeId: '', generalAssigneeId: '', participationAuto: '', participationAnalitica: '',
@@ -60,6 +60,13 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const [isBlock, setIsBlock]   = useState(false);
   const [logSaving, setLogSaving] = useState(false);
 
+  // Responsables seleccionables según el equipo del proyecto
+  const assignablePool = areaSel === 'analitica'
+    ? users.filter(u => ['member_analytics', 'leader_analytics'].includes(u.role))
+    : areaSel === 'compartido'
+      ? users.filter(u => ['engineer', 'admin', 'member_analytics', 'leader_analytics'].includes(u.role))
+      : users.filter(u => u.role === 'engineer' || u.role === 'admin');
+
   useEffect(() => {
     if (open) {
       setDelConfirm(false);
@@ -78,7 +85,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
           client:                project.client || '',
           status:                project.status,
           priority:              project.priority || 'mid',
-          assigneeId:            project.assigneeId != null ? String(project.assigneeId) : '',
+          assigneeIds:           (project.assigneeIds || (project.assigneeId != null ? [project.assigneeId] : [])).map(String),
           startDate:             project.startDate || '',
           dueDate:               project.dueDate || '',
           progress:              project.progress || 0,
@@ -96,7 +103,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         setAreaSel(defaultArea);
         setTypeSel('proyecto');
         setShowDoc(false);
-        setForm({ ...EMPTY, status: defStatus || 'backlog', assigneeId: defAssigneeId != null ? String(defAssigneeId) : '' });
+        setForm({ ...EMPTY, status: defStatus || 'backlog', assigneeIds: defAssigneeId != null ? [String(defAssigneeId)] : [] });
         setTasks([]);
         setLogs([]);
       }
@@ -105,6 +112,14 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
   const tipoFinal = typeSel === 'flash' ? 'asignacion_flash' : areaSel;
+
+  const toggleAssignee = (id) => {
+    const key = String(id);
+    setForm(f => ({
+      ...f,
+      assigneeIds: f.assigneeIds.includes(key) ? f.assigneeIds.filter(x => x !== key) : [...f.assigneeIds, key],
+    }));
+  };
 
   const addLocalTask = () => {
     if (!taskTitle.trim()) return;
@@ -137,7 +152,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         client:                form.client.trim() || null,
         status:                form.status,
         priority:              form.priority,
-        assigneeId:            form.assigneeId ? parseInt(form.assigneeId) : null,
+        assigneeIds:           form.assigneeIds.map(Number),
         startDate:             form.startDate || null,
         dueDate:               form.dueDate || null,
         progress:              parseInt(form.progress) || 0,
@@ -230,15 +245,30 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                 </label>
                 <input className="pm-input" value={form.name} onChange={set('name')} placeholder="Ej. Dashboard de seguimiento de datos" disabled={lockCore} />
               </div>
-              <div className="pm-field">
+              <div className="pm-field" style={{ gridColumn: '1 / -1' }}>
                 <label className="pm-field-label">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  Responsable
+                  Responsable(s) — puedes elegir más de uno
                 </label>
-                <select className="pm-input" value={form.assigneeId} onChange={set('assigneeId')} disabled={isEdit && !isLeader}>
-                  <option value="">Selecciona un responsable</option>
-                  {users.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
-                </select>
+                <div className="pm-assignee-grid">
+                  {assignablePool.map(u => {
+                    const active = form.assigneeIds.includes(String(u.id));
+                    return (
+                      <button key={u.id} type="button"
+                        className={`pm-assignee-chip${active ? ' pm-assignee-chip--active' : ''}`}
+                        disabled={isEdit && !isLeader}
+                        onClick={() => toggleAssignee(u.id)}>
+                        <span className={`avatar-xs ${colorClass(u.colorIndex)}`}>{u.initials}</span>
+                        {u.name}
+                        {active && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto' }}>
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div className="pm-field">
                 <label className="pm-field-label">

@@ -50,7 +50,7 @@ function projectPayload(p, overrides = {}) {
   return {
     name: p.name, description: p.description, client: p.client,
     status: p.status, priority: p.priority || 'mid',
-    assigneeId: p.assigneeId, startDate: p.startDate,
+    assigneeIds: p.assigneeIds || (p.assigneeId ? [p.assigneeId] : []), startDate: p.startDate,
     dueDate: p.dueDate, progress: p.progress || 0,
     tipo: p.tipo || 'automatizacion', docUrl: p.docUrl || null,
     coAssigneeId: p.coAssigneeId || null,
@@ -246,7 +246,7 @@ export default function App() {
     const p = projects.find(x => x.id === projectId);
     if (!p || p.status === newStatus) return;
     if (!isLeader) {
-      const owns = [p.assigneeId, p.coAssigneeId, p.generalAssigneeId]
+      const owns = [...(p.assigneeIds || [p.assigneeId]), p.coAssigneeId, p.generalAssigneeId]
         .filter(v => v != null).map(Number).includes(Number(user.id));
       if (!owns) {
         showToast('Solo el responsable de este proyecto puede modificarlo', 'error');

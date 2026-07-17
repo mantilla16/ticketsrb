@@ -28,7 +28,7 @@ export default function KanbanBoard({ projects, users = [], onCardClick, onAddCl
   const filtered = projects.filter(p =>
     (fArea === 'all' || (p.client || '').trim() === fArea) &&
     (fPrio === 'all' || (p.priority || 'mid') === fPrio) &&
-    (fResp === 'all' || String(p.assigneeId) === fResp)
+    (fResp === 'all' || (p.assigneeIds || [p.assigneeId]).map(String).includes(fResp))
   );
 
   const handleDragStart = (project) => {

@@ -21,6 +21,7 @@ export default function KanbanCard({ project, onClick, compact = false, index = 
   const pct  = project.progress || 0;
   const dSt  = dateStatus(project.dueDate);
   const eng  = project.assignee;
+  const people = project.assignees?.length ? project.assignees : (eng ? [eng] : []);
   const pr   = project.priority || 'mid';
   const tipo = project.tipo || 'automatizacion';
 
@@ -80,9 +81,16 @@ export default function KanbanCard({ project, onClick, compact = false, index = 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="at-card-title">{project.name}</div>
           <div className="at-card-meta">
-            {eng
-              ? <span className={`avatar-xs ${colorClass(eng.colorIndex)}`} title={eng.name}>{eng.initials}</span>
-              : <span style={{ fontSize: 10.5, color: 'var(--text4)', whiteSpace: 'nowrap' }}>Sin asignar</span>}
+            {people.length ? (
+              <span className="at-card-avatars" title={people.map(p => p.name).join(', ')}>
+                {people.slice(0, 3).map(p => (
+                  <span key={p.id} className={`avatar-xs ${colorClass(p.colorIndex)}`}>{p.initials}</span>
+                ))}
+                {people.length > 3 && <span className="at-card-avatar-more">+{people.length - 3}</span>}
+              </span>
+            ) : (
+              <span style={{ fontSize: 10.5, color: 'var(--text4)', whiteSpace: 'nowrap' }}>Sin asignar</span>
+            )}
             <span className="at-card-bar">
               <span style={{ width: `${pct}%`, background: pct >= 80 ? '#22C55E' : 'var(--accent)' }} />
             </span>

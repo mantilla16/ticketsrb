@@ -20,7 +20,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   // Líderes reales gestionan todo; ingenieros/miembros de Analítica solo lo suyo.
   const isLeader     = ['admin', 'leader_analytics'].includes(currentUser?.role);
   const isRestricted = ['engineer', 'member_analytics'].includes(currentUser?.role);
-  const isOwner = project && [project.assigneeId, project.coAssigneeId, project.generalAssigneeId]
+  const isOwner = project && [...(project.assigneeIds || [project.assigneeId]), project.coAssigneeId, project.generalAssigneeId]
     .filter(v => v != null).map(Number).includes(Number(currentUser?.id));
   const canEdit = isLeader || (isRestricted && isOwner);
   const [logText, setLogText] = useState('');
@@ -34,6 +34,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
 
   const pct  = project.progress || 0;
   const eng  = project.assignee;
+  const people = project.assignees?.length ? project.assignees : (eng ? [eng] : []);
   const dSt  = dateStatus(project.dueDate);
   const pr   = project.priority || 'mid';
   const tipo = project.tipo || 'automatizacion';
@@ -78,7 +79,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
             </div>
             <div className="modal-title">{project.name}</div>
             <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
-              {eng ? `Asignado a ${eng.name}` : 'Sin asignar'}
+              {people.length ? `Asignado a ${people.map(p => p.name).join(', ')}` : 'Sin asignar'}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
@@ -99,12 +100,16 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                 </div>
               </div>
             )}
-            {eng && (
+            {people.length > 0 && (
               <div>
                 <div className="detail-label">{tipo === 'compartido' ? 'Resp. Automatización' : 'Responsable'}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                  <div className={`avatar-xs ${colorClass(eng.colorIndex)}`}>{eng.initials}</div>
-                  <span style={{ fontSize: 12, fontWeight: 500 }}>{eng.name.split(' ')[0]}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                  {people.map(p => (
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div className={`avatar-xs ${colorClass(p.colorIndex)}`}>{p.initials}</div>
+                      <span style={{ fontSize: 12, fontWeight: 500 }}>{p.name.split(' ')[0]}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

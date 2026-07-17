@@ -234,7 +234,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
 
   /* ── Carga del equipo ── */
   const teamRows = team.map(u => {
-    const mine    = projects.filter(p => p.assigneeId === u.id || p.coAssigneeId === u.id);
+    const mine    = projects.filter(p => (p.assigneeIds || [p.assigneeId]).includes(u.id) || p.coAssigneeId === u.id);
     const active  = mine.filter(p => ['progress', 'testing'].includes(p.status));
     const riesgos = mine.filter(isOverdue).length;
     const bloqueos = mine.filter(p => p.status === 'standby').length;

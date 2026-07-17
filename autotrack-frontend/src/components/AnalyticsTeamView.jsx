@@ -78,7 +78,7 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
           {users.map(u => {
             const allForUser = anaProjects
               .filter(byTab)
-              .filter(p => p.assigneeId === u.id || p.coAssigneeId === u.id);
+              .filter(p => (p.assigneeIds || [p.assigneeId]).includes(u.id) || p.coAssigneeId === u.id);
             // Los finalizados quedan solo en Historial — aquí no se listan como tarjetas
             const list   = allForUser.filter(p => p.status !== 'done');
             const active = list.filter(p => ['progress', 'testing'].includes(p.status)).length;

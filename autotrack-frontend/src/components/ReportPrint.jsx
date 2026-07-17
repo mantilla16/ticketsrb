@@ -87,7 +87,7 @@ export default function ReportPrint({ projects, users, solicitudes = [], periodL
   const team = users
     .filter(u => ['engineer', 'member_analytics', 'leader_analytics'].includes(u.role))
     .map(u => {
-      const assigned = projects.filter(p => p.assigneeId === u.id);
+      const assigned = projects.filter(p => (p.assigneeIds || [p.assigneeId]).includes(u.id));
       const active   = assigned.filter(p => ['progress', 'testing'].includes(p.status)).length;
       const pct      = assigned.length ? Math.round(active / assigned.length * 100) : 0;
       return { u, total: assigned.length, pct };

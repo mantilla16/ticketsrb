@@ -13,6 +13,44 @@ const STATUS_LABEL = {
 const TEAM_LEADS        = ['admin', 'leader_analytics'];
 const RESTRICTED_EDITORS = ['engineer', 'member_analytics'];
 
+// Tabla de responsables múltiples — la crea el propio usuario de la app para evitar problemas de GRANT
+let assigneesReady = null;
+function ensureAssigneesTable() {
+  if (!assigneesReady) {
+    assigneesReady = pool.query(`
+      CREATE TABLE IF NOT EXISTS project_assignees (
+        project_id VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        PRIMARY KEY (project_id, user_id)
+      )
+    `).then(() => pool.query(`
+      INSERT INTO project_assignees (project_id, user_id)
+      SELECT id, assignee_id FROM projects WHERE assignee_id IS NOT NULL
+      ON CONFLICT DO NOTHING
+    `)).catch(err => { assigneesReady = null; throw err; });
+  }
+  return assigneesReady;
+}
+
+// Reemplaza el conjunto completo de responsables de un proyecto
+async function syncAssignees(projectId, userIds) {
+  await ensureAssigneesTable();
+  await pool.query('DELETE FROM project_assignees WHERE project_id=$1', [projectId]);
+  const ids = [...new Set((userIds || []).filter(Boolean).map(Number))];
+  if (!ids.length) return;
+  const values = ids.map((_, i) => `($1,$${i + 2})`).join(',');
+  await pool.query(
+    `INSERT INTO project_assignees (project_id, user_id) VALUES ${values} ON CONFLICT DO NOTHING`,
+    [projectId, ...ids]
+  );
+}
+
+async function extraAssigneeIds(projectId) {
+  await ensureAssigneesTable();
+  const { rows } = await pool.query('SELECT user_id FROM project_assignees WHERE project_id=$1', [projectId]);
+  return rows.map(r => r.user_id);
+}
+
 // Responsables actuales de un proyecto (para notificaciones)
 async function projectPeople(id) {
   const { rows } = await pool.query(
@@ -20,10 +58,11 @@ async function projectPeople(id) {
   );
   if (!rows.length) return null;
   const p = rows[0];
+  const extra = await extraAssigneeIds(id);
   return {
     name: p.name,
     status: p.status,
-    ids: [p.assignee_id, p.co_assignee_id, p.general_assignee_id],
+    ids: [p.assignee_id, p.co_assignee_id, p.general_assignee_id, ...extra],
   };
 }
 
@@ -70,7 +109,13 @@ function fmtDate(d) {
   return d ? d.toISOString().slice(0, 10) : null;
 }
 
-function fmtProject(p, logs = [], tasks = []) {
+function fmtProject(p, logs = [], tasks = [], extraAssignees = []) {
+  const primary = p.assignee_id ? {
+    id: p.assignee_id, name: p.assignee_name, initials: p.assignee_initials, colorIndex: p.assignee_color,
+  } : null;
+  const assignees = primary ? [primary] : [];
+  extraAssignees.forEach(u => { if (!assignees.some(a => a.id === u.id)) assignees.push(u); });
+
   return {
     id: p.id,
     name: p.name,
@@ -81,12 +126,9 @@ function fmtProject(p, logs = [], tasks = []) {
     tipo: p.tipo || 'automatizacion',
     docUrl: p.doc_url || null,
     assigneeId: p.assignee_id,
-    assignee: p.assignee_id ? {
-      id: p.assignee_id,
-      name: p.assignee_name,
-      initials: p.assignee_initials,
-      colorIndex: p.assignee_color,
-    } : null,
+    assignee: primary,
+    assigneeIds: assignees.map(a => a.id),
+    assignees,
     coAssigneeId: p.co_assignee_id || null,
     coAssignee: p.co_assignee_id ? {
       id: p.co_assignee_id,
@@ -159,7 +201,13 @@ async function fetchProject(id) {
   const tasks = await pool.query(
     'SELECT * FROM project_tasks WHERE project_id = $1 ORDER BY created_at ASC', [id]
   );
-  return fmtProject(rows[0], logs.rows, tasks.rows);
+  await ensureAssigneesTable();
+  const extra = await pool.query(
+    `SELECT u.id, u.name, u.initials, u.color_index AS "colorIndex"
+     FROM project_assignees pa JOIN users u ON pa.user_id = u.id
+     WHERE pa.project_id = $1`, [id]
+  );
+  return fmtProject(rows[0], logs.rows, tasks.rows, extra.rows);
 }
 
 const validators = [
@@ -206,7 +254,19 @@ router.get('/', auth, async (req, res) => {
       tasksByProject[t.project_id].push(t);
     });
 
-    res.json(rows.map(p => fmtProject(p, byProject[p.id] || [], tasksByProject[p.id] || [])));
+    await ensureAssigneesTable();
+    const assigneesRes = await pool.query(
+      `SELECT pa.project_id, u.id, u.name, u.initials, u.color_index AS "colorIndex"
+       FROM project_assignees pa JOIN users u ON pa.user_id = u.id
+       WHERE pa.project_id = ANY($1)`, [ids]
+    );
+    const assigneesByProject = {};
+    assigneesRes.rows.forEach(a => {
+      if (!assigneesByProject[a.project_id]) assigneesByProject[a.project_id] = [];
+      assigneesByProject[a.project_id].push({ id: a.id, name: a.name, initials: a.initials, colorIndex: a.colorIndex });
+    });
+
+    res.json(rows.map(p => fmtProject(p, byProject[p.id] || [], tasksByProject[p.id] || [], assigneesByProject[p.id] || [])));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -218,8 +278,12 @@ router.post('/', auth, requireRole('admin', 'leader_analytics', 'member_analytic
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, description, client, status, priority, assigneeId, startDate, dueDate, progress, tipo, docUrl,
+  const { name, description, client, status, priority, assigneeId, assigneeIds, startDate, dueDate, progress, tipo, docUrl,
           coAssigneeId, generalAssigneeId, participationAuto, participationAnalitica, progressAuto, progressAnalitica } = req.body;
+  const ids = Array.isArray(assigneeIds) && assigneeIds.length
+    ? [...new Set(assigneeIds.filter(Boolean).map(Number))]
+    : (assigneeId ? [Number(assigneeId)] : []);
+  const primaryAssignee = ids[0] || null;
   const id = uid();
   try {
     await pool.query(`
@@ -227,13 +291,15 @@ router.post('/', auth, requireRole('admin', 'leader_analytics', 'member_analytic
         co_assignee_id, general_assignee_id, participation_auto, participation_analitica, progress_auto, progress_analitica, created_by, was_soporte)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
     `, [id, name, description || null, client || null, status, priority,
-        assigneeId || null, startDate || null, dueDate || null, 0, // el progreso arranca en 0 — lo suben las tareas
+        primaryAssignee, startDate || null, dueDate || null, 0, // el progreso arranca en 0 — lo suben las tareas
         tipo || 'automatizacion', docUrl || null,
         coAssigneeId || null, generalAssigneeId || null,
         participationAuto || null, participationAnalitica || null,
         progressAuto || 0, progressAnalitica || 0, req.user.id, status === 'soporte']);
 
-    notify([assigneeId, coAssigneeId, generalAssigneeId], req.user.id, id,
+    await syncAssignees(id, ids);
+
+    notify([...ids, coAssigneeId, generalAssigneeId], req.user.id, id,
       'assign', `te asignó el proyecto «${name}»`);
 
     const project = await fetchProject(id);
@@ -249,9 +315,13 @@ router.put('/:id', auth, validators, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, description, client, status, priority, assigneeId, startDate, dueDate, progress, tipo, docUrl,
+  const { name, description, client, status, priority, assigneeId, assigneeIds, startDate, dueDate, progress, tipo, docUrl,
           coAssigneeId, generalAssigneeId, participationAuto, participationAnalitica, progressAuto, progressAnalitica,
           supportClosed } = req.body;
+  const ids = Array.isArray(assigneeIds) && assigneeIds.length
+    ? [...new Set(assigneeIds.filter(Boolean).map(Number))]
+    : (assigneeId ? [Number(assigneeId)] : []);
+  const primaryAssignee = ids[0] || null;
   try {
     if (!(await assertProjectAccess(req, res, req.params.id))) return;
     const before = await projectPeople(req.params.id);
@@ -268,7 +338,7 @@ router.put('/:id', auth, validators, async (req, res) => {
         was_soporte=(COALESCE(was_soporte, FALSE) OR $4='soporte'), updated_at=NOW()
       WHERE id=$19 RETURNING id
     `, [name, description || null, client || null, status, priority,
-        assigneeId || null, startDate || null, dueDate || null, progress || 0,
+        primaryAssignee, startDate || null, dueDate || null, progress || 0,
         tipo || 'automatizacion', docUrl || null,
         coAssigneeId || null, generalAssigneeId || null,
         participationAuto || null, participationAnalitica || null,
@@ -277,10 +347,11 @@ router.put('/:id', auth, validators, async (req, res) => {
 
     if (!result.rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
     await recalcProgress(req.params.id);
+    await syncAssignees(req.params.id, ids);
 
     if (before) {
       const oldIds = before.ids.filter(Boolean).map(Number);
-      const newIds = [assigneeId, coAssigneeId, generalAssigneeId].filter(Boolean).map(Number);
+      const newIds = [...ids, coAssigneeId, generalAssigneeId].filter(Boolean).map(Number);
       const added  = newIds.filter(uid => !oldIds.includes(uid));
       const kept   = newIds.filter(uid => oldIds.includes(uid));
       if (added.length) {

@@ -35,7 +35,7 @@ export default function GanttView({ projects, users = [], onRowClick }) {
 
   const active = activeAll.filter(p =>
     (fArea === 'all' || (p.client || '').trim() === fArea) &&
-    (fResp === 'all' || String(p.assigneeId) === fResp) &&
+    (fResp === 'all' || (p.assigneeIds || [p.assigneeId]).map(String).includes(fResp)) &&
     (fStat === 'all' || p.status === fStat) &&
     (fPer === 'all' || (p.dueDate && new Date(p.dueDate) >= monthStart && new Date(p.dueDate) <= monthEnd))
   );
