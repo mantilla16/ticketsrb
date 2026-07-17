@@ -11,8 +11,16 @@ const PORT = process.env.PORT || 3001;
 // Trust nginx proxy so rate-limit sees real client IPs
 app.set('trust proxy', 1);
 
-// Security headers
-app.use(helmet());
+// Security headers — API pura, sin contenido embebible ni recursos externos
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'none'"],
+    },
+  },
+}));
 
 // Global rate limiter: 300 req/min per IP
 app.use(rateLimit({

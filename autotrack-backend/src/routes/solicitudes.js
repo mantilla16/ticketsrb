@@ -32,15 +32,47 @@ const upload = multer({
   },
 });
 
+// La extensión declarada en el nombre del archivo no garantiza el contenido real;
+// se valida además la firma binaria (magic bytes) del archivo ya escrito en disco.
+const MAGIC_SIGNATURES = {
+  '.pdf':  [[0x25, 0x50, 0x44, 0x46]],                                     // %PDF
+  '.png':  [[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]],
+  '.jpg':  [[0xFF, 0xD8, 0xFF]],
+  '.jpeg': [[0xFF, 0xD8, 0xFF]],
+  '.doc':  [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]],             // formato OLE (doc/xls legacy)
+  '.xls':  [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]],
+  '.docx': [[0x50, 0x4B, 0x03, 0x04]],                                    // OOXML = ZIP
+  '.xlsx': [[0x50, 0x4B, 0x03, 0x04]],
+};
+
+function hasValidMagicBytes(filePath, ext) {
+  const sigs = MAGIC_SIGNATURES[ext];
+  if (!sigs) return false;
+  const fd = fs.openSync(filePath, 'r');
+  const header = Buffer.alloc(8);
+  fs.readSync(fd, header, 0, 8, 0);
+  fs.closeSync(fd);
+  return sigs.some(sig => sig.every((byte, i) => header[i] === byte));
+}
+
 // Convierte los errores de multer (tamaño, tipo no permitido) en un 400 claro
 // en vez de dejarlos caer al 500 genérico del handler global.
 function uploadSingle(req, res, next) {
   upload.single('file')(req, res, (err) => {
-    if (!err) return next();
-    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'El archivo supera el límite de 10MB' });
+    if (err) {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'El archivo supera el límite de 10MB' });
+      }
+      return res.status(400).json({ error: err.message || 'No se pudo subir el archivo' });
     }
-    return res.status(400).json({ error: err.message || 'No se pudo subir el archivo' });
+    if (req.file) {
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      if (!hasValidMagicBytes(req.file.path, ext)) {
+        fs.unlink(req.file.path, () => {});
+        return res.status(400).json({ error: 'El contenido del archivo no coincide con su extensión' });
+      }
+    }
+    next();
   });
 }
 
