@@ -12,10 +12,12 @@ const COLS = [
 ];
 
 const DONE_PREVIEW = 5;
+const COL_PREVIEW = 5;
 
 export default function KanbanBoard({ projects, users = [], onCardClick, onAddClick, onMoveCard, onViewHistorial }) {
   const [draggingProject, setDraggingProject] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
+  const [expandedCols, setExpandedCols] = useState(new Set());
   const [fArea, setFArea] = useState('all');
   const [fPrio, setFPrio] = useState('all');
   const [fResp, setFResp] = useState('all');
@@ -51,6 +53,10 @@ export default function KanbanBoard({ projects, users = [], onCardClick, onAddCl
       setDragOverCol(null);
     }
   };
+
+  const toggleCol = (key) => setExpandedCols(s => {
+    const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n;
+  });
 
   const handleDrop = (e, targetStatus) => {
     e.preventDefault();
@@ -111,7 +117,11 @@ export default function KanbanBoard({ projects, users = [], onCardClick, onAddCl
         const sorted = isDone
           ? [...allCards].sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
           : allCards;
-        const cards = isDone ? sorted.slice(0, DONE_PREVIEW) : sorted;
+        const isExpanded  = expandedCols.has(key);
+        const truncatable = !isDone && sorted.length > COL_PREVIEW;
+        const cards = isDone
+          ? sorted.slice(0, DONE_PREVIEW)
+          : (isExpanded ? sorted : sorted.slice(0, COL_PREVIEW));
         const hiddenCount = isDone ? sorted.length - DONE_PREVIEW : 0;
         const isOver = dragOverCol === key && draggingProject?.status !== key;
 
@@ -162,6 +172,14 @@ export default function KanbanBoard({ projects, users = [], onCardClick, onAddCl
                     <path d="M3 3h6l3 9 3-9h6"/><path d="M3 21h18"/><path d="M12 12v9"/>
                   </svg>
                   Historial · {hiddenCount} más
+                </button>
+              ) : truncatable ? (
+                <button className="historial-btn" onClick={() => toggleCol(key)}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                  {isExpanded ? 'Ver menos' : `Ver todos · ${sorted.length - COL_PREVIEW} más`}
                 </button>
               ) : onAddClick ? (
                 <button className="add-card-btn" onClick={() => onAddClick(key)}>
