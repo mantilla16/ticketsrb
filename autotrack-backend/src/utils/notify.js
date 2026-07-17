@@ -10,6 +10,22 @@ const TYPE_TITLE = {
   solicitud: 'Actualización de tu solicitud en AMBARC',
 };
 
+// Enfriamiento por tipo+proyecto para evitar spam de correos (p.ej. agregar/quitar
+// tareas repetidamente). La campana SIEMPRE se actualiza; solo el correo se limita.
+const EMAIL_COOLDOWN_MS = { task: 15 * 60 * 1000 }; // 15 min
+const lastEmailSentAt = new Map(); // key: `${type}:${projectId}` -> timestamp
+
+function emailOnCooldown(type, projectId) {
+  const window = EMAIL_COOLDOWN_MS[type];
+  if (!window || !projectId) return false;
+  const key = `${type}:${projectId}`;
+  const last = lastEmailSentAt.get(key);
+  const now = Date.now();
+  if (last && now - last < window) return true;
+  lastEmailSentAt.set(key, now);
+  return false;
+}
+
 // La tabla se crea desde el propio usuario de la app para evitar problemas de GRANT
 let ready = null;
 function ensureTable() {
@@ -51,6 +67,8 @@ async function notify(recipientIds, actorId, projectId, type, message) {
       `INSERT INTO notifications (user_id, actor_id, project_id, type, message) VALUES ${values.join(',')}`,
       params
     );
+
+    if (emailOnCooldown(type, projectId)) return; // ya se avisó por correo hace poco — solo queda en la campana
 
     const [{ rows: recipients }, { rows: actorRows }] = await Promise.all([
       pool.query('SELECT id, email, name FROM users WHERE id = ANY($1)', [targets]),
