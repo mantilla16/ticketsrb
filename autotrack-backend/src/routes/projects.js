@@ -331,15 +331,15 @@ router.put('/:id', auth, validators, async (req, res) => {
       UPDATE projects SET
         name=$1, description=$2, client=$3, status=$4, priority=$5,
         assignee_id=$6, start_date=$7, due_date=$8,
-        tipo=$10, doc_url=$11,
-        co_assignee_id=$12, general_assignee_id=$13,
-        participation_auto=$14, participation_analitica=$15,
-        progress_auto=$16, progress_analitica=$17,
-        support_closed=COALESCE($18, support_closed),
-        was_soporte=(COALESCE(was_soporte, FALSE) OR $20='soporte'), updated_at=NOW()
-      WHERE id=$19 RETURNING id
+        tipo=$9, doc_url=$10,
+        co_assignee_id=$11, general_assignee_id=$12,
+        participation_auto=$13, participation_analitica=$14,
+        progress_auto=$15, progress_analitica=$16,
+        support_closed=COALESCE($17, support_closed),
+        was_soporte=(COALESCE(was_soporte, FALSE) OR $19='soporte'), updated_at=NOW()
+      WHERE id=$18 RETURNING id
     `, [name, description || null, client || null, status, priority,
-        primaryAssignee, startDate || null, dueDate || null, progress || 0,
+        primaryAssignee, startDate || null, dueDate || null,
         tipo || 'automatizacion', docUrl || null,
         coAssigneeId || null, generalAssigneeId || null,
         participationAuto || null, participationAnalitica || null,
