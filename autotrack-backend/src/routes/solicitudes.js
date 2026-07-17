@@ -7,6 +7,7 @@ const path   = require('path');
 const fs     = require('fs');
 const { notifyInApp } = require('../utils/notify');
 const { sendNotificationEmail } = require('../utils/mailer');
+const { createCalendarEvent } = require('../utils/calendar');
 
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 
@@ -158,14 +159,34 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member
         notifyInApp(sol.user_id, req.user.id, 'solicitud',
           `aceptó tu solicitud «${sol.title}» y agendó la reunión de levantamiento para el ${when}`);
       }
+      const actor = await pool.query('SELECT name, email FROM users WHERE id=$1', [req.user.id]);
+      const actorName  = actor.rows[0]?.name  || null;
+      const actorEmail = actor.rows[0]?.email || null;
+
       if (sol.correo_solicitante) {
-        const actor = await pool.query('SELECT name, email FROM users WHERE id=$1', [req.user.id]);
         sendNotificationEmail({
           to: sol.correo_solicitante,
           title: `Reunión agendada — "${sol.title}"`,
           message: `aceptó tu solicitud «${escapeHtml(sol.title)}» y agendó la reunión de levantamiento para el <b>${when}</b>.${notes ? `<br><br><b>Nota:</b> ${escapeHtml(notes)}` : ''}`,
-          actorName:  actor.rows[0]?.name  || null,
-          actorEmail: actor.rows[0]?.email || null,
+          actorName, actorEmail,
+        });
+      }
+
+      // Evento en el calendario del líder que acepta, con invitación a los contactos
+      if (actorEmail) {
+        const start = new Date(sol.fecha_reunion);
+        const end   = new Date(start.getTime() + 60 * 60000);
+        const attendees = (sol.correo_solicitante || '')
+          .split(',').map(s => s.trim()).filter(Boolean);
+        createCalendarEvent({
+          organizerEmail: actorEmail,
+          summary: `Levantamiento de necesidad — ${sol.title}`,
+          description: [
+            sol.nombre_solicitante && `Solicitante: ${sol.nombre_solicitante}`,
+            sol.area && `Área: ${sol.area}`,
+            sol.description,
+          ].filter(Boolean).join('\n\n'),
+          start, end, attendees,
         });
       }
     }
