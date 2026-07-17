@@ -385,6 +385,8 @@ export default function App() {
                 users={users.filter(u => u.role === 'engineer')}
                 onCardClick={openDetail}
                 onNavigate={changeSection}
+                onToggleTask={handleToggleTask}
+                currentUser={user}
               />
             )}
 
@@ -394,6 +396,8 @@ export default function App() {
                 users={users.filter(u => ['member_analytics', 'leader_analytics'].includes(u.role))}
                 onCardClick={openDetail}
                 onNavigate={changeSection}
+                onToggleTask={handleToggleTask}
+                currentUser={user}
               />
             )}
 

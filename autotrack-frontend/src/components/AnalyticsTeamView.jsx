@@ -28,9 +28,20 @@ const fmtDM = (d) => {
   return { day: dt.getDate(), mon: dt.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '') };
 };
 
-export default function AnalyticsTeamView({ projects, users, onCardClick, onNavigate, variant = 'ana' }) {
+const TEAM_LEADS = ['admin', 'leader_analytics'];
+const RESTRICTED_EDITORS = ['engineer', 'member_analytics'];
+
+export default function AnalyticsTeamView({ projects, users, onCardClick, onNavigate, onToggleTask, currentUser, variant = 'ana' }) {
   const [tab, setTab] = useState('all');
   const [expanded, setExpanded] = useState(new Set());
+
+  const canEditProject = (p) => {
+    const role = currentUser?.role;
+    if (TEAM_LEADS.includes(role)) return true;
+    if (!RESTRICTED_EDITORS.includes(role)) return false;
+    return [...(p.assigneeIds || [p.assigneeId]), p.coAssigneeId, p.generalAssigneeId]
+      .filter(v => v != null).map(Number).includes(Number(currentUser?.id));
+  };
 
   const isAuto = variant === 'auto';
   const ownTipos = isAuto ? ['automatizacion', 'asignacion_flash'] : ['analitica'];
@@ -157,6 +168,24 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
                               )}
                             </div>
                           </div>
+                          {p.tasks?.length > 0 && (() => {
+                            const canToggle = canEditProject(p);
+                            const doneCount = p.tasks.filter(t => t.done).length;
+                            return (
+                              <div className="at-card-tasks" onClick={e => e.stopPropagation()}>
+                                <div className="at-card-tasks-head">
+                                  Tareas <span>{doneCount}/{p.tasks.length}</span>
+                                </div>
+                                {p.tasks.map(t => (
+                                  <label key={t.id} className={`at-task-row${t.done ? ' at-task-row--done' : ''}${!canToggle ? ' at-task-row--locked' : ''}`}>
+                                    <input type="checkbox" checked={t.done} disabled={!canToggle}
+                                      onChange={() => onToggleTask?.(p.id, t.id, !t.done)} />
+                                    <span>{t.title}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            );
+                          })()}
                           {tipoOf(p) === 'compartido' && (
                             <div className="at-card-shared">
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
