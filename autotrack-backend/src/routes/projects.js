@@ -416,13 +416,14 @@ router.post('/:id/logs', auth, [
   }
 });
 
-// POST /api/projects/:id/tasks — solo líderes crean tareas
-router.post('/:id/tasks', auth, requireRole(...TEAM_LEADS), [
+// POST /api/projects/:id/tasks — líderes, o el/los responsable(s) del proyecto
+router.post('/:id/tasks', auth, [
   body('title').notEmpty().trim().withMessage('Título requerido'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
   try {
+    if (!(await assertProjectAccess(req, res, req.params.id))) return;
     await pool.query(
       'INSERT INTO project_tasks (project_id, title, due_date, created_by) VALUES ($1,$2,$3,$4)',
       [req.params.id, req.body.title.trim(), req.body.dueDate || null, req.user.id]
@@ -474,9 +475,10 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/projects/:id/tasks/:taskId — solo líderes eliminan tareas
-router.delete('/:id/tasks/:taskId', auth, requireRole(...TEAM_LEADS), async (req, res) => {
+// DELETE /api/projects/:id/tasks/:taskId — líderes, o el/los responsable(s) del proyecto
+router.delete('/:id/tasks/:taskId', auth, async (req, res) => {
   try {
+    if (!(await assertProjectAccess(req, res, req.params.id))) return;
     const result = await pool.query(
       'DELETE FROM project_tasks WHERE id = $1 AND project_id = $2 RETURNING id',
       [req.params.taskId, req.params.id]

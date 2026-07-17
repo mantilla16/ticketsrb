@@ -38,6 +38,10 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const defaultArea     = isAnalyticsUser ? 'analitica' : 'automatizacion';
   // Ingenieros/miembros editando: solo progreso y flujo de estado — el resto es del líder
   const lockCore  = isEdit && !isLeader;
+  // El responsable del proyecto sí puede armar y gestionar su propio checklist de tareas
+  const isOwner = isEdit && [...(project.assigneeIds || [project.assigneeId]), project.coAssigneeId, project.generalAssigneeId]
+    .filter(v => v != null).map(Number).includes(Number(currentUser?.id));
+  const canManageTasks = isLeader || isOwner;
 
   const [form, setForm]         = useState(EMPTY);
   const [areaSel, setAreaSel]   = useState('automatizacion');
@@ -422,13 +426,13 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
           <div className="pm-box">
             <div className="pm-box-title">Tareas</div>
             <div className="pm-box-sub">
-              {lockCore
-                ? 'Marca las tareas completadas — solo el líder puede crearlas o modificarlas.'
+              {!canManageTasks
+                ? 'Marca las tareas completadas — solo el responsable o un líder pueden crearlas o modificarlas.'
                 : isEdit
                   ? 'Las fechas se usarán para el cronograma y próximas entregas. El progreso del proyecto se calcula según las tareas completadas.'
                   : 'Obligatorio: agrega al menos una tarea. El progreso del proyecto se calculará según las que vayas completando.'}
             </div>
-            {!lockCore && (
+            {canManageTasks && (
               <div className="pm-task-add">
                 <input className="pm-input" style={{ flex: 1 }} placeholder="Nueva tarea..."
                   value={taskTitle} onChange={e => setTaskTitle(e.target.value)}
@@ -458,7 +462,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                         {fmtShort(t.dueDate)}
                       </span>
                     )}
-                    {!lockCore && (
+                    {canManageTasks && (
                       <button type="button" className="task-del" style={{ opacity: 1 }} onClick={() => removeLocalTask(t)} title="Eliminar tarea">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
