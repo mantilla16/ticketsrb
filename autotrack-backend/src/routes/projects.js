@@ -336,7 +336,7 @@ router.put('/:id', auth, validators, async (req, res) => {
         participation_auto=$14, participation_analitica=$15,
         progress_auto=$16, progress_analitica=$17,
         support_closed=COALESCE($18, support_closed),
-        was_soporte=(COALESCE(was_soporte, FALSE) OR $4='soporte'), updated_at=NOW()
+        was_soporte=(COALESCE(was_soporte, FALSE) OR $20='soporte'), updated_at=NOW()
       WHERE id=$19 RETURNING id
     `, [name, description || null, client || null, status, priority,
         primaryAssignee, startDate || null, dueDate || null, progress || 0,
@@ -344,7 +344,7 @@ router.put('/:id', auth, validators, async (req, res) => {
         coAssigneeId || null, generalAssigneeId || null,
         participationAuto || null, participationAnalitica || null,
         progressAuto || 0, progressAnalitica || 0,
-        supportClosed === undefined ? null : supportClosed === true, req.params.id]);
+        supportClosed === undefined ? null : supportClosed === true, req.params.id, status]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
     await recalcProgress(req.params.id);
