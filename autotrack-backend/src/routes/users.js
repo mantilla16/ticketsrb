@@ -24,11 +24,11 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// POST /api/users — admin only: create user
+// POST /api/users — admin only: create user (el acceso siempre es vía Google, sin contraseña)
 router.post('/', auth, requireRole('admin'), async (req, res) => {
-  const { name, email, password, role } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Nombre, correo y contraseña son requeridos' });
+  const { name, email, role } = req.body;
+  if (!name || !email) {
+    return res.status(400).json({ error: 'Nombre y correo son requeridos' });
   }
   try {
     const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
@@ -37,7 +37,7 @@ router.post('/', auth, requireRole('admin'), async (req, res) => {
     const count = await pool.query('SELECT COUNT(*) FROM users');
     const colorIndex = parseInt(count.rows[0].count) % 5;
     const initials = genInitials(name);
-    const hash = await bcrypt.hash(password, 12);
+    const hash = await bcrypt.hash(require('crypto').randomBytes(24).toString('hex'), 12);
 
     const { rows } = await pool.query(
       `INSERT INTO users (name, email, password, initials, color_index, role)
@@ -54,7 +54,7 @@ router.post('/', auth, requireRole('admin'), async (req, res) => {
 
 // PUT /api/users/:id — admin only: update user
 router.put('/:id', auth, requireRole('admin'), async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, role } = req.body;
   const { id } = req.params;
 
   try {
@@ -73,10 +73,6 @@ router.put('/:id', auth, requireRole('admin'), async (req, res) => {
     }
     if (email)    { sets.push(`email = $${i++}`);    vals.push(email); }
     if (role)     { sets.push(`role = $${i++}`);     vals.push(role);  }
-    if (password) {
-      sets.push(`password = $${i++}`);
-      vals.push(await bcrypt.hash(password, 12));
-    }
 
     if (!sets.length) return res.status(400).json({ error: 'Nada que actualizar' });
 

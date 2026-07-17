@@ -47,19 +47,6 @@ const ROLES = [
 
 const AVATAR_COLORS = ['#f9924d','#d4763a','#5a2807','#c4622d','#8a3a10'];
 
-function pwStrength(pw) {
-  if (!pw) return 0;
-  let s = 0;
-  if (pw.length >= 8)           s++;
-  if (pw.length >= 12)          s++;
-  if (/[A-Z]/.test(pw))         s++;
-  if (/[0-9]/.test(pw))         s++;
-  if (/[^A-Za-z0-9]/.test(pw))  s++;
-  return s;
-}
-const STR_COLOR = ['', '#DC2626', '#F97316', '#EAB308', '#22C55E', '#16A34A'];
-const STR_LABEL = ['', 'Muy débil', 'Débil', 'Regular', 'Buena', 'Fuerte'];
-
 function initials(name) {
   return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || '?';
 }
@@ -67,19 +54,17 @@ function initials(name) {
 export default function UserModal({ open, user: editUser, onSave, onClose }) {
   const isEdit = !!editUser;
 
-  const [form, setForm]     = useState({ name: '', email: '', password: '', role: 'engineer' });
-  const [showPw, setShowPw] = useState(false);
+  const [form, setForm]     = useState({ name: '', email: '', role: 'engineer' });
   const [error, setError]   = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setForm(isEdit
-        ? { name: editUser.name, email: editUser.email, password: '', role: editUser.role || 'engineer' }
-        : { name: '', email: '', password: '', role: 'engineer' }
+        ? { name: editUser.name, email: editUser.email, role: editUser.role || 'engineer' }
+        : { name: '', email: '', role: 'engineer' }
       );
       setError('');
-      setShowPw(false);
     }
   }, [open, editUser]);
 
@@ -90,13 +75,9 @@ export default function UserModal({ open, user: editUser, onSave, onClose }) {
   const submit = async e => {
     e.preventDefault();
     setError('');
-    if (!isEdit && pwStrength(form.password) < 2) {
-      setError('La contraseña es demasiado débil. Usa al menos 8 caracteres con letras y números.'); return;
-    }
     setSaving(true);
     try {
       const data = { name: form.name, email: form.email, role: form.role };
-      if (form.password) data.password = form.password;
       await onSave(data, editUser?.id);
     } catch (err) {
       setError(err.error || 'Error al guardar');
@@ -105,7 +86,6 @@ export default function UserModal({ open, user: editUser, onSave, onClose }) {
     }
   };
 
-  const strength  = pwStrength(form.password);
   const avatarIdx = isEdit ? (editUser.colorIndex ?? 0) : 0;
   const selectedRole = ROLES.find(r => r.value === form.role);
 
@@ -160,40 +140,10 @@ export default function UserModal({ open, user: editUser, onSave, onClose }) {
               </div>
             </div>
 
-            {/* Password */}
             <div className="um-field">
-              <label className="um-label">
-                Contraseña
-                {isEdit && <span className="um-label-hint">Dejar vacío para no cambiar</span>}
-              </label>
-              <div className="um-input-wrap">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <input
-                  className="um-input"
-                  type={showPw ? 'text' : 'password'}
-                  placeholder={isEdit ? '••••••••' : 'Mínimo 8 caracteres'}
-                  value={form.password}
-                  onChange={set('password')}
-                  required={!isEdit}
-                  style={{ paddingRight: 36 }}
-                />
-                <button type="button" className="um-pw-toggle" onClick={() => setShowPw(v => !v)}>
-                  {showPw
-                    ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  }
-                </button>
+              <div style={{ fontSize: 11.5, color: 'var(--text3)', background: 'var(--bg2, rgba(0,0,0,.03))', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px' }}>
+                El acceso a AMBARC es solo con Google — no se define contraseña. {isEdit ? 'El usuario' : 'La persona'} entrará con su cuenta institucional {form.email ? `(${form.email})` : ''}.
               </div>
-              {form.password && (
-                <div className="um-strength">
-                  <div className="um-strength-bar">
-                    {[1,2,3,4,5].map(i => (
-                      <div key={i} className="um-strength-seg" style={{ background: i <= strength ? STR_COLOR[strength] : 'var(--border)' }} />
-                    ))}
-                  </div>
-                  <span style={{ fontSize: 11, color: STR_COLOR[strength], fontWeight: 600 }}>{STR_LABEL[strength]}</span>
-                </div>
-              )}
             </div>
 
             {/* Role selector */}
