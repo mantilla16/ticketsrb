@@ -393,7 +393,7 @@ export default function App() {
             {section === 'analytics' && (
               <AnalyticsTeamView
                 projects={projects}
-                users={users.filter(u => ['member_analytics', 'leader_analytics'].includes(u.role))}
+                users={users.filter(u => u.role === 'member_analytics')}
                 onCardClick={openDetail}
                 onNavigate={changeSection}
                 onToggleTask={handleToggleTask}

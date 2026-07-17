@@ -216,7 +216,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
   const total = projects.length;
 
   const team = users
-    .filter(u => ['engineer', 'member_analytics', 'leader_analytics'].includes(u.role))
+    .filter(u => ['engineer', 'member_analytics'].includes(u.role))
     .filter(u => teamScope === 'all'
       || (teamScope === 'auto' ? u.role === 'engineer' : ['member_analytics', 'leader_analytics'].includes(u.role)));
 

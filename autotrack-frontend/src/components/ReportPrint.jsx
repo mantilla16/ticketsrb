@@ -85,7 +85,7 @@ export default function ReportPrint({ projects, users, solicitudes = [], periodL
 
   // Carga por persona
   const team = users
-    .filter(u => ['engineer', 'member_analytics', 'leader_analytics'].includes(u.role))
+    .filter(u => ['engineer', 'member_analytics'].includes(u.role))
     .map(u => {
       const assigned = projects.filter(p => (p.assigneeIds || [p.assigneeId]).includes(u.id));
       const active   = assigned.filter(p => ['progress', 'testing'].includes(p.status)).length;
