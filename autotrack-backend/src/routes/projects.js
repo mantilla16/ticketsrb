@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const requireRole = require('../middleware/requireRole');
 const { body, validationResult } = require('express-validator');
 const { notify } = require('../utils/notify');
+const escapeHtml = require('../utils/escapeHtml');
 
 const STATUS_LABEL = {
   backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
@@ -300,7 +301,7 @@ router.post('/', auth, requireRole('admin', 'leader_analytics', 'member_analytic
     await syncAssignees(id, ids);
 
     notify([...ids, coAssigneeId, generalAssigneeId], req.user.id, id,
-      'assign', `te asignó el proyecto «${name}»`);
+      'assign', `te asignó el proyecto «${escapeHtml(name)}»`);
 
     const project = await fetchProject(id);
     res.status(201).json(project);
@@ -355,13 +356,13 @@ router.put('/:id', auth, validators, async (req, res) => {
       const added  = newIds.filter(uid => !oldIds.includes(uid));
       const kept   = newIds.filter(uid => oldIds.includes(uid));
       if (added.length) {
-        notify(added, req.user.id, req.params.id, 'assign', `te asignó el proyecto «${name}»`);
+        notify(added, req.user.id, req.params.id, 'assign', `te asignó el proyecto «${escapeHtml(name)}»`);
       }
       if (before.status !== status) {
         notify(kept, req.user.id, req.params.id, 'status',
-          `cambió el estado de «${name}» a ${STATUS_LABEL[status] || status}`);
+          `cambió el estado de «${escapeHtml(name)}» a ${STATUS_LABEL[status] || status}`);
       } else if (kept.length) {
-        notify(kept, req.user.id, req.params.id, 'update', `actualizó el proyecto «${name}»`);
+        notify(kept, req.user.id, req.params.id, 'update', `actualizó el proyecto «${escapeHtml(name)}»`);
       }
     }
 
@@ -406,7 +407,7 @@ router.post('/:id/logs', auth, [
     const people = await projectPeople(req.params.id);
     if (people) {
       notify(people.ids, req.user.id, req.params.id, 'log',
-        `registró un avance del ${progress}% en «${people.name}»`);
+        `registró un avance del ${progress}% en «${escapeHtml(people.name)}»`);
     }
 
     res.json(project);
@@ -435,7 +436,7 @@ router.post('/:id/tasks', auth, [
     const people = await projectPeople(req.params.id);
     if (people) {
       notify(people.ids, req.user.id, req.params.id, 'task',
-        `agregó la tarea «${req.body.title.trim()}» en «${people.name}»`);
+        `agregó la tarea «${escapeHtml(req.body.title.trim())}» en «${escapeHtml(people.name)}»`);
     }
 
     res.status(201).json(project);
@@ -464,7 +465,7 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
       const people = await projectPeople(req.params.id);
       if (people) {
         notify(people.ids, req.user.id, req.params.id, 'task',
-          `completó una tarea en «${people.name}»`);
+          `completó una tarea en «${escapeHtml(people.name)}»`);
       }
     }
 

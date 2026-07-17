@@ -8,8 +8,7 @@ const fs     = require('fs');
 const { notifyInApp } = require('../utils/notify');
 const { sendNotificationEmail } = require('../utils/mailer');
 const { createCalendarEvent } = require('../utils/calendar');
-
-const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const escapeHtml = require('../utils/escapeHtml');
 
 const uploadDir = path.join(__dirname, '../../uploads/solicitudes');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });

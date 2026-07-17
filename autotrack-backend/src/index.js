@@ -33,9 +33,11 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '1mb' }));
 
-// Serve uploaded files (solicitudes attachments) — requiere sesión válida
-const authMw = require('./middleware/auth');
-app.use('/api/uploads', authMw, express.static(path.join(__dirname, '../uploads')));
+// Serve uploaded files (solicitudes attachments) — requiere sesión válida.
+// Usa un middleware aparte porque los links de descarga (<a href>) llevan el
+// token por query string; el resto de la API solo acepta el header Authorization.
+const authDownload = require('./middleware/authDownload');
+app.use('/api/uploads', authDownload, express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api/auth',         require('./routes/auth'));
 app.use('/api/projects',     require('./routes/projects'));

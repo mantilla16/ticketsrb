@@ -26,7 +26,7 @@ const emailLimiter = rateLimit({
 });
 
 const MAX_ATTEMPTS = 5;
-const LOCK_MINUTES = 15;
+const LOCK_MINUTES = 30;
 const ALLOWED_DOMAIN = '@americana.edu.co';
 
 function genInitials(name) {
@@ -110,10 +110,10 @@ router.post('/login', ipLimiter, emailLimiter, [
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }
 
-    // Check account lockout — permanente hasta que el admin desbloquee
+    // Check account lockout — temporal (se levanta solo); el admin también puede desbloquear antes
     if (user.locked_until && new Date(user.locked_until) > new Date()) {
       return res.status(429).json({
-        error: 'Cuenta bloqueada por múltiples intentos fallidos. Contacta al administrador para desbloquearla.',
+        error: `Cuenta bloqueada por múltiples intentos fallidos. Intenta de nuevo en ${LOCK_MINUTES} minutos, o contacta al administrador para desbloquearla antes.`,
         locked: true,
       });
     }
@@ -125,11 +125,11 @@ router.post('/login', ipLimiter, emailLimiter, [
 
       if (attempts >= MAX_ATTEMPTS) {
         await pool.query(
-          `UPDATE users SET failed_attempts = $1, locked_until = '9999-12-31' WHERE id = $2`,
+          `UPDATE users SET failed_attempts = $1, locked_until = NOW() + INTERVAL '${LOCK_MINUTES} minutes' WHERE id = $2`,
           [attempts, user.id]
         );
         return res.status(429).json({
-          error: `Cuenta bloqueada tras ${MAX_ATTEMPTS} intentos fallidos. Contacta al administrador para desbloquearla.`,
+          error: `Cuenta bloqueada tras ${MAX_ATTEMPTS} intentos fallidos. Podrás intentar de nuevo en ${LOCK_MINUTES} minutos, o contacta al administrador para desbloquearla antes.`,
           locked: true,
         });
       }
@@ -187,7 +187,7 @@ router.post('/google', ipLimiter, async (req, res) => {
 
     if (user && user.locked_until && new Date(user.locked_until) > new Date()) {
       return res.status(429).json({
-        error: 'Cuenta bloqueada por múltiples intentos fallidos. Contacta al administrador para desbloquearla.',
+        error: `Cuenta bloqueada por múltiples intentos fallidos. Intenta de nuevo en ${LOCK_MINUTES} minutos, o contacta al administrador para desbloquearla antes.`,
         locked: true,
       });
     }
