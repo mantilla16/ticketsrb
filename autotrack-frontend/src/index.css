@@ -1053,20 +1053,27 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .pm-field .pm-input { border: none; padding: 0; width: 100%; background: transparent; box-shadow: none; }
 .pm-field .pm-input:focus { box-shadow: none; }
 
-.pm-assignee-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.pm-assignee-chip {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 6px 12px 6px 6px; border-radius: var(--radius-pill);
-  border: var(--neu-border); background: var(--surface);
-  font-size: 12.5px; font-weight: 600; color: var(--text2);
-  font-family: var(--font); cursor: pointer; transition: all .2s ease-out;
-  box-shadow: 0 3px 8px rgba(175,150,130,.10);
+.pm-dropdown-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  border: none; background: transparent; padding: 0; cursor: pointer;
+  font-family: var(--font); font-size: 13px; color: var(--text); text-align: left;
 }
-.pm-assignee-chip:hover { border-color: var(--accent); color: var(--accent); }
-.pm-assignee-chip--active {
-  border-color: var(--accent); background: var(--accent-light); color: #C96A1A;
+.pm-dropdown-btn:disabled { cursor: not-allowed; color: var(--text3); }
+.pm-dropdown-btn-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-dropdown-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 50;
+  max-height: 240px; overflow-y: auto; padding: 6px;
+  background: var(--neu-bg); border: var(--neu-border); border-radius: var(--radius-sm);
+  box-shadow: 0 18px 40px rgba(175,150,130,.24), inset 0 2px 3px rgba(255,255,255,.9);
+  animation: fadeUp .15s ease backwards;
 }
-.pm-assignee-chip:disabled { cursor: not-allowed; opacity: .6; }
+.pm-dropdown-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border-radius: 10px; font-size: 13px; color: var(--text2); cursor: pointer; transition: background .12s;
+}
+.pm-dropdown-item:hover { background: var(--surface2); }
+.pm-dropdown-item--active { color: var(--text); font-weight: 600; }
+.pm-dropdown-item input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
 .pm-input {
   border: none; border-radius: var(--radius-sm);
   padding: 10px 13px; font-size: 13px; color: var(--text);

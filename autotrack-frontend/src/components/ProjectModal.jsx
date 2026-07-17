@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { colorClass, fmtLogDate } from '../utils/helpers';
 
 const EMPTY = {
@@ -60,12 +60,21 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const [isBlock, setIsBlock]   = useState(false);
   const [logSaving, setLogSaving] = useState(false);
 
-  // Responsables seleccionables según el equipo del proyecto
+  // Responsables seleccionables: solo ingenieros de Automatización y miembros de Analítica — nada más
   const assignablePool = areaSel === 'analitica'
-    ? users.filter(u => ['member_analytics', 'leader_analytics'].includes(u.role))
+    ? users.filter(u => u.role === 'member_analytics')
     : areaSel === 'compartido'
-      ? users.filter(u => ['engineer', 'admin', 'member_analytics', 'leader_analytics'].includes(u.role))
-      : users.filter(u => u.role === 'engineer' || u.role === 'admin');
+      ? users.filter(u => ['engineer', 'member_analytics'].includes(u.role))
+      : users.filter(u => u.role === 'engineer');
+
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const assigneeRef = useRef(null);
+  useEffect(() => {
+    if (!assigneeOpen) return;
+    const onDown = (e) => { if (assigneeRef.current && !assigneeRef.current.contains(e.target)) setAssigneeOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [assigneeOpen]);
 
   useEffect(() => {
     if (open) {
@@ -245,30 +254,40 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                 </label>
                 <input className="pm-input" value={form.name} onChange={set('name')} placeholder="Ej. Dashboard de seguimiento de datos" disabled={lockCore} />
               </div>
-              <div className="pm-field" style={{ gridColumn: '1 / -1' }}>
+              <div className="pm-field" style={{ gridColumn: '1 / -1', position: 'relative' }} ref={assigneeRef}>
                 <label className="pm-field-label">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                   Responsable(s) — puedes elegir más de uno
                 </label>
-                <div className="pm-assignee-grid">
-                  {assignablePool.map(u => {
-                    const active = form.assigneeIds.includes(String(u.id));
-                    return (
-                      <button key={u.id} type="button"
-                        className={`pm-assignee-chip${active ? ' pm-assignee-chip--active' : ''}`}
-                        disabled={isEdit && !isLeader}
-                        onClick={() => toggleAssignee(u.id)}>
-                        <span className={`avatar-xs ${colorClass(u.colorIndex)}`}>{u.initials}</span>
-                        {u.name}
-                        {active && (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto' }}>
-                            <polyline points="20 6 9 17 4 12"/>
-                          </svg>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                <button type="button" className="pm-dropdown-btn"
+                  disabled={isEdit && !isLeader}
+                  onClick={() => setAssigneeOpen(o => !o)}>
+                  <span className="pm-dropdown-btn-text">
+                    {form.assigneeIds.length
+                      ? assignablePool.filter(u => form.assigneeIds.includes(String(u.id))).map(u => u.name).join(', ')
+                      : 'Selecciona responsable(s)'}
+                  </span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: assigneeOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                {assigneeOpen && (
+                  <div className="pm-dropdown-panel">
+                    {assignablePool.length === 0 && (
+                      <div style={{ padding: '10px 12px', fontSize: 12.5, color: 'var(--text3)' }}>No hay personas disponibles para este equipo</div>
+                    )}
+                    {assignablePool.map(u => {
+                      const active = form.assigneeIds.includes(String(u.id));
+                      return (
+                        <label key={u.id} className={`pm-dropdown-item${active ? ' pm-dropdown-item--active' : ''}`}>
+                          <input type="checkbox" checked={active} onChange={() => toggleAssignee(u.id)} />
+                          <span className={`avatar-xs ${colorClass(u.colorIndex)}`}>{u.initials}</span>
+                          {u.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div className="pm-field">
                 <label className="pm-field-label">
