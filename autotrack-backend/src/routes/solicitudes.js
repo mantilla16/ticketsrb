@@ -32,6 +32,18 @@ const upload = multer({
   },
 });
 
+// Convierte los errores de multer (tamaño, tipo no permitido) en un 400 claro
+// en vez de dejarlos caer al 500 genérico del handler global.
+function uploadSingle(req, res, next) {
+  upload.single('file')(req, res, (err) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'El archivo supera el límite de 10MB' });
+    }
+    return res.status(400).json({ error: err.message || 'No se pudo subir el archivo' });
+  });
+}
+
 // GET /api/solicitudes
 // admin → todas; user → solo las propias
 router.get('/', auth, async (req, res) => {
@@ -72,7 +84,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // POST /api/solicitudes  — cualquier usuario autenticado
-router.post('/', auth, upload.single('file'), async (req, res) => {
+router.post('/', auth, uploadSingle, async (req, res) => {
   const { title, description, type, priority, area, dueDate,
           frecuencia, herramientas, impacto, urgencia,
           nombreSolicitante, correoSolicitante } = req.body;
