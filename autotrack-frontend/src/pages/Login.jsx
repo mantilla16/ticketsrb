@@ -33,6 +33,7 @@ const LockIcon = () => (
 
 export default function Login() {
   const { loginGoogle } = useAuth();
+  const [mode, setMode]     = useState('login'); // 'login' | 'register' — mismo flujo de Google, solo cambia el texto
   const [error, setError]   = useState('');
   const [locked, setLocked] = useState(false);
   const [googleId, setGoogleId] = useState(null);
@@ -64,7 +65,9 @@ export default function Login() {
         },
       });
       window.google.accounts.id.renderButton(gBtnRef.current, {
-        theme: 'outline', size: 'large', width: 360, text: 'continue_with', locale: 'es', shape: 'pill',
+        theme: 'outline', size: 'large', width: 360,
+        text: mode === 'register' ? 'signup_with' : 'signin_with',
+        locale: 'es', shape: 'pill',
       });
       setGoogleReady(true);
     };
@@ -74,7 +77,7 @@ export default function Login() {
     s.async = true;
     s.onload = init;
     document.body.appendChild(s);
-  }, [googleId]);
+  }, [googleId, mode]);
 
   return (
     <div className="login-page login-page--split">
@@ -122,8 +125,8 @@ export default function Login() {
         {/* ── Columna derecha: formulario ── */}
         <div className="login-right">
           <div className="login-box">
-            <div className="login-eyebrow">Bienvenido</div>
-            <div className="login-card-title">Inicia sesión en AMBARC</div>
+            <div className="login-eyebrow">{mode === 'register' ? 'Únete a AMBARC' : 'Bienvenido'}</div>
+            <div className="login-card-title">{mode === 'register' ? 'Crea tu cuenta en AMBARC' : 'Inicia sesión en AMBARC'}</div>
             <div className="login-card-rule" />
 
             {error && (
@@ -142,8 +145,10 @@ export default function Login() {
                       Cargando inicio de sesión con Google…
                     </div>
                   )}
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', textAlign: 'center', marginTop: 14 }}>
-                    Usa tu cuenta institucional {ALLOWED_DOMAIN}
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textAlign: 'center', marginTop: 14, lineHeight: 1.6 }}>
+                    {mode === 'register'
+                      ? <>Tu cuenta se crea automáticamente con tu correo institucional {ALLOWED_DOMAIN} — no necesitas contraseña.</>
+                      : <>Usa tu cuenta institucional {ALLOWED_DOMAIN}</>}
                   </div>
                 </>
               ) : (
@@ -152,6 +157,26 @@ export default function Login() {
                 </div>
               )}
             </div>
+
+            <p style={{ textAlign: 'center', marginTop: 18, fontSize: 12, color: 'rgba(255,255,255,.35)' }}>
+              {mode === 'login' ? (
+                <>
+                  ¿No tienes cuenta?{' '}
+                  <button type="button" onClick={() => { setMode('register'); setError(''); }}
+                    style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'var(--font)' }}>
+                    Regístrate aquí
+                  </button>
+                </>
+              ) : (
+                <>
+                  ¿Ya tienes cuenta?{' '}
+                  <button type="button" onClick={() => { setMode('login'); setError(''); }}
+                    style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'var(--font)' }}>
+                    Inicia sesión
+                  </button>
+                </>
+              )}
+            </p>
           </div>
         </div>
       </div>
