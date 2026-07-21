@@ -967,24 +967,15 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   background: var(--accent-light); color: #C96A1A;
   font-size: 11px; font-weight: 600;
 }
-.at-card-tasks {
+.at-card-tasks-summary {
   margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--border);
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 600; color: var(--text2);
 }
-.at-card-tasks-head {
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
-  color: var(--text3); margin-bottom: 3px; display: flex; justify-content: space-between;
-}
-.at-task-row {
-  display: flex; align-items: center; gap: 7px; padding: 3px 2px;
-  font-size: 12px; color: var(--text2); cursor: pointer; border-radius: 6px;
-}
-.at-task-row:hover { background: var(--surface2); }
-.at-task-row input[type="checkbox"] { accent-color: var(--accent); width: 13px; height: 13px; flex-shrink: 0; cursor: pointer; }
-.at-task-row--done span { color: var(--text3); text-decoration: line-through; }
-.at-task-row--locked { cursor: default; }
-.at-task-row--locked:hover { background: transparent; }
-.at-task-row--locked input[type="checkbox"] { cursor: default; }
+.at-card-tasks-summary svg { color: var(--text3); flex-shrink: 0; }
+.at-card-tasks-summary span { margin-left: auto; font-family: var(--mono); font-weight: 700; color: var(--text3); }
+.at-card-tasks-summary--done { color: var(--green); }
+.at-card-tasks-summary--done svg { color: var(--green); }
 .at-more {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 9px; border: 1px solid var(--border); border-radius: var(--radius-sm);
