@@ -1,13 +1,14 @@
 const { JWT } = require('google-auth-library');
 
-// Un JWT client por organizador impersonado (igual que en mailer.js, pero con scope de Calendar)
+// Cuenta de servicio propia para Calendar (distinta de la de Gmail en mailer.js) —
+// esta es la única con el scope de Calendar autorizado en Admin Console.
 const clients = new Map();
 function getClient(email) {
-  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !email) return null;
+  if (!process.env.GOOGLE_CALENDAR_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_CALENDAR_PRIVATE_KEY || !email) return null;
   if (!clients.has(email)) {
     clients.set(email, new JWT({
-      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      email: process.env.GOOGLE_CALENDAR_SERVICE_ACCOUNT_EMAIL,
+      key: process.env.GOOGLE_CALENDAR_PRIVATE_KEY.replace(/\\n/g, '\n'),
       scopes: ['https://www.googleapis.com/auth/calendar'],
       subject: email, // impersona al organizador vía Domain-Wide Delegation
     }));
