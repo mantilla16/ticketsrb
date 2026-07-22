@@ -3,7 +3,7 @@ import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
-const IDLE_LIMIT_MS = 20 * 60 * 1000; // 20 minutos de inactividad → cierre de sesión
+const IDLE_LIMIT_MS = 30 * 60 * 1000; // 30 minutos de inactividad → cierre de sesión
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
