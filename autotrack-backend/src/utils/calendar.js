@@ -8,7 +8,7 @@ function getClient(email) {
     clients.set(email, new JWT({
       email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
       key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      scopes: ['https://www.googleapis.com/auth/calendar.events'],
+      scopes: ['https://www.googleapis.com/auth/calendar'],
       subject: email, // impersona al organizador vía Domain-Wide Delegation
     }));
   }
