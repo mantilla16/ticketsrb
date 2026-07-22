@@ -479,8 +479,8 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
       setError('Para convertir en proyecto primero asigna un responsable.');
       return;
     }
-    if (finalStatus === 'aceptado' && (!fechaReunion || !horaReunion)) {
-      setError('Selecciona la fecha y hora de la reunión de levantamiento antes de aceptar.');
+    if (finalStatus === 'reunion_agendada' && (!fechaReunion || !horaReunion)) {
+      setError('Selecciona la fecha y hora de la reunión de levantamiento antes de agendarla.');
       return;
     }
     setSaving(true); setError('');
@@ -612,7 +612,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
                 </div>
 
                 <label className="um-label" style={{ marginBottom: 5 }}>
-                  Fecha y hora de la reunión{status === 'aceptado' && <Req />}
+                  Fecha y hora de la reunión{status === 'reunion_agendada' && <Req />}
                 </label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <div className="um-input-wrap" style={{ flex: 1.3 }}>
@@ -632,9 +632,9 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
                       onChange={e => setHoraReunion(e.target.value)} />
                   </div>
                 </div>
-                {status === 'aceptado' && (
+                {status === 'reunion_agendada' && (
                   <div className="snp-hint" style={{ marginTop: 5 }}>
-                    Al aceptar, se le avisa al solicitante la fecha y hora de la reunión de levantamiento.
+                    Al guardar, se le avisa al solicitante la fecha y hora de la reunión y se crea el evento en tu calendario.
                   </div>
                 )}
               </div>

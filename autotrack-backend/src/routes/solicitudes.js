@@ -156,8 +156,8 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member
   if (!valid.includes(status)) {
     return res.status(400).json({ error: 'Estado inválido' });
   }
-  if (status === 'aceptado' && !fechaReunion) {
-    return res.status(400).json({ error: 'Selecciona la fecha y hora de la reunión antes de aceptar la solicitud.' });
+  if (status === 'reunion_agendada' && !fechaReunion) {
+    return res.status(400).json({ error: 'Selecciona la fecha y hora de la reunión antes de agendarla.' });
   }
   try {
     // Los miembros de Analítica solo gestionan solicitudes de su equipo
@@ -196,13 +196,13 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member
           meta: { projectName: sol.title },
         });
       }
-    } else if (status === 'aceptado' && sol.fecha_reunion) {
+    } else if (status === 'reunion_agendada' && sol.fecha_reunion) {
       const when = new Date(sol.fecha_reunion).toLocaleString('es-CO', {
         weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC',
       });
       if (sol.user_id) {
         notifyInApp(sol.user_id, req.user.id, 'solicitud',
-          `aceptó tu solicitud «${sol.title}» y agendó la reunión de levantamiento para el ${when}`);
+          `agendó una reunión de levantamiento para tu solicitud «${sol.title}»: el ${when}`);
       }
       const actor = await pool.query('SELECT name, email FROM users WHERE id=$1', [req.user.id]);
       const actorName  = actor.rows[0]?.name  || null;
@@ -212,7 +212,7 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member
         sendNotificationEmail({
           to: sol.correo_solicitante,
           title: `Reunión agendada — "${sol.title}"`,
-          message: `aceptó tu solicitud «${escapeHtml(sol.title)}» y agendó la reunión de levantamiento para el <b>${when}</b>.${notes ? `<br><br><b>Nota:</b> ${escapeHtml(notes)}` : ''}`,
+          message: `agendó una reunión de levantamiento para tu solicitud «${escapeHtml(sol.title)}»: el <b>${when}</b>.${notes ? `<br><br><b>Nota:</b> ${escapeHtml(notes)}` : ''}`,
           actorName, actorEmail,
           type: 'solicitud',
           meta: { projectName: sol.title },
