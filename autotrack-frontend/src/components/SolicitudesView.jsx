@@ -444,6 +444,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
   const [tipoProyecto, setTipoProyecto] = useState('automatizacion');
   const [fechaReunion, setFechaReunion] = useState('');
   const [horaReunion,  setHoraReunion]  = useState('');
+  const [invitados,    setInvitados]    = useState('');
   const [saving,       setSaving]       = useState(false);
   const [error,        setError]        = useState('');
   const [delConfirm,   setDelConfirm]   = useState(false);
@@ -456,6 +457,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
       setTipoProyecto(sol.equipo === 'analitica' ? 'analitica' : sol.equipo === 'compartido' ? 'compartido' : 'automatizacion');
       setFechaReunion(dateOnly(sol.fecha_reunion));
       setHoraReunion(timeOnly(sol.fecha_reunion));
+      setInvitados('');
     }
     setDelConfirm(false);
     setSaving(false);
@@ -491,6 +493,7 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
         tipoProyecto,
         equipo: tipoProyecto === 'analitica' ? 'analitica' : tipoProyecto === 'compartido' ? 'compartido' : 'automatizacion',
         fechaReunion: fechaReunion ? `${fechaReunion}T${horaReunion || '09:00'}:00` : null,
+        invitados: invitados.trim() || null,
       });
     } finally { setSaving(false); }
   };
@@ -633,9 +636,22 @@ function ManageModal({ sol, open, onClose, onSave, onDelete, users = [], canDele
                   </div>
                 </div>
                 {status === 'reunion_agendada' && (
-                  <div className="snp-hint" style={{ marginTop: 5 }}>
-                    Al guardar, se le avisa al solicitante la fecha y hora de la reunión y se crea el evento en tu calendario.
-                  </div>
+                  <>
+                    <div className="snp-hint" style={{ marginTop: 5, marginBottom: 12 }}>
+                      Al guardar, se le avisa al solicitante la fecha y hora de la reunión y se crea el evento en tu calendario.
+                    </div>
+                    <label className="um-label" style={{ marginBottom: 5 }}>Invitados adicionales</label>
+                    <div className="um-input-wrap">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                      </svg>
+                      <input className="um-input" type="text" placeholder="correo1@americana.edu.co, correo2@ejemplo.com"
+                        value={invitados} onChange={e => setInvitados(e.target.value)} />
+                    </div>
+                    <div className="snp-hint" style={{ marginTop: 5 }}>
+                      Opcional — separa varios correos con coma. Se suman a los del solicitante en la invitación del calendario.
+                    </div>
+                  </>
                 )}
               </div>
 

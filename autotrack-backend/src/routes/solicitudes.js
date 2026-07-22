@@ -150,7 +150,7 @@ router.post('/', auth, uploadSingle, async (req, res) => {
 
 // PUT /api/solicitudes/:id/status  — solo admin
 router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member_analytics'), async (req, res) => {
-  const { status, notes, assigneeId, fechaReunion, equipo } = req.body;
+  const { status, notes, assigneeId, fechaReunion, equipo, invitados } = req.body;
   const valid = ['recibido','en_revision','reunion_agendada','aceptado','rechazado','convertido',
                  'nueva','en_proceso','completada','rechazada'];
   if (!valid.includes(status)) {
@@ -223,8 +223,10 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member
       if (actorEmail) {
         const start = new Date(sol.fecha_reunion);
         const end   = new Date(start.getTime() + 60 * 60000);
-        const attendees = (sol.correo_solicitante || '')
-          .split(',').map(s => s.trim()).filter(Boolean);
+        const attendees = [
+          ...(sol.correo_solicitante || '').split(','),
+          ...(invitados || '').split(','),
+        ].map(s => s.trim()).filter(Boolean);
         createCalendarEvent({
           organizerEmail: actorEmail,
           summary: `Levantamiento de necesidad — ${sol.title}`,
