@@ -1,3 +1,8 @@
+// Debe fijarse antes de cargar pg/dotenv: si el proceso no corre en UTC, pg
+// interpreta los TIMESTAMP (sin zona) usando la zona horaria local del sistema,
+// y eso desfasa fecha_reunion (y cualquier otra hora "de pared") al convertir a UTC.
+process.env.TZ = 'UTC';
+
 require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
