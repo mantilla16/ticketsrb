@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { fmtDate, dateStatus, colorClass, fmtLogDate } from '../utils/helpers';
 
 const STATUS_CLS = {
@@ -29,8 +29,27 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
   const [taskText, setTaskText]     = useState('');
+  const [taskWeight, setTaskWeight] = useState(2);
+  const [taskAssignee, setTaskAssignee] = useState('');
   const [taskSaving, setTaskSaving] = useState(false);
+  const [busyTaskIds, setBusyTaskIds] = useState(new Set());
   const [isBlock, setIsBlock]       = useState(false);
+
+  const tipo = project?.tipo || 'automatizacion';
+  // En compartidos, una tarea se asigna a UNA persona entre las ya elegidas como
+  // responsables de este proyecto — por defecto, a uno mismo si aplica.
+  const taskAssigneePool = tipo === 'compartido' && project
+    ? [...project.assignees || [], project.coAssignee, project.generalAssignee].filter(Boolean)
+      .filter((u, i, arr) => arr.findIndex(x => x.id === u.id) === i)
+    : [];
+
+  useEffect(() => {
+    if (tipo !== 'compartido') { setTaskAssignee(''); return; }
+    const self = taskAssigneePool.some(u => u.id === currentUser?.id);
+    setTaskAssignee(self ? String(currentUser.id) : '');
+    setTaskWeight(2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id]);
 
   if (!open || !project) return null;
 
@@ -39,7 +58,6 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   const peopleAll = project.assignees?.length ? project.assignees : (eng ? [eng] : []);
   const dSt  = dateStatus(project.dueDate);
   const pr   = project.priority || 'mid';
-  const tipo = project.tipo || 'automatizacion';
   // En compartidos, "Resp. Automatización" debe mostrar solo ingenieros — filtra cualquier
   // rastro de gente de otro equipo que haya quedado asignada antes de que esto se validara.
   const engineerIds = new Set(users.filter(u => u.role === 'engineer').map(u => u.id));
@@ -61,9 +79,25 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
     if (!taskText.trim() || taskSaving) return;
     setTaskSaving(true);
     try {
-      await onAddTask(project.id, taskText.trim());
-      setTaskText('');
+      await onAddTask(project.id, taskText.trim(), {
+        weight: taskWeight,
+        assigneeId: tipo === 'compartido' && taskAssignee ? Number(taskAssignee) : null,
+      });
+      setTaskText(''); setTaskWeight(2);
     } finally { setTaskSaving(false); }
+  };
+
+  // Evita disparar dos peticiones sobre la misma tarea (doble clic en el checkbox o en
+  // eliminar) — junto con la cola por-proyecto en App.jsx, esto es lo que evitaba que
+  // una tarea recién marcada/agregada "desapareciera" por una respuesta que llega en desorden.
+  const withTaskBusy = async (taskId, fn) => {
+    if (busyTaskIds.has(taskId)) return;
+    setBusyTaskIds(s => new Set(s).add(taskId));
+    try {
+      await fn();
+    } finally {
+      setBusyTaskIds(s => { const n = new Set(s); n.delete(taskId); return n; });
+    }
   };
 
   const tasks     = project?.tasks || [];
@@ -240,8 +274,8 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                   <div key={t.id} className="task-row">
                     <button
                       className={`task-check${t.done ? ' task-check--done' : ''}`}
-                      disabled={!canEdit}
-                      onClick={() => canEdit && onToggleTask(project.id, t.id, !t.done)}
+                      disabled={!canEdit || busyTaskIds.has(t.id)}
+                      onClick={() => canEdit && withTaskBusy(t.id, () => onToggleTask(project.id, t.id, !t.done))}
                     >
                       {t.done && (
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
@@ -250,8 +284,15 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                       )}
                     </button>
                     <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
+                    {tipo === 'compartido' && t.assigneeId && (() => {
+                      const owner = taskAssigneePool.find(u => u.id === t.assigneeId);
+                      return owner ? (
+                        <span className={`avatar-xs ${colorClass(owner.colorIndex)}`} title={owner.name}>{owner.initials}</span>
+                      ) : null;
+                    })()}
                     {canEdit && (
-                      <button className="task-del" onClick={() => onDeleteTask(project.id, t.id)} title="Eliminar tarea">
+                      <button className="task-del" disabled={busyTaskIds.has(t.id)}
+                        onClick={() => withTaskBusy(t.id, () => onDeleteTask(project.id, t.id))} title="Eliminar tarea">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
@@ -265,15 +306,28 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
               <div style={{ fontSize: 12, color: 'var(--text3)' }}>Sin tareas registradas</div>
             )}
             {canEdit && (
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <input
                   className="form-input"
-                  style={{ flex: 1, fontSize: 13, padding: '7px 10px' }}
+                  style={{ flex: 1, minWidth: 140, fontSize: 13, padding: '7px 10px' }}
                   placeholder="Nueva tarea…"
                   value={taskText}
                   onChange={e => setTaskText(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addTask()}
                 />
+                <select className="form-input" style={{ width: 100, fontSize: 13, padding: '7px 10px' }}
+                  value={taskWeight} onChange={e => setTaskWeight(Number(e.target.value))} title="Tamaño de la tarea">
+                  <option value={1}>Pequeña</option>
+                  <option value={2}>Media</option>
+                  <option value={3}>Grande</option>
+                </select>
+                {tipo === 'compartido' && (
+                  <select className="form-input" style={{ width: 130, fontSize: 13, padding: '7px 10px' }}
+                    value={taskAssignee} onChange={e => setTaskAssignee(e.target.value)} title="Asignar a">
+                    <option value="">Sin asignar</option>
+                    {taskAssigneePool.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
+                  </select>
+                )}
                 <button className="btn btn-ghost btn-sm" onClick={addTask} disabled={taskSaving || !taskText.trim()}>
                   Agregar
                 </button>

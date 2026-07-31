@@ -26,7 +26,20 @@ const PR_PILL = {
   low:  { l: 'Baja',  bg: '#ECFDF3', c: '#16A34A' },
 };
 
-const CAPACITY = 4; // proyectos activos que se consideran ocupación plena por persona
+// Ocupación por carga de tareas pendientes, no por cantidad de proyectos: cada tarea pesa
+// 1/2/3 (Pequeña/Media/Grande) y esta constante es cuántos puntos equivalen al 100%
+// (16 ≈ 8 tareas medianas).
+const TASK_CAPACITY_POINTS = 16;
+
+// Carga de tareas pendientes de una persona: en compartidos solo cuentan las tareas
+// asignadas a ella; en proyectos de un solo equipo, todas las del proyecto (es su responsable).
+function personTaskLoad(mine, userId) {
+  return mine.reduce((sum, p) => {
+    const pendientes = (p.tasks || []).filter(t => !t.done
+      && (p.tipo !== 'compartido' || t.assigneeId === userId));
+    return sum + pendientes.reduce((s, t) => s + (t.weight ?? 2), 0);
+  }, 0);
+}
 
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 const fmtDM    = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).replace('.', '') : '—';
@@ -237,12 +250,12 @@ export default function DashboardView({ projects: allProjects, users, solicitude
   /* ── Carga del equipo ── */
   const teamRows = team.map(u => {
     const mine    = projects.filter(p => (p.assigneeIds || [p.assigneeId]).includes(u.id) || p.coAssigneeId === u.id);
-    const active  = mine.filter(p => ['progress', 'testing'].includes(p.status));
     const riesgos = mine.filter(isOverdue).length;
     const bloqueos = mine.filter(p => p.status === 'standby').length;
     const next    = mine.filter(p => p.dueDate && !['done', 'cancelado'].includes(p.status))
       .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0];
-    const ocup    = Math.round(active.length / CAPACITY * 100);
+    const cargaPuntos = personTaskLoad(mine.filter(p => !['done', 'cancelado'].includes(p.status)), u.id);
+    const ocup    = Math.round(cargaPuntos / TASK_CAPACITY_POINTS * 100);
     const estado  = ocup > 100 ? { l: 'Sobrecarga', bg: '#FEF2F2', c: '#DC2626' }
       : ocup >= 75 ? { l: 'Alta carga', bg: '#FEF3C7', c: '#D97706' }
       : { l: 'Saludable', bg: '#ECFDF3', c: '#16A34A' };

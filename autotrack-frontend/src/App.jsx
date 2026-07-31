@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './context/AuthContext';
 import { projectsAPI, usersAPI, solicitudesAPI } from './services/api';
 import Login from './pages/Login';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
+import PersonalDashboardView from './components/PersonalDashboardView';
 import KanbanBoard from './components/KanbanBoard';
 import TeamKanban from './components/TeamKanban';
 import GanttView from './components/GanttView';
@@ -74,6 +75,17 @@ export default function App() {
   const [users, setUsers]             = useState([]);
   const [solicitudes, setSolicitudes] = useState([]);
   const [dashPeriod, setDashPeriod]   = useState('all');
+
+  // Serializa las mutaciones de tareas por proyecto — evita que dos peticiones en vuelo
+  // para el mismo proyecto resuelvan en desorden y una respuesta vieja pise a una nueva
+  // (esto era lo que hacía "desaparecer" tareas recién agregadas/marcadas).
+  const taskQueueRef = useRef({});
+  const enqueueTaskOp = (projectId, op) => {
+    const prev = taskQueueRef.current[projectId] || Promise.resolve();
+    const next = prev.then(op, op);
+    taskQueueRef.current[projectId] = next;
+    return next;
+  };
 
   const [projModal, setProjModal]     = useState({ open: false, project: null, defStatus: null, defAssigneeId: null });
   const [detailModal, setDetailModal] = useState({ open: false, projectId: null });
@@ -165,7 +177,7 @@ export default function App() {
     if (tasksDelta) {
       try {
         for (const t of tasksDelta.added) {
-          updated = await projectsAPI.addTask(updated.id, { title: t.title, dueDate: t.dueDate || null });
+          updated = await projectsAPI.addTask(updated.id, { title: t.title, dueDate: t.dueDate || null, weight: t.weight, assigneeId: t.assigneeId || null });
           if (t.done) {
             const created = updated.tasks[updated.tasks.length - 1];
             if (created) updated = await projectsAPI.updateTask(updated.id, created.id, { done: true });
@@ -216,28 +228,28 @@ export default function App() {
     return updated;
   };
 
-  const handleAddTask = async (id, title) => {
-    const updated = await projectsAPI.addTask(id, { title });
+  const handleAddTask = (id, title, extra = {}) => enqueueTaskOp(id, async () => {
+    const updated = await projectsAPI.addTask(id, { title, ...extra });
     setProjects(ps => ps.map(p => p.id === updated.id ? updated : p));
-  };
+  });
 
-  const handleToggleTask = async (id, taskId, done) => {
+  const handleToggleTask = (id, taskId, done) => enqueueTaskOp(id, async () => {
     try {
       const updated = await projectsAPI.updateTask(id, taskId, { done });
       setProjects(ps => ps.map(p => p.id === updated.id ? updated : p));
     } catch {
       showToast('Error al actualizar la tarea', 'error');
     }
-  };
+  });
 
-  const handleDeleteTask = async (id, taskId) => {
+  const handleDeleteTask = (id, taskId) => enqueueTaskOp(id, async () => {
     try {
       const updated = await projectsAPI.removeTask(id, taskId);
       setProjects(ps => ps.map(p => p.id === updated.id ? updated : p));
     } catch {
       showToast('Error al eliminar la tarea', 'error');
     }
-  };
+  });
 
   const handleCloseSupport = async (id) => {
     const p = projects.find(x => x.id === id);
@@ -376,8 +388,12 @@ export default function App() {
             )}
 
             {section === 'dashboard' && (
-              <DashboardView projects={visibleProjects} users={users} solicitudes={solicitudes} onCardClick={openDetail} onNavigate={changeSection} role={user?.role}
-                period={dashPeriod} onPeriodChange={setDashPeriod} />
+              ['engineer', 'member_analytics'].includes(user?.role) ? (
+                <PersonalDashboardView projects={visibleProjects} currentUser={user} onCardClick={openDetail} onNavigate={changeSection} />
+              ) : (
+                <DashboardView projects={visibleProjects} users={users} solicitudes={solicitudes} onCardClick={openDetail} onNavigate={changeSection} role={user?.role}
+                  period={dashPeriod} onPeriodChange={setDashPeriod} />
+              )
             )}
 
             {section === 'my-kanban' && (

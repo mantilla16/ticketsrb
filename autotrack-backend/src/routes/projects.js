@@ -52,6 +52,20 @@ async function extraAssigneeIds(projectId) {
   return rows.map(r => r.user_id);
 }
 
+// Dueño individual (solo relevante en compartidos) y tamaño de cada tarea —
+// columnas agregadas en caliente, igual que project_assignees más arriba.
+let taskColumnsReady = null;
+function ensureTaskColumns() {
+  if (!taskColumnsReady) {
+    taskColumnsReady = pool.query(`
+      ALTER TABLE project_tasks
+        ADD COLUMN IF NOT EXISTS assignee_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS weight SMALLINT NOT NULL DEFAULT 2
+    `).catch(err => { taskColumnsReady = null; throw err; });
+  }
+  return taskColumnsReady;
+}
+
 // Responsables actuales de un proyecto (para notificaciones)
 async function projectPeople(id) {
   const { rows } = await pool.query(
@@ -168,6 +182,8 @@ function fmtProject(p, logs = [], tasks = [], extraAssignees = []) {
       done: t.done,
       dueDate: fmtDate(t.due_date),
       createdAt: t.created_at,
+      assigneeId: t.assignee_id || null,
+      weight: t.weight ?? 2,
     })),
   };
 }
@@ -199,6 +215,7 @@ async function fetchProject(id) {
     WHERE pl.project_id = $1
     ORDER BY pl.created_at DESC
   `, [id]);
+  await ensureTaskColumns();
   const tasks = await pool.query(
     'SELECT * FROM project_tasks WHERE project_id = $1 ORDER BY created_at ASC', [id]
   );
@@ -246,6 +263,7 @@ router.get('/', auth, async (req, res) => {
       byProject[l.project_id].push(l);
     });
 
+    await ensureTaskColumns();
     const tasksRes = await pool.query(
       'SELECT * FROM project_tasks WHERE project_id = ANY($1) ORDER BY created_at ASC', [ids]
     );
@@ -430,9 +448,11 @@ router.post('/:id/tasks', auth, [
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
   try {
     if (!(await assertProjectAccess(req, res, req.params.id))) return;
+    await ensureTaskColumns();
+    const weight = [1, 2, 3].includes(Number(req.body.weight)) ? Number(req.body.weight) : 2;
     await pool.query(
-      'INSERT INTO project_tasks (project_id, title, due_date, created_by) VALUES ($1,$2,$3,$4)',
-      [req.params.id, req.body.title.trim(), req.body.dueDate || null, req.user.id]
+      'INSERT INTO project_tasks (project_id, title, due_date, created_by, assignee_id, weight) VALUES ($1,$2,$3,$4,$5,$6)',
+      [req.params.id, req.body.title.trim(), req.body.dueDate || null, req.user.id, req.body.assigneeId || null, weight]
     );
     await recalcProgress(req.params.id);
     const project = await fetchProject(req.params.id);
@@ -454,14 +474,19 @@ router.post('/:id/tasks', auth, [
 
 // PATCH /api/projects/:id/tasks/:taskId
 router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
-  const { done, title, dueDate } = req.body;
+  const { done, title, dueDate, assigneeId, weight } = req.body;
   try {
     if (!(await assertProjectAccess(req, res, req.params.id))) return;
+    await ensureTaskColumns();
+    const validWeight = [1, 2, 3].includes(Number(weight)) ? Number(weight) : null;
     const result = await pool.query(
       `UPDATE project_tasks
-       SET done = COALESCE($1, done), title = COALESCE($2, title), due_date = COALESCE($3, due_date)
+       SET done = COALESCE($1, done), title = COALESCE($2, title), due_date = COALESCE($3, due_date),
+           assignee_id = CASE WHEN $6 THEN $7 ELSE assignee_id END,
+           weight = COALESCE($8, weight)
        WHERE id = $4 AND project_id = $5 RETURNING id`,
-      [typeof done === 'boolean' ? done : null, title?.trim() || null, dueDate || null, req.params.taskId, req.params.id]
+      [typeof done === 'boolean' ? done : null, title?.trim() || null, dueDate || null, req.params.taskId, req.params.id,
+       Object.prototype.hasOwnProperty.call(req.body, 'assigneeId'), assigneeId || null, validWeight]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tarea no encontrada' });
 

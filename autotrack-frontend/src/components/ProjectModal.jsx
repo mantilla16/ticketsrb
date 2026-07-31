@@ -56,6 +56,8 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const [tasks, setTasks]       = useState([]);
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDate, setTaskDate]   = useState('');
+  const [taskWeight, setTaskWeight] = useState(2);
+  const [taskAssignee, setTaskAssignee] = useState('');
   const [removedTasks, setRemovedTasks] = useState([]);
 
   // Seguimiento (solo edición)
@@ -72,6 +74,21 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
     : users.filter(u => u.role === 'engineer');
 
   const analiticaPool = users.filter(u => u.role === 'member_analytics');
+
+  // En compartidos, una tarea se asigna a UNA persona entre las ya elegidas como
+  // responsables de este proyecto (no a todo el pool de ingenieros/analistas).
+  const taskAssigneePool = areaSel === 'compartido'
+    ? [...new Set([...form.assigneeIds, form.coAssigneeId, form.generalAssigneeId].filter(Boolean))]
+        .map(id => users.find(u => String(u.id) === String(id)))
+        .filter(Boolean)
+    : [];
+
+  useEffect(() => {
+    if (areaSel !== 'compartido' || !currentUser) { setTaskAssignee(''); return; }
+    const self = taskAssigneePool.some(u => String(u.id) === String(currentUser.id));
+    setTaskAssignee(self ? String(currentUser.id) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [areaSel, form.assigneeIds, form.coAssigneeId, form.generalAssigneeId]);
 
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const assigneeRef = useRef(null);
@@ -144,8 +161,11 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
 
   const addLocalTask = () => {
     if (!taskTitle.trim()) return;
-    setTasks(ts => [...ts, { _localId: Date.now(), title: taskTitle.trim(), dueDate: taskDate || null, done: false, _new: true }]);
-    setTaskTitle(''); setTaskDate('');
+    setTasks(ts => [...ts, {
+      _localId: Date.now(), title: taskTitle.trim(), dueDate: taskDate || null, done: false, _new: true,
+      weight: taskWeight, assigneeId: areaSel === 'compartido' && taskAssignee ? Number(taskAssignee) : null,
+    }]);
+    setTaskTitle(''); setTaskDate(''); setTaskWeight(2);
   };
 
   const toggleLocalTask = (t) => {
@@ -163,7 +183,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
     setSaving(true); setError('');
     try {
       const tasksDelta = {
-        added:   tasks.filter(t => t._new).map(t => ({ title: t.title, dueDate: t.dueDate, done: t.done })),
+        added:   tasks.filter(t => t._new).map(t => ({ title: t.title, dueDate: t.dueDate, done: t.done, weight: t.weight, assigneeId: t.assigneeId })),
         removed: removedTasks,
         toggled: tasks.filter(t => t._toggled && t.id).map(t => ({ id: t.id, done: t.done })),
       };
@@ -475,10 +495,23 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   : 'Obligatorio: agrega al menos una tarea. El progreso del proyecto se calculará según las que vayas completando.'}
             </div>
             {canManageTasks && (
-              <div className="pm-task-add">
-                <input className="pm-input" style={{ flex: 1 }} placeholder="Nueva tarea..."
+              <div className="pm-task-add" style={{ flexWrap: 'wrap' }}>
+                <input className="pm-input" style={{ flex: 1, minWidth: 160 }} placeholder="Nueva tarea..."
                   value={taskTitle} onChange={e => setTaskTitle(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addLocalTask())} />
+                <select className="pm-input" style={{ width: 110 }} value={taskWeight}
+                  onChange={e => setTaskWeight(Number(e.target.value))} title="Tamaño de la tarea">
+                  <option value={1}>Pequeña</option>
+                  <option value={2}>Media</option>
+                  <option value={3}>Grande</option>
+                </select>
+                {areaSel === 'compartido' && (
+                  <select className="pm-input" style={{ width: 150 }} value={taskAssignee}
+                    onChange={e => setTaskAssignee(e.target.value)} title="Asignar a">
+                    <option value="">Sin asignar</option>
+                    {taskAssigneePool.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
+                  </select>
+                )}
                 <input className="pm-input" type="date" style={{ width: 150 }}
                   value={taskDate} onChange={e => setTaskDate(e.target.value)} />
                 <button type="button" className="btn btn-primary btn-sm" onClick={addLocalTask} disabled={!taskTitle.trim()}>
@@ -498,6 +531,12 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                       )}
                     </button>
                     <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
+                    {areaSel === 'compartido' && t.assigneeId && (() => {
+                      const owner = users.find(u => u.id === t.assigneeId);
+                      return owner ? (
+                        <span className={`avatar-xs ${colorClass(owner.colorIndex)}`} title={owner.name}>{owner.initials}</span>
+                      ) : null;
+                    })()}
                     {t.dueDate && (
                       <span className="pm-task-date">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
