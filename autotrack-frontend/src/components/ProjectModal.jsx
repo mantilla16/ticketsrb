@@ -75,16 +75,15 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
 
   const analiticaPool = users.filter(u => u.role === 'member_analytics');
 
-  // En compartidos, una tarea se asigna a UNA persona entre las ya elegidas como
-  // responsables de este proyecto (no a todo el pool de ingenieros/analistas).
-  const taskAssigneePool = areaSel === 'compartido'
-    ? [...new Set([...form.assigneeIds, form.coAssigneeId, form.generalAssigneeId].filter(Boolean))]
-        .map(id => users.find(u => String(u.id) === String(id)))
-        .filter(Boolean)
-    : [];
+  // Una tarea se asigna a UNA persona entre las ya elegidas como responsables de este
+  // proyecto (no a todo el pool de ingenieros/analistas) — aplica a cualquier tipo de
+  // proyecto, no solo compartidos, porque un proyecto normal también puede tener varios responsables.
+  const taskAssigneePool = [...new Set([...form.assigneeIds, form.coAssigneeId, form.generalAssigneeId].filter(Boolean))]
+    .map(id => users.find(u => String(u.id) === String(id)))
+    .filter(Boolean);
 
   useEffect(() => {
-    if (areaSel !== 'compartido' || !currentUser) { setTaskAssignee(''); return; }
+    if (!currentUser) { setTaskAssignee(''); return; }
     const self = taskAssigneePool.some(u => String(u.id) === String(currentUser.id));
     setTaskAssignee(self ? String(currentUser.id) : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,7 +162,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
     if (!taskTitle.trim()) return;
     setTasks(ts => [...ts, {
       _localId: Date.now(), title: taskTitle.trim(), dueDate: taskDate || null, done: false, _new: true,
-      weight: taskWeight, assigneeId: areaSel === 'compartido' && taskAssignee ? Number(taskAssignee) : null,
+      weight: taskWeight, assigneeId: taskAssignee ? Number(taskAssignee) : null,
     }]);
     setTaskTitle(''); setTaskDate(''); setTaskWeight(2);
   };
@@ -505,7 +504,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   <option value={2}>Media</option>
                   <option value={3}>Grande</option>
                 </select>
-                {areaSel === 'compartido' && (
+                {taskAssigneePool.length > 0 && (
                   <select className="pm-input" style={{ width: 150 }} value={taskAssignee}
                     onChange={e => setTaskAssignee(e.target.value)} title="Asignar a">
                     <option value="">Sin asignar</option>
@@ -531,7 +530,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                       )}
                     </button>
                     <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
-                    {areaSel === 'compartido' && t.assigneeId && (() => {
+                    {t.assigneeId && (() => {
                       const owner = users.find(u => u.id === t.assigneeId);
                       return owner ? (
                         <span className={`avatar-xs ${colorClass(owner.colorIndex)}`} title={owner.name}>{owner.initials}</span>

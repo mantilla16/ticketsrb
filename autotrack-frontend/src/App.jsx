@@ -134,10 +134,10 @@ export default function App() {
   );
   if (!user) return <Login />;
 
-  // Visibilidad por equipo: ingenieros no ven Analítica; miembros de Analítica solo ven Analítica y Compartidos
+  // Visibilidad por equipo: ingenieros no ven Analítica; Analítica (miembro o líder) solo ve Analítica y Compartidos
   const visibleProjects = user.role === 'engineer'
     ? projects.filter(p => (p.tipo || 'automatizacion') !== 'analitica')
-    : user.role === 'member_analytics'
+    : ['member_analytics', 'leader_analytics'].includes(user.role)
       ? projects.filter(p => ['analitica', 'compartido'].includes(p.tipo || 'automatizacion'))
       : projects;
 

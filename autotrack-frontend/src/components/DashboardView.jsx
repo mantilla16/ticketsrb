@@ -31,12 +31,13 @@ const PR_PILL = {
 // (16 ≈ 8 tareas medianas).
 const TASK_CAPACITY_POINTS = 16;
 
-// Carga de tareas pendientes de una persona: en compartidos solo cuentan las tareas
-// asignadas a ella; en proyectos de un solo equipo, todas las del proyecto (es su responsable).
+// Carga de tareas pendientes de una persona: si la tarea tiene un responsable propio,
+// solo cuenta para él/ella; si no tiene (tareas viejas o sin asignar), cuenta para
+// cualquier responsable del proyecto — igual que antes de poder asignar por tarea.
 function personTaskLoad(mine, userId) {
   return mine.reduce((sum, p) => {
     const pendientes = (p.tasks || []).filter(t => !t.done
-      && (p.tipo !== 'compartido' || t.assigneeId === userId));
+      && (t.assigneeId ? t.assigneeId === userId : true));
     return sum + pendientes.reduce((s, t) => s + (t.weight ?? 2), 0);
   }, 0);
 }
@@ -202,7 +203,8 @@ export default function DashboardView({ projects: allProjects, users, solicitude
   };
 
   /* ── Alcance por rol: cada equipo solo ve sus propios valores ── */
-  const teamScope = role === 'engineer' ? 'auto' : role === 'member_analytics' ? 'ana' : 'all';
+  const teamScope = role === 'engineer' ? 'auto'
+    : ['member_analytics', 'leader_analytics'].includes(role) ? 'ana' : 'all';
 
   /* ── Filtros ── */
   const today = new Date(); today.setHours(0, 0, 0, 0);

@@ -17,10 +17,10 @@ function isMine(p, userId) {
     || p.generalAssigneeId === userId;
 }
 
-// En compartidos, solo cuentan las tareas asignadas a esta persona; en proyectos de un
-// solo equipo, todas las del proyecto (la persona es responsable del proyecto completo).
+// Si la tarea tiene un responsable propio, solo es "mía" si soy yo; si no tiene
+// (vieja o sin asignar), es de cualquier responsable del proyecto.
 function tasksFor(p, userId) {
-  return (p.tasks || []).filter(t => p.tipo !== 'compartido' || t.assigneeId === userId);
+  return (p.tasks || []).filter(t => t.assigneeId ? t.assigneeId === userId : true);
 }
 
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';

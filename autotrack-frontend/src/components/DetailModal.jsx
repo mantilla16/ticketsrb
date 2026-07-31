@@ -36,15 +36,14 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   const [isBlock, setIsBlock]       = useState(false);
 
   const tipo = project?.tipo || 'automatizacion';
-  // En compartidos, una tarea se asigna a UNA persona entre las ya elegidas como
-  // responsables de este proyecto — por defecto, a uno mismo si aplica.
-  const taskAssigneePool = tipo === 'compartido' && project
+  // Una tarea se asigna a UNA persona entre las ya elegidas como responsables de este
+  // proyecto — por defecto, a uno mismo si aplica. Aplica a cualquier tipo de proyecto.
+  const taskAssigneePool = project
     ? [...project.assignees || [], project.coAssignee, project.generalAssignee].filter(Boolean)
       .filter((u, i, arr) => arr.findIndex(x => x.id === u.id) === i)
     : [];
 
   useEffect(() => {
-    if (tipo !== 'compartido') { setTaskAssignee(''); return; }
     const self = taskAssigneePool.some(u => u.id === currentUser?.id);
     setTaskAssignee(self ? String(currentUser.id) : '');
     setTaskWeight(2);
@@ -81,7 +80,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
     try {
       await onAddTask(project.id, taskText.trim(), {
         weight: taskWeight,
-        assigneeId: tipo === 'compartido' && taskAssignee ? Number(taskAssignee) : null,
+        assigneeId: taskAssignee ? Number(taskAssignee) : null,
       });
       setTaskText(''); setTaskWeight(2);
     } finally { setTaskSaving(false); }
@@ -284,7 +283,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                       )}
                     </button>
                     <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
-                    {tipo === 'compartido' && t.assigneeId && (() => {
+                    {t.assigneeId && (() => {
                       const owner = taskAssigneePool.find(u => u.id === t.assigneeId);
                       return owner ? (
                         <span className={`avatar-xs ${colorClass(owner.colorIndex)}`} title={owner.name}>{owner.initials}</span>
@@ -321,7 +320,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                   <option value={2}>Media</option>
                   <option value={3}>Grande</option>
                 </select>
-                {tipo === 'compartido' && (
+                {taskAssigneePool.length > 0 && (
                   <select className="form-input" style={{ width: 130, fontSize: 13, padding: '7px 10px' }}
                     value={taskAssignee} onChange={e => setTaskAssignee(e.target.value)} title="Asignar a">
                     <option value="">Sin asignar</option>
