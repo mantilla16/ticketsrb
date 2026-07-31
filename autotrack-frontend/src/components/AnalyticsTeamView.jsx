@@ -33,7 +33,7 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
   const [expanded, setExpanded] = useState(new Set());
 
   const isAuto = variant === 'auto';
-  const ownTipos = isAuto ? ['automatizacion', 'asignacion_flash'] : ['analitica'];
+  const ownTipos = [isAuto ? 'automatizacion' : 'analitica', 'asignacion_flash'];
   const tipoOf = (p) => p.tipo || 'automatizacion';
   const anaProjects = projects.filter(p => [...ownTipos, 'compartido'].includes(tipoOf(p)));
   const byTab = p => tab === 'all' ? true : tab === 'ana' ? ownTipos.includes(tipoOf(p)) : tipoOf(p) === 'compartido';

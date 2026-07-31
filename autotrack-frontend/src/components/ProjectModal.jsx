@@ -90,7 +90,13 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
       setLogText(''); setIsBlock(false); setShowAllLogs(false);
       if (project) {
         const tipo = project.tipo || 'automatizacion';
-        setAreaSel(tipo === 'asignacion_flash' ? 'automatizacion' : tipo);
+        if (tipo === 'asignacion_flash') {
+          // El tipo no dice a qué equipo pertenece — se infiere del rol del responsable asignado.
+          const assigneeRole = users.find(u => u.id === (project.assigneeIds?.[0] ?? project.assigneeId))?.role;
+          setAreaSel(assigneeRole === 'member_analytics' ? 'analitica' : 'automatizacion');
+        } else {
+          setAreaSel(tipo);
+        }
         setTypeSel(tipo === 'asignacion_flash' ? 'flash' : 'proyecto');
         setShowDoc(Boolean(project.docUrl));
         setForm({
@@ -259,41 +265,43 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                 </label>
                 <input className="pm-input" value={form.name} onChange={set('name')} placeholder="Ej. Dashboard de seguimiento de datos" disabled={lockCore} />
               </div>
-              <div className="pm-field" style={{ gridColumn: '1 / -1', position: 'relative' }} ref={assigneeRef}>
-                <label className="pm-field-label">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  {areaSel === 'compartido' ? 'Responsable(s) de Automatización' : 'Responsable(s)'} — puedes elegir más de uno
-                </label>
-                <button type="button" className="pm-dropdown-btn"
-                  disabled={isEdit && !isLeader}
-                  onClick={() => setAssigneeOpen(o => !o)}>
-                  <span className="pm-dropdown-btn-text">
-                    {form.assigneeIds.length
-                      ? assignablePool.filter(u => form.assigneeIds.includes(String(u.id))).map(u => u.name).join(', ')
-                      : 'Selecciona responsable(s)'}
-                  </span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: assigneeOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </button>
-                {assigneeOpen && (
-                  <div className="pm-dropdown-panel">
-                    {assignablePool.length === 0 && (
-                      <div style={{ padding: '10px 12px', fontSize: 12.5, color: 'var(--text3)' }}>No hay personas disponibles para este equipo</div>
-                    )}
-                    {assignablePool.map(u => {
-                      const active = form.assigneeIds.includes(String(u.id));
-                      return (
-                        <label key={u.id} className={`pm-dropdown-item${active ? ' pm-dropdown-item--active' : ''}`}>
-                          <input type="checkbox" checked={active} onChange={() => toggleAssignee(u.id)} />
-                          <span className={`avatar-xs ${colorClass(u.colorIndex)}`}>{u.initials}</span>
-                          {u.name}
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              {areaSel !== 'compartido' && (
+                <div className="pm-field" style={{ gridColumn: '1 / -1', position: 'relative' }} ref={assigneeRef}>
+                  <label className="pm-field-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Responsable(s) — puedes elegir más de uno
+                  </label>
+                  <button type="button" className="pm-dropdown-btn"
+                    disabled={isEdit && !isLeader}
+                    onClick={() => setAssigneeOpen(o => !o)}>
+                    <span className="pm-dropdown-btn-text">
+                      {form.assigneeIds.length
+                        ? assignablePool.filter(u => form.assigneeIds.includes(String(u.id))).map(u => u.name).join(', ')
+                        : 'Selecciona responsable(s)'}
+                    </span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: assigneeOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
+                  {assigneeOpen && (
+                    <div className="pm-dropdown-panel">
+                      {assignablePool.length === 0 && (
+                        <div style={{ padding: '10px 12px', fontSize: 12.5, color: 'var(--text3)' }}>No hay personas disponibles para este equipo</div>
+                      )}
+                      {assignablePool.map(u => {
+                        const active = form.assigneeIds.includes(String(u.id));
+                        return (
+                          <label key={u.id} className={`pm-dropdown-item${active ? ' pm-dropdown-item--active' : ''}`}>
+                            <input type="checkbox" checked={active} onChange={() => toggleAssignee(u.id)} />
+                            <span className={`avatar-xs ${colorClass(u.colorIndex)}`}>{u.initials}</span>
+                            {u.name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="pm-field">
                 <label className="pm-field-label">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -380,6 +388,38 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                     <option value="">— Sin asignar —</option>
                     {users.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
                   </select>
+                </div>
+                <div className="pm-field" style={{ position: 'relative' }} ref={assigneeRef}>
+                  <label className="pm-field-label">Responsable(s) Automatización</label>
+                  <button type="button" className="pm-dropdown-btn"
+                    disabled={isEdit && !isLeader}
+                    onClick={() => setAssigneeOpen(o => !o)}>
+                    <span className="pm-dropdown-btn-text">
+                      {form.assigneeIds.length
+                        ? assignablePool.filter(u => form.assigneeIds.includes(String(u.id))).map(u => u.name).join(', ')
+                        : 'Selecciona responsable(s)'}
+                    </span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: assigneeOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
+                  {assigneeOpen && (
+                    <div className="pm-dropdown-panel">
+                      {assignablePool.length === 0 && (
+                        <div style={{ padding: '10px 12px', fontSize: 12.5, color: 'var(--text3)' }}>No hay personas disponibles para este equipo</div>
+                      )}
+                      {assignablePool.map(u => {
+                        const active = form.assigneeIds.includes(String(u.id));
+                        return (
+                          <label key={u.id} className={`pm-dropdown-item${active ? ' pm-dropdown-item--active' : ''}`}>
+                            <input type="checkbox" checked={active} onChange={() => toggleAssignee(u.id)} />
+                            <span className={`avatar-xs ${colorClass(u.colorIndex)}`}>{u.initials}</span>
+                            {u.name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className="pm-field">
                   <label className="pm-field-label">Responsable Analítica</label>
