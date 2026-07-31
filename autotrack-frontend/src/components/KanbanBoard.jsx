@@ -9,6 +9,7 @@ const COLS = [
   { key: 'testing',  label: 'En testing', dot: 'var(--c-testing)'  },
   { key: 'done',     label: 'Finalizado', dot: 'var(--c-done)'     },
   { key: 'soporte',  label: 'En soporte', dot: 'var(--c-soporte)'  },
+  { key: 'cancelado', label: 'Cancelado', dot: 'var(--c-cancelado)' },
 ];
 
 const DONE_PREVIEW = 5;

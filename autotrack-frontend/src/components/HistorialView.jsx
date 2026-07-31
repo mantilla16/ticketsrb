@@ -6,7 +6,7 @@ const PR_CLASS = { high: 'pp-high', mid: 'pp-mid', low: 'pp-low' };
 
 const TIPO_LABEL = { automatizacion: 'Automatización', analitica: 'Analítica', compartido: 'Compartido', asignacion_flash: 'Flash' };
 const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', compartido: 'tipo-compartido', asignacion_flash: 'tipo-flash' };
-const TIPO_FILTERS = ['all', 'automatizacion', 'analitica', 'compartido', 'asignacion_flash', 'paso_soporte'];
+const TIPO_FILTERS = ['all', 'automatizacion', 'analitica', 'compartido', 'asignacion_flash', 'paso_soporte', 'cancelados'];
 
 function fmt(d) {
   if (!d) return '—';
@@ -18,12 +18,14 @@ export default function HistorialView({ projects, users, onCardClick }) {
   const [tipoFilter, setTipoFilter] = useState('all');
 
   const done = projects
-    .filter(p => p.status === 'done')
+    .filter(p => ['done', 'cancelado'].includes(p.status))
     .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
 
   const filtered = done
     .filter(p => tipoFilter === 'all'
-      || (tipoFilter === 'paso_soporte' ? p.wasSoporte : (p.tipo || 'automatizacion') === tipoFilter))
+      || (tipoFilter === 'paso_soporte' ? p.wasSoporte
+        : tipoFilter === 'cancelados' ? p.status === 'cancelado'
+        : (p.tipo || 'automatizacion') === tipoFilter))
     .filter(p => !search.trim() || (
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       (p.client || '').toLowerCase().includes(search.toLowerCase())
@@ -37,7 +39,7 @@ export default function HistorialView({ projects, users, onCardClick }) {
       <div className="hist-header">
         <div className="hist-counter">
           <span className="hist-counter-num">{done.length}</span>
-          <span className="hist-counter-lbl">proyectos finalizados</span>
+          <span className="hist-counter-lbl">proyectos en historial</span>
         </div>
         <div className="hist-search-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -63,7 +65,7 @@ export default function HistorialView({ projects, users, onCardClick }) {
             className={`sol-chip${tipoFilter === t ? ' sol-chip--active' : ''}`}
             onClick={() => setTipoFilter(t)}
           >
-            {t === 'all' ? 'Todos' : t === 'paso_soporte' ? 'Pasó por soporte' : TIPO_LABEL[t]}
+            {t === 'all' ? 'Todos' : t === 'paso_soporte' ? 'Pasó por soporte' : t === 'cancelados' ? 'Cancelados' : TIPO_LABEL[t]}
           </button>
         ))}
       </div>
@@ -86,13 +88,22 @@ export default function HistorialView({ projects, users, onCardClick }) {
                   <span className={`tipo-badge ${TIPO_CLS[p.tipo || 'automatizacion']}`} style={{ fontSize: 10 }}>
                     {TIPO_LABEL[p.tipo || 'automatizacion']}
                   </span>
-                  <span className="hist-done-badge" style={{ marginLeft: 'auto' }}
-                    {...(p.wasSoporte ? { 'data-soporte': true } : {})}>
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    Finalizado
-                  </span>
+                  {p.status === 'cancelado' ? (
+                    <span className="hist-done-badge" style={{ marginLeft: 'auto' }} data-cancelado="true">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                      Cancelado
+                    </span>
+                  ) : (
+                    <span className="hist-done-badge" style={{ marginLeft: 'auto' }}
+                      {...(p.wasSoporte ? { 'data-soporte': true } : {})}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      Finalizado
+                    </span>
+                  )}
                   {p.wasSoporte && (
                     <span className="hist-done-badge" data-soporte="true">
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

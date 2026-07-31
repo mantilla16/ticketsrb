@@ -3,11 +3,11 @@ import { colorClass } from '../utils/helpers';
 
 const STATUS_DOT = {
   backlog: '#a86040', progress: '#f9924d', standby: '#78716C',
-  testing: '#e87d3a', done: '#16A34A', soporte: '#0891b2',
+  testing: '#e87d3a', done: '#16A34A', soporte: '#0891b2', cancelado: '#DC2626',
 };
 const STATUS_L = {
   backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
-  testing: 'En testing', done: 'Finalizado', soporte: 'En soporte',
+  testing: 'En testing', done: 'Finalizado', soporte: 'En soporte', cancelado: 'Cancelado',
 };
 
 export default function ProjectSearch({ projects, onSelect }) {

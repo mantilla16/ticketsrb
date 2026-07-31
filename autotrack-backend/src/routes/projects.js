@@ -8,7 +8,7 @@ const escapeHtml = require('../utils/escapeHtml');
 
 const STATUS_LABEL = {
   backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
-  testing: 'En testing', done: 'Finalizado', soporte: 'Soporte',
+  testing: 'En testing', done: 'Finalizado', soporte: 'Soporte', cancelado: 'Cancelado',
 };
 
 const TEAM_LEADS        = ['admin', 'leader_analytics'];
@@ -213,7 +213,7 @@ async function fetchProject(id) {
 
 const validators = [
   body('name').notEmpty().trim().withMessage('Nombre requerido'),
-  body('status').isIn(['backlog', 'progress', 'standby', 'testing', 'done', 'soporte']),
+  body('status').isIn(['backlog', 'progress', 'standby', 'testing', 'done', 'soporte', 'cancelado']),
   body('priority').isIn(['high', 'mid', 'low']),
   body('progress').isInt({ min: 0, max: 100 }),
   body('tipo').optional().isIn(['automatizacion', 'analitica', 'compartido', 'asignacion_flash']),

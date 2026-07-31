@@ -26,6 +26,7 @@ const ENGINEER_FLOW = { progress: ['testing'], testing: ['done', 'soporte'] };
 const STATUS_OPTS = [
   ['backlog', 'Por hacer'], ['progress', 'En proceso'], ['standby', 'En standby'],
   ['testing', 'En testing'], ['done', 'Finalizado'], ['soporte', 'En soporte'],
+  ['cancelado', 'Cancelado'],
 ];
 
 export default function ProjectModal({ open, project, defStatus, defAssigneeId, users, onSave, onDelete, onClose, onAddLog, currentUser }) {

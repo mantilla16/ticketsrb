@@ -9,15 +9,15 @@ const PR = {
 
 const STATUS_L = {
   backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
-  testing: 'En testing', done: 'Finalizado', soporte: 'En soporte',
+  testing: 'En testing', done: 'Finalizado', soporte: 'En soporte', cancelado: 'Cancelado',
 };
 const STATUS_BG = {
   backlog: '#F3F4F6', progress: '#FFF3E8', standby: '#F5EFE9',
-  testing: '#FEF3C7', done: '#ECFDF3', soporte: '#e0f2fe',
+  testing: '#FEF3C7', done: '#ECFDF3', soporte: '#e0f2fe', cancelado: '#FEE2E2',
 };
 const STATUS_C = {
   backlog: '#6B7280', progress: '#F97316', standby: '#A8907C',
-  testing: '#D97706', done: '#22C55E', soporte: '#0891b2',
+  testing: '#D97706', done: '#22C55E', soporte: '#0891b2', cancelado: '#DC2626',
 };
 
 const PREVIEW = 5;
@@ -43,11 +43,11 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
 
   const totalAna    = anaProjects.filter(p => ownTipos.includes(tipoOf(p))).length;
   const totalComp   = anaProjects.filter(p => tipoOf(p) === 'compartido').length;
-  const weekCount   = anaProjects.filter(p => p.dueDate && p.status !== 'done'
+  const weekCount   = anaProjects.filter(p => p.dueDate && !['done', 'cancelado'].includes(p.status)
     && new Date(p.dueDate) >= today && new Date(p.dueDate) <= week).length;
 
   const upcoming = anaProjects
-    .filter(p => p.dueDate && p.status !== 'done')
+    .filter(p => p.dueDate && !['done', 'cancelado'].includes(p.status))
     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
     .slice(0, 5);
 
@@ -79,10 +79,11 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
             const allForUser = anaProjects
               .filter(byTab)
               .filter(p => (p.assigneeIds || [p.assigneeId]).includes(u.id) || p.coAssigneeId === u.id);
-            // Los finalizados quedan solo en Historial — aquí no se listan como tarjetas
-            const list   = allForUser.filter(p => p.status !== 'done');
-            const active = list.filter(p => ['progress', 'testing'].includes(p.status)).length;
-            const done   = allForUser.filter(p => p.status === 'done').length;
+            // Los finalizados y cancelados quedan solo en Historial — aquí no se listan como tarjetas
+            const list      = allForUser.filter(p => !['done', 'cancelado'].includes(p.status));
+            const active    = list.filter(p => ['progress', 'testing'].includes(p.status)).length;
+            const done      = allForUser.filter(p => p.status === 'done').length;
+            const cancelled = allForUser.filter(p => p.status === 'cancelado').length;
             const isOpen = expanded.has(u.id);
             const shown  = isOpen ? list : list.slice(0, PREVIEW);
             const hidden = list.length - PREVIEW;
@@ -111,7 +112,9 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
                     </div>
                     <div className="at-empty-title">{done > 0 ? 'Sin proyectos activos' : 'Sin proyectos asignados'}</div>
                     <div className="at-empty-sub">
-                      {done > 0 ? `Tiene ${done} finalizado${done !== 1 ? 's' : ''} — puedes verlos en Historial.` : 'Cuando se asignen proyectos, aparecerán aquí.'}
+                      {done > 0 || cancelled > 0
+                        ? `Tiene ${done} finalizado${done !== 1 ? 's' : ''}${cancelled ? ` y ${cancelled} cancelado${cancelled !== 1 ? 's' : ''}` : ''} — puedes verlos en Historial.`
+                        : 'Cuando se asignen proyectos, aparecerán aquí.'}
                     </div>
                   </div>
                 ) : (

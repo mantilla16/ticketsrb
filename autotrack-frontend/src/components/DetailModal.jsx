@@ -4,10 +4,12 @@ import { fmtDate, dateStatus, colorClass, fmtLogDate } from '../utils/helpers';
 const STATUS_CLS = {
   backlog:'status-backlog',progress:'status-progress',
   standby:'status-standby',testing:'status-testing',done:'status-done',soporte:'status-soporte',
+  cancelado:'status-cancelado',
 };
 const STATUS_L = {
   backlog:'Por hacer',progress:'En proceso',
   standby:'En standby',testing:'En testing',done:'Finalizado',soporte:'En soporte',
+  cancelado:'Cancelado',
 };
 const PR_PILL = { high: 'pp-high', mid: 'pp-mid', low: 'pp-low' };
 const PR_L    = { high: 'Alta',   mid: 'Media',  low: 'Baja'   };
@@ -34,10 +36,14 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
 
   const pct  = project.progress || 0;
   const eng  = project.assignee;
-  const people = project.assignees?.length ? project.assignees : (eng ? [eng] : []);
+  const peopleAll = project.assignees?.length ? project.assignees : (eng ? [eng] : []);
   const dSt  = dateStatus(project.dueDate);
   const pr   = project.priority || 'mid';
   const tipo = project.tipo || 'automatizacion';
+  // En compartidos, "Resp. Automatización" debe mostrar solo ingenieros — filtra cualquier
+  // rastro de gente de otro equipo que haya quedado asignada antes de que esto se validara.
+  const engineerIds = new Set(users.filter(u => u.role === 'engineer').map(u => u.id));
+  const people = tipo === 'compartido' ? peopleAll.filter(p => engineerIds.has(p.id)) : peopleAll;
 
   const addLog = async () => {
     if (!logText.trim()) { setError('Escribe el avance de la reunión'); return; }

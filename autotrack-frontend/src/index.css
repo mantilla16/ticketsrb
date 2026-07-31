@@ -46,6 +46,7 @@
   --c-testing:  #F59E0B;  --c-testing-bg:  #FEF3C7;
   --c-done:     #22C55E;  --c-done-bg:     #ECFDF3;
   --c-soporte:  #0891b2;  --c-soporte-bg:  #e0f2fe;
+  --c-cancelado: #DC2626; --c-cancelado-bg: #FEE2E2;
 
   /* Shadows — cálidas, nunca negras */
   --sh:    0 12px 24px rgba(175,150,130,.10), inset 0 2px 3px rgba(255,255,255,.9);
@@ -241,6 +242,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .status-testing  { background: var(--c-testing-bg);  color: var(--c-testing);  }
 .status-done     { background: var(--c-done-bg);     color: var(--c-done);     }
 .status-soporte  { background: var(--c-soporte-bg);  color: var(--c-soporte);  }
+.status-cancelado{ background: var(--c-cancelado-bg);color: var(--c-cancelado);}
 
 .priority-pill {
   display: inline-flex; align-items: center; gap: 4px;
@@ -411,6 +413,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .hist-card-user { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text2); }
 .hist-card-date { font-size:11px; color:var(--text3); font-variant-numeric:tabular-nums; }
 .hist-done-badge[data-soporte] { background:var(--c-soporte-bg); color:var(--c-soporte); }
+.hist-done-badge[data-cancelado] { background:var(--c-cancelado-bg); color:var(--c-cancelado); }
 .hist-done-badge {
   display:inline-flex; align-items:center; gap:4px;
   padding:3px 8px; border-radius:4px;

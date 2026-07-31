@@ -34,7 +34,7 @@ const TITLES = {
 const STATUS_NAMES = {
   backlog: 'Por hacer', progress: 'En proceso',
   standby: 'En standby', testing: 'En testing',
-  done: 'Finalizado', soporte: 'En soporte',
+  done: 'Finalizado', soporte: 'En soporte', cancelado: 'Cancelado',
 };
 
 function defaultSection(role) {

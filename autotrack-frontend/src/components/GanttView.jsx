@@ -4,16 +4,16 @@ import { colorClass } from '../utils/helpers';
 const STATUS_CLS = {
   backlog: 'status-backlog', progress: 'status-progress',
   standby: 'status-standby', testing: 'status-testing',
-  done: 'status-done', soporte: 'status-soporte',
+  done: 'status-done', soporte: 'status-soporte', cancelado: 'status-cancelado',
 };
 const STATUS_L = {
   backlog: 'Por hacer', progress: 'En proceso',
   standby: 'En standby', testing: 'En testing',
-  done: 'Finalizado', soporte: 'En soporte',
+  done: 'Finalizado', soporte: 'En soporte', cancelado: 'Cancelado',
 };
 const BAR_COLOR = {
   backlog: '#D9CFC7', progress: '#F97316',
-  standby: '#C9BBAD', testing: '#F59E0B', done: '#22C55E', soporte: '#0891b2',
+  standby: '#C9BBAD', testing: '#F59E0B', done: '#22C55E', soporte: '#0891b2', cancelado: '#DC2626',
 };
 
 const fmtDMY   = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
@@ -30,7 +30,7 @@ export default function GanttView({ projects, users = [], onRowClick }) {
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
   const monthEnd   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-  const activeAll = projects.filter(p => p.status !== 'done');
+  const activeAll = projects.filter(p => !['done', 'cancelado'].includes(p.status));
   const areas = [...new Set(activeAll.map(p => (p.client || '').trim()).filter(Boolean))].sort();
 
   const active = activeAll.filter(p =>
@@ -63,7 +63,7 @@ export default function GanttView({ projects, users = [], onRowClick }) {
   const FILTERS = [
     { label: 'Área',        value: fArea, set: setFArea, opts: [['all', 'Todas'], ...areas.map(a => [a, a])] },
     { label: 'Responsable', value: fResp, set: setFResp, opts: [['all', 'Todos'], ...users.map(u => [String(u.id), u.name])] },
-    { label: 'Estado',      value: fStat, set: setFStat, opts: [['all', 'Todos'], ...Object.entries(STATUS_L).filter(([k]) => k !== 'done')] },
+    { label: 'Estado',      value: fStat, set: setFStat, opts: [['all', 'Todos'], ...Object.entries(STATUS_L).filter(([k]) => !['done', 'cancelado'].includes(k))] },
     { label: 'Periodo',     value: fPer,  set: setFPer,  opts: [['all', 'Todo'], ['month', 'Este mes']] },
   ];
 

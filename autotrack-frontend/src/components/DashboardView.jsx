@@ -16,6 +16,7 @@ const STATUS_PILL = {
   testing:  { l: 'En validación', bg: '#FEF3C7', c: '#D97706' },
   done:     { l: 'Finalizado',    bg: '#ECFDF3', c: '#16A34A' },
   soporte:  { l: 'Soporte',       bg: '#E0F2FE', c: '#0891b2' },
+  cancelado:{ l: 'Cancelado',     bg: '#FEE2E2', c: '#DC2626' },
 };
 const RISK_PILL = { l: 'En riesgo', bg: '#FEF2F2', c: '#DC2626' };
 
@@ -113,6 +114,7 @@ const ICONS = {
   testing:   IC(<><path d="M9 3h6M10 3v6l-5.5 9.5a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L14 9V3"/></>),
   backlog:   IC(<><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></>),
   soporte:   IC(<><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></>),
+  cancelado: IC(<><circle cx="12" cy="12" r="9"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></>),
   check:     IC(<><circle cx="12" cy="12" r="9"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></>),
 };
 
@@ -209,9 +211,9 @@ export default function DashboardView({ projects: allProjects, users, solicitude
     .filter(p => fStat === 'all' || p.status === fStat);
 
   /* ── KPIs por estado ── */
-  const isOverdue = (p) => p.dueDate && p.status !== 'done' && new Date(p.dueDate) < today;
+  const isOverdue = (p) => p.dueDate && !['done', 'cancelado'].includes(p.status) && new Date(p.dueDate) < today;
 
-  const cnt = { backlog: 0, progress: 0, standby: 0, testing: 0, done: 0, soporte: 0 };
+  const cnt = { backlog: 0, progress: 0, standby: 0, testing: 0, done: 0, soporte: 0, cancelado: 0 };
   projects.forEach(p => { if (cnt[p.status] !== undefined) cnt[p.status]++; });
   const total = projects.length;
 
@@ -238,7 +240,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
     const active  = mine.filter(p => ['progress', 'testing'].includes(p.status));
     const riesgos = mine.filter(isOverdue).length;
     const bloqueos = mine.filter(p => p.status === 'standby').length;
-    const next    = mine.filter(p => p.dueDate && p.status !== 'done')
+    const next    = mine.filter(p => p.dueDate && !['done', 'cancelado'].includes(p.status))
       .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0];
     const ocup    = Math.round(active.length / CAPACITY * 100);
     const estado  = ocup > 100 ? { l: 'Sobrecarga', bg: '#FEF2F2', c: '#DC2626' }
@@ -250,7 +252,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
 
   /* ── Portafolio ── */
   const portafolio = [...projects]
-    .filter(p => p.status !== 'done')
+    .filter(p => !['done', 'cancelado'].includes(p.status))
     .sort((a, b) => {
       const ra = isOverdue(a) ? 0 : 1, rb = isOverdue(b) ? 0 : 1;
       if (ra !== rb) return ra - rb;
@@ -293,6 +295,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
         <Kpi icon={ICONS.check} label="Finalizados" value={cnt.done} />
         <Kpi icon={ICONS.backlog} label="Por hacer" value={cnt.backlog} />
         <Kpi icon={ICONS.soporte} label="Soporte" value={cnt.soporte} />
+        <Kpi icon={ICONS.cancelado} label="Cancelados" value={cnt.cancelado} />
       </div>
 
       {/* Filtros + exportar */}
