@@ -64,12 +64,13 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const [isBlock, setIsBlock]   = useState(false);
   const [logSaving, setLogSaving] = useState(false);
 
-  // Responsables seleccionables: solo ingenieros de Automatización y miembros de Analítica — nada más
+  // Responsables seleccionables: solo ingenieros de Automatización o miembros de Analítica según el equipo —
+  // en "compartido" este selector es específicamente el de Automatización (el de Analítica es aparte, coAssigneeId).
   const assignablePool = areaSel === 'analitica'
     ? users.filter(u => u.role === 'member_analytics')
-    : areaSel === 'compartido'
-      ? users.filter(u => ['engineer', 'member_analytics'].includes(u.role))
-      : users.filter(u => u.role === 'engineer');
+    : users.filter(u => u.role === 'engineer');
+
+  const analiticaPool = users.filter(u => u.role === 'member_analytics');
 
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const assigneeRef = useRef(null);
@@ -261,7 +262,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
               <div className="pm-field" style={{ gridColumn: '1 / -1', position: 'relative' }} ref={assigneeRef}>
                 <label className="pm-field-label">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  Responsable(s) — puedes elegir más de uno
+                  {areaSel === 'compartido' ? 'Responsable(s) de Automatización' : 'Responsable(s)'} — puedes elegir más de uno
                 </label>
                 <button type="button" className="pm-dropdown-btn"
                   disabled={isEdit && !isLeader}
@@ -384,7 +385,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   <label className="pm-field-label">Responsable Analítica</label>
                   <select className="pm-input" value={form.coAssigneeId} onChange={set('coAssigneeId')} disabled={isEdit && !isLeader}>
                     <option value="">— Sin asignar —</option>
-                    {users.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
+                    {analiticaPool.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
                   </select>
                 </div>
                 <div className="pm-field">
