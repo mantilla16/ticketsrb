@@ -36,12 +36,13 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   const [isBlock, setIsBlock]       = useState(false);
 
   const tipo = project?.tipo || 'automatizacion';
-  // Una tarea se asigna a UNA persona entre las ya elegidas como responsables de este
-  // proyecto — por defecto, a uno mismo si aplica. Aplica a cualquier tipo de proyecto.
-  const taskAssigneePool = project
-    ? [...project.assignees || [], project.coAssignee, project.generalAssignee].filter(Boolean)
-      .filter((u, i, arr) => arr.findIndex(x => x.id === u.id) === i)
-    : [];
+  // Una tarea se puede asignar a cualquiera del equipo correspondiente al proyecto —
+  // no solo a quien ya quedó como responsable general del proyecto.
+  const taskAssigneePool = tipo === 'analitica'
+    ? users.filter(u => u.role === 'member_analytics')
+    : tipo === 'compartido'
+      ? users.filter(u => ['engineer', 'member_analytics'].includes(u.role))
+      : users.filter(u => u.role === 'engineer');
 
   useEffect(() => {
     const self = taskAssigneePool.some(u => u.id === currentUser?.id);

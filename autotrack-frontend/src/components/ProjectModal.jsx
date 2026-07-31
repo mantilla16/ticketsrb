@@ -75,19 +75,20 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
 
   const analiticaPool = users.filter(u => u.role === 'member_analytics');
 
-  // Una tarea se asigna a UNA persona entre las ya elegidas como responsables de este
-  // proyecto (no a todo el pool de ingenieros/analistas) — aplica a cualquier tipo de
-  // proyecto, no solo compartidos, porque un proyecto normal también puede tener varios responsables.
-  const taskAssigneePool = [...new Set([...form.assigneeIds, form.coAssigneeId, form.generalAssigneeId].filter(Boolean))]
-    .map(id => users.find(u => String(u.id) === String(id)))
-    .filter(Boolean);
+  // Una tarea se puede asignar a cualquiera del equipo correspondiente al proyecto —
+  // no solo a quien ya quedó como responsable general del proyecto.
+  const taskAssigneePool = areaSel === 'analitica'
+    ? analiticaPool
+    : areaSel === 'compartido'
+      ? [...users.filter(u => u.role === 'engineer'), ...analiticaPool]
+      : assignablePool;
 
   useEffect(() => {
     if (!currentUser) { setTaskAssignee(''); return; }
     const self = taskAssigneePool.some(u => String(u.id) === String(currentUser.id));
     setTaskAssignee(self ? String(currentUser.id) : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [areaSel, form.assigneeIds, form.coAssigneeId, form.generalAssigneeId]);
+  }, [areaSel]);
 
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const assigneeRef = useRef(null);
