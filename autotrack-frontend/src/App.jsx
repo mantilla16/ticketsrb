@@ -394,7 +394,7 @@ export default function App() {
 
             {section === 'dashboard' && (
               ['engineer', 'member_analytics'].includes(user?.role) ? (
-                <PersonalDashboardView projects={visibleProjects} currentUser={user} onCardClick={openDetail} onNavigate={changeSection} />
+                <PersonalDashboardView projects={visibleProjects} users={users} currentUser={user} onCardClick={openDetail} onNavigate={changeSection} />
               ) : (
                 <DashboardView projects={visibleProjects} users={users} solicitudes={solicitudes} onCardClick={openDetail} onNavigate={changeSection} role={user?.role}
                   period={dashPeriod} onPeriodChange={setDashPeriod} />

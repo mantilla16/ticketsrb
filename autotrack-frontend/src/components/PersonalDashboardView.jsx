@@ -7,10 +7,6 @@
 
 const INK2 = '#7A736C';
 
-// Misma constante y fórmula de ocupación que el Dashboard Ejecutivo (DashboardView.jsx),
-// para que el % de una persona sea idéntico se mire desde donde se mire.
-const TASK_CAPACITY_POINTS = 16;
-
 function isMine(p, userId) {
   return (p.assigneeIds || [p.assigneeId]).includes(userId)
     || p.coAssigneeId === userId
@@ -21,6 +17,26 @@ function isMine(p, userId) {
 // (vieja o sin asignar), es de cualquier responsable del proyecto.
 function tasksFor(p, userId) {
   return (p.tasks || []).filter(t => t.assigneeId ? t.assigneeId === userId : true);
+}
+
+// Misma fórmula que el Dashboard Ejecutivo (DashboardView.jsx): una tarea que vence
+// pronto pesa más que una lejana, y 100% = tan cargado como el promedio del equipo ahora.
+function urgencyMultiplier(dueDate) {
+  if (!dueDate) return 1;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const soon = new Date(today); soon.setDate(soon.getDate() + 7);
+  const d = new Date(dueDate);
+  if (d < today) return 2.5;
+  if (d <= soon) return 1.5;
+  return 0.5;
+}
+
+function personUrgencyLoad(projects, userId) {
+  return projects
+    .filter(p => !['done', 'cancelado'].includes(p.status))
+    .flatMap(p => tasksFor(p, userId))
+    .filter(t => !t.done)
+    .reduce((sum, t) => sum + (t.weight ?? 2) * urgencyMultiplier(t.dueDate), 0);
 }
 
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -62,7 +78,7 @@ function BlockHead({ icon, title, right }) {
   );
 }
 
-export default function PersonalDashboardView({ projects, currentUser, onCardClick, onNavigate }) {
+export default function PersonalDashboardView({ projects, users = [], currentUser, onCardClick, onNavigate }) {
   const userId = currentUser?.id;
   const mine = projects.filter(p => isMine(p, userId));
   const activeMine = mine.filter(p => !['done', 'cancelado'].includes(p.status));
@@ -78,10 +94,16 @@ export default function PersonalDashboardView({ projects, currentUser, onCardCli
   });
 
   const tasksTotal = allMyTasks.length;
-  const cargaPuntos = myTasks.reduce((s, t) => s + (t.weight ?? 2), 0);
-  const ocup = Math.round(cargaPuntos / TASK_CAPACITY_POINTS * 100);
-  const estado = ocup > 100 ? { l: 'Sobrecarga', bg: '#FEF2F2', c: '#DC2626' }
-    : ocup >= 75 ? { l: 'Alta carga', bg: '#FEF3C7', c: '#D97706' }
+
+  // 100% = tan cargada como el promedio de tus compañeros de equipo ahora mismo,
+  // no un umbral fijo — así el indicador se ajusta solo al tamaño real del backlog.
+  const teammates = users.filter(u => u.role === currentUser?.role);
+  const teamLoads = teammates.map(u => personUrgencyLoad(projects.filter(p => isMine(p, u.id)), u.id));
+  const avgLoad = teamLoads.length ? teamLoads.reduce((a, b) => a + b, 0) / teamLoads.length : 0;
+  const myLoad = personUrgencyLoad(mine, userId);
+  const ocup = avgLoad > 0 ? Math.round(myLoad / avgLoad * 100) : 0;
+  const estado = ocup > 150 ? { l: 'Sobrecarga', bg: '#FEF2F2', c: '#DC2626' }
+    : ocup >= 110 ? { l: 'Alta carga', bg: '#FEF3C7', c: '#D97706' }
     : { l: 'Saludable', bg: '#ECFDF3', c: '#16A34A' };
 
   const portafolio = [...activeMine].sort((a, b) => (a.dueDate || '9999') < (b.dueDate || '9999') ? -1 : 1);

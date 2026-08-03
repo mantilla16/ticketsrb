@@ -26,15 +26,29 @@ const PR_PILL = {
   low:  { l: 'Baja',  bg: '#ECFDF3', c: '#16A34A' },
 };
 
-// Ocupación por carga de tareas pendientes, no por cantidad de proyectos: cada tarea pesa
-// 1/2/3 (Pequeña/Media/Grande) y esta constante es cuántos puntos equivalen al 100%
-// (16 ≈ 8 tareas medianas).
-const TASK_CAPACITY_POINTS = 16;
-
 // Tareas "de" una persona: si la tarea tiene un responsable propio, solo es suya si es
 // ella; si no tiene (tareas viejas o sin asignar), es de cualquier responsable del proyecto.
 function personTasks(mine, userId) {
   return mine.flatMap(p => (p.tasks || []).filter(t => t.assigneeId ? t.assigneeId === userId : true));
+}
+
+// Una tarea que vence pronto pesa más que una lejana en el backlog — no todo lo
+// pendiente presiona igual hoy mismo.
+function urgencyMultiplier(dueDate) {
+  if (!dueDate) return 1;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const soon = new Date(today); soon.setDate(soon.getDate() + 7);
+  const d = new Date(dueDate);
+  if (d < today) return 2.5;   // vencida
+  if (d <= soon) return 1.5;   // vence esta semana
+  return 0.5;                 // lejana — pesa poco en la carga de "ahora"
+}
+
+// Carga de una persona ponderada por tamaño Y urgencia de cada tarea pendiente.
+function personUrgencyLoad(mine, userId) {
+  return personTasks(mine, userId)
+    .filter(t => !t.done)
+    .reduce((sum, t) => sum + (t.weight ?? 2) * urgencyMultiplier(t.dueDate), 0);
 }
 
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -245,23 +259,34 @@ export default function DashboardView({ projects: allProjects, users, solicitude
   const distMax = Math.max(1, ...distArea.map(d => d.n));
 
   /* ── Carga del equipo ── */
-  const teamRows = team.map(u => {
+  // Primera pasada: carga real de cada persona (sin normalizar todavía).
+  const teamLoads = team.map(u => {
     const mine    = projects.filter(p => (p.assigneeIds || [p.assigneeId]).includes(u.id) || p.coAssigneeId === u.id);
     const riesgos = mine.filter(isOverdue).length;
     const bloqueos = mine.filter(p => p.status === 'standby').length;
     const next    = mine.filter(p => p.dueDate && !['done', 'cancelado'].includes(p.status))
       .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0];
     const activeMine  = mine.filter(p => !['done', 'cancelado'].includes(p.status));
-    const myTasks     = personTasks(activeMine, u.id);
+    const myTasks      = personTasks(activeMine, u.id);
     const tasksTotal   = myTasks.length;
     const tasksPending = myTasks.filter(t => !t.done).length;
-    const cargaPuntos = myTasks.filter(t => !t.done).reduce((s, t) => s + (t.weight ?? 2), 0);
-    const ocup    = Math.round(cargaPuntos / TASK_CAPACITY_POINTS * 100);
-    const estado  = ocup > 100 ? { l: 'Sobrecarga', bg: '#FEF2F2', c: '#DC2626' }
-      : ocup >= 75 ? { l: 'Alta carga', bg: '#FEF3C7', c: '#D97706' }
-      : { l: 'Saludable', bg: '#ECFDF3', c: '#16A34A' };
+    const urgencyLoad  = personUrgencyLoad(activeMine, u.id);
     const equipo  = u.role === 'engineer' ? 'Automatización' : 'Analítica de Datos';
-    return { u, equipo, total: mine.length, tasksPending, tasksTotal, ocup, riesgos, bloqueos, next, estado };
+    return { u, equipo, total: mine.length, tasksPending, tasksTotal, urgencyLoad, riesgos, bloqueos, next };
+  });
+
+  // 100% = tan cargado como el promedio del equipo en este momento — no un umbral fijo
+  // que hay que reajustar a mano cada vez que cambia el tamaño real del backlog.
+  const avgLoad = teamLoads.length
+    ? teamLoads.reduce((s, r) => s + r.urgencyLoad, 0) / teamLoads.length
+    : 0;
+
+  const teamRows = teamLoads.map(r => {
+    const ocup = avgLoad > 0 ? Math.round(r.urgencyLoad / avgLoad * 100) : 0;
+    const estado = ocup > 150 ? { l: 'Sobrecarga', bg: '#FEF2F2', c: '#DC2626' }
+      : ocup >= 110 ? { l: 'Alta carga', bg: '#FEF3C7', c: '#D97706' }
+      : { l: 'Saludable', bg: '#ECFDF3', c: '#16A34A' };
+    return { ...r, ocup, estado };
   }).sort((a, b) => b.ocup - a.ocup);
 
   /* ── Portafolio ── */
