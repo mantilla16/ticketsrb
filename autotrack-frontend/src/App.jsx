@@ -134,18 +134,23 @@ export default function App() {
   );
   if (!user) return <Login />;
 
-  // Visibilidad por equipo: ingenieros no ven Analítica; Analítica (miembro o líder) solo ve Analítica y Compartidos
+  // Visibilidad por equipo: ingenieros no ven Analítica; Analítica (miembro o líder) solo ve Analítica,
+  // Compartidos, y asignaciones flash que sean realmente de alguien de su equipo (una flash
+  // puede ser de cualquiera de los dos equipos, así que se valida por responsable, no por tipo solo).
+  const analyticsIds = new Set(users.filter(u => ['member_analytics', 'leader_analytics'].includes(u.role)).map(u => u.id));
+  const isAnalyticsFlash = (p) => p.tipo === 'asignacion_flash'
+    && [...(p.assigneeIds || [p.assigneeId]), p.coAssigneeId, p.generalAssigneeId].filter(Boolean).some(id => analyticsIds.has(id));
   const visibleProjects = user.role === 'engineer'
     ? projects.filter(p => (p.tipo || 'automatizacion') !== 'analitica')
     : ['member_analytics', 'leader_analytics'].includes(user.role)
-      ? projects.filter(p => ['analitica', 'compartido'].includes(p.tipo || 'automatizacion'))
+      ? projects.filter(p => ['analitica', 'compartido'].includes(p.tipo || 'automatizacion') || isAnalyticsFlash(p))
       : projects;
 
   const detailProject = detailModal.projectId ? visibleProjects.find(p => p.id === detailModal.projectId) : null;
   let { title, sub } = TITLES[section] || TITLES['dashboard'];
-  if (section === 'dashboard') {
-    if (user.role === 'engineer') sub = 'Visión ejecutiva del estado de Automatización';
-    else if (user.role === 'member_analytics') sub = 'Visión ejecutiva del estado de Analítica';
+  if (section === 'dashboard' && ['engineer', 'member_analytics'].includes(user.role)) {
+    title = 'Mi Dashboard';
+    sub = 'Tus tareas pendientes y tus proyectos';
   }
 
   const changeSection = (id) => {

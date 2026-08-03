@@ -89,7 +89,7 @@ export default function PersonalDashboardView({ projects, currentUser, onCardCli
   return (
     <div className="dx-root">
       {/* Ocupación propia */}
-      <div className="dx-card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+      <div className="dx-card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <span style={{ color: INK2, display: 'flex' }}>{ICONS.carga}</span>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div className="dx-block-title" style={{ marginBottom: 6 }}>Tu ocupación</div>
