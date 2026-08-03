@@ -31,15 +31,10 @@ const PR_PILL = {
 // (16 ≈ 8 tareas medianas).
 const TASK_CAPACITY_POINTS = 16;
 
-// Carga de tareas pendientes de una persona: si la tarea tiene un responsable propio,
-// solo cuenta para él/ella; si no tiene (tareas viejas o sin asignar), cuenta para
-// cualquier responsable del proyecto — igual que antes de poder asignar por tarea.
-function personTaskLoad(mine, userId) {
-  return mine.reduce((sum, p) => {
-    const pendientes = (p.tasks || []).filter(t => !t.done
-      && (t.assigneeId ? t.assigneeId === userId : true));
-    return sum + pendientes.reduce((s, t) => s + (t.weight ?? 2), 0);
-  }, 0);
+// Tareas "de" una persona: si la tarea tiene un responsable propio, solo es suya si es
+// ella; si no tiene (tareas viejas o sin asignar), es de cualquier responsable del proyecto.
+function personTasks(mine, userId) {
+  return mine.flatMap(p => (p.tasks || []).filter(t => t.assigneeId ? t.assigneeId === userId : true));
 }
 
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -256,13 +251,17 @@ export default function DashboardView({ projects: allProjects, users, solicitude
     const bloqueos = mine.filter(p => p.status === 'standby').length;
     const next    = mine.filter(p => p.dueDate && !['done', 'cancelado'].includes(p.status))
       .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0];
-    const cargaPuntos = personTaskLoad(mine.filter(p => !['done', 'cancelado'].includes(p.status)), u.id);
+    const activeMine  = mine.filter(p => !['done', 'cancelado'].includes(p.status));
+    const myTasks     = personTasks(activeMine, u.id);
+    const tasksTotal   = myTasks.length;
+    const tasksPending = myTasks.filter(t => !t.done).length;
+    const cargaPuntos = myTasks.filter(t => !t.done).reduce((s, t) => s + (t.weight ?? 2), 0);
     const ocup    = Math.round(cargaPuntos / TASK_CAPACITY_POINTS * 100);
     const estado  = ocup > 100 ? { l: 'Sobrecarga', bg: '#FEF2F2', c: '#DC2626' }
       : ocup >= 75 ? { l: 'Alta carga', bg: '#FEF3C7', c: '#D97706' }
       : { l: 'Saludable', bg: '#ECFDF3', c: '#16A34A' };
     const equipo  = u.role === 'engineer' ? 'Automatización' : 'Analítica de Datos';
-    return { u, equipo, total: mine.length, ocup, riesgos, bloqueos, next, estado };
+    return { u, equipo, total: mine.length, tasksPending, tasksTotal, ocup, riesgos, bloqueos, next, estado };
   }).sort((a, b) => b.ocup - a.ocup);
 
   /* ── Portafolio ── */
@@ -367,7 +366,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
                 </tr>
               </thead>
               <tbody>
-                {teamRows.map(({ u, equipo, total, ocup, riesgos, bloqueos, next, estado }) => (
+                {teamRows.map(({ u, equipo, total, tasksPending, tasksTotal, ocup, riesgos, bloqueos, next, estado }) => (
                   <tr key={u.id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -382,6 +381,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
                       <div className="dx-bar" style={{ width: 74, marginTop: 3 }}>
                         <span style={{ width: `${Math.min(100, ocup)}%`, background: ocup > 100 ? '#DC2626' : ocup >= 75 ? '#F9924D' : '#F9924D' }} />
                       </div>
+                      <div style={{ fontSize: 10.5, color: INK2, marginTop: 3, whiteSpace: 'nowrap' }}>{tasksPending} pend. / {tasksTotal} tareas</div>
                     </td>
                     <td style={{ textAlign: 'center', fontWeight: 700, color: riesgos > 0 ? '#DC2626' : INK2 }}>{riesgos}</td>
                     <td style={{ textAlign: 'center', fontWeight: 700, color: bloqueos > 0 ? '#D97706' : INK2 }}>{bloqueos}</td>

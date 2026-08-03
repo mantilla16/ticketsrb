@@ -67,17 +67,17 @@ export default function PersonalDashboardView({ projects, currentUser, onCardCli
   const mine = projects.filter(p => isMine(p, userId));
   const activeMine = mine.filter(p => !['done', 'cancelado'].includes(p.status));
 
-  const myTasks = activeMine.flatMap(p =>
-    tasksFor(p, userId)
-      .filter(t => !t.done)
-      .map(t => ({ ...t, projectId: p.id, projectName: p.name, projectProgress: p.progress || 0 }))
-  ).sort((a, b) => {
+  const allMyTasks = activeMine.flatMap(p =>
+    tasksFor(p, userId).map(t => ({ ...t, projectId: p.id, projectName: p.name, projectProgress: p.progress || 0 }))
+  );
+  const myTasks = allMyTasks.filter(t => !t.done).sort((a, b) => {
     if (!a.dueDate && !b.dueDate) return 0;
     if (!a.dueDate) return 1;
     if (!b.dueDate) return -1;
     return new Date(a.dueDate) - new Date(b.dueDate);
   });
 
+  const tasksTotal = allMyTasks.length;
   const cargaPuntos = myTasks.reduce((s, t) => s + (t.weight ?? 2), 0);
   const ocup = Math.round(cargaPuntos / TASK_CAPACITY_POINTS * 100);
   const estado = ocup > 100 ? { l: 'Sobrecarga', bg: '#FEF2F2', c: '#DC2626' }
@@ -96,6 +96,7 @@ export default function PersonalDashboardView({ projects, currentUser, onCardCli
           <div className="dx-bar" style={{ maxWidth: 320 }}>
             <span style={{ width: `${Math.min(100, ocup)}%`, background: ocup > 100 ? '#DC2626' : '#F9924D' }} />
           </div>
+          <div style={{ fontSize: 11.5, color: INK2, marginTop: 5 }}>{myTasks.length} pendientes / {tasksTotal} tareas</div>
         </div>
         <div style={{ fontWeight: 700, fontSize: 20, color: estado.c }}>{ocup}%</div>
         <span className="dx-pill" style={{ background: estado.bg, color: estado.c }}>{estado.l}</span>
