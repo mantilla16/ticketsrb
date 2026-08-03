@@ -262,17 +262,17 @@ export default function DashboardView({ projects: allProjects, users, solicitude
   // Primera pasada: carga real de cada persona (sin normalizar todavía).
   const teamLoads = team.map(u => {
     const mine    = projects.filter(p => (p.assigneeIds || [p.assigneeId]).includes(u.id) || p.coAssigneeId === u.id);
-    const riesgos = mine.filter(isOverdue).length;
     const bloqueos = mine.filter(p => p.status === 'standby').length;
     const next    = mine.filter(p => p.dueDate && !['done', 'cancelado'].includes(p.status))
       .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0];
     const activeMine  = mine.filter(p => !['done', 'cancelado'].includes(p.status));
-    const myTasks      = personTasks(activeMine, u.id);
-    const tasksTotal   = myTasks.length;
-    const tasksPending = myTasks.filter(t => !t.done).length;
+    const myTasks       = personTasks(activeMine, u.id);
+    const tasksTotal    = myTasks.length;
+    const tasksPending  = myTasks.filter(t => !t.done).length;
+    const tasksAssigned = myTasks.filter(t => t.assigneeId === u.id).length;
     const urgencyLoad  = personUrgencyLoad(activeMine, u.id);
     const equipo  = u.role === 'engineer' ? 'Automatización' : 'Analítica de Datos';
-    return { u, equipo, total: mine.length, tasksPending, tasksTotal, urgencyLoad, riesgos, bloqueos, next };
+    return { u, equipo, total: mine.length, tasksAssigned, tasksPending, tasksTotal, urgencyLoad, bloqueos, next };
   });
 
   // 100% = tan cargado como el promedio del equipo en este momento — no un umbral fijo
@@ -384,14 +384,15 @@ export default function DashboardView({ projects: allProjects, users, solicitude
                 <tr>
                   <th>Colaborador</th><th>Equipo</th>
                   <th style={{ textAlign: 'center' }}>Proyectos</th>
-                  <th>Ocupación</th>
-                  <th style={{ textAlign: 'center' }}>Riesgos</th>
+                  <th style={{ textAlign: 'center' }}>Tareas asignadas</th>
+                  <th style={{ textAlign: 'center' }}>Tareas pendientes</th>
+                  <th style={{ textAlign: 'center' }}>Total de tareas</th>
                   <th style={{ textAlign: 'center' }}>Bloqueos</th>
                   <th>Próxima entrega</th><th>Estado</th>
                 </tr>
               </thead>
               <tbody>
-                {teamRows.map(({ u, equipo, total, tasksPending, tasksTotal, ocup, riesgos, bloqueos, next, estado }) => (
+                {teamRows.map(({ u, equipo, total, tasksAssigned, tasksPending, tasksTotal, bloqueos, next, estado }) => (
                   <tr key={u.id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -401,14 +402,9 @@ export default function DashboardView({ projects: allProjects, users, solicitude
                     </td>
                     <td style={{ color: INK2, whiteSpace: 'nowrap' }}>{equipo}</td>
                     <td style={{ textAlign: 'center', fontWeight: 600 }}>{total}</td>
-                    <td>
-                      <div style={{ fontWeight: 700, fontSize: 12, color: ocup > 100 ? '#DC2626' : ocup >= 75 ? '#D97706' : 'inherit' }}>{ocup}%</div>
-                      <div className="dx-bar" style={{ width: 74, marginTop: 3 }}>
-                        <span style={{ width: `${Math.min(100, ocup)}%`, background: ocup > 100 ? '#DC2626' : ocup >= 75 ? '#F9924D' : '#F9924D' }} />
-                      </div>
-                      <div style={{ fontSize: 10.5, color: INK2, marginTop: 3, whiteSpace: 'nowrap' }}>{tasksPending} pend. / {tasksTotal} tareas</div>
-                    </td>
-                    <td style={{ textAlign: 'center', fontWeight: 700, color: riesgos > 0 ? '#DC2626' : INK2 }}>{riesgos}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 600 }}>{tasksAssigned}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 700, color: tasksPending > 0 ? '#D97706' : INK2 }}>{tasksPending}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 600 }}>{tasksTotal}</td>
                     <td style={{ textAlign: 'center', fontWeight: 700, color: bloqueos > 0 ? '#D97706' : INK2 }}>{bloqueos}</td>
                     <td style={{ whiteSpace: 'nowrap', color: INK2 }}>{next ? fmtDM(next.dueDate) : '—'}</td>
                     <td><span className="dx-pill" style={{ background: estado.bg, color: estado.c }}>{estado.l}</span></td>

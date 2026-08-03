@@ -194,6 +194,9 @@ export default function App() {
         for (const t of tasksDelta.toggled) {
           updated = await projectsAPI.updateTask(updated.id, t.id, { done: t.done });
         }
+        for (const t of tasksDelta.reassigned || []) {
+          updated = await projectsAPI.updateTask(updated.id, t.id, { assigneeId: t.assigneeId });
+        }
       } catch (err) {
         console.error('Task sync failed:', err);
         showToast('Proyecto guardado, pero hubo un error con las tareas', 'error');
@@ -253,6 +256,15 @@ export default function App() {
       setProjects(ps => ps.map(p => p.id === updated.id ? updated : p));
     } catch {
       showToast('Error al eliminar la tarea', 'error');
+    }
+  });
+
+  const handleUpdateTask = (id, taskId, data) => enqueueTaskOp(id, async () => {
+    try {
+      const updated = await projectsAPI.updateTask(id, taskId, data);
+      setProjects(ps => ps.map(p => p.id === updated.id ? updated : p));
+    } catch {
+      showToast('Error al actualizar la tarea', 'error');
     }
   });
 
@@ -487,6 +499,7 @@ export default function App() {
         onAddTask={handleAddTask}
         onToggleTask={handleToggleTask}
         onDeleteTask={handleDeleteTask}
+        onUpdateTask={handleUpdateTask}
       />
 
       <UserModal

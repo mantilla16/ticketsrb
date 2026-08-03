@@ -20,6 +20,12 @@ const AREAS = [
 const LEADER_ROLES = ['admin', 'leader_analytics'];
 
 const fmtShort = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+const fmtDateTime = (isoStr) => {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+    + ', ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+};
 
 // Flujo de estados permitido para ingenieros/miembros
 const ENGINEER_FLOW = { progress: ['testing'], testing: ['done', 'soporte'] };
@@ -59,6 +65,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const [taskWeight, setTaskWeight] = useState(2);
   const [taskAssignee, setTaskAssignee] = useState('');
   const [removedTasks, setRemovedTasks] = useState([]);
+  const [editingTaskId, setEditingTaskId] = useState(null);
 
   // Seguimiento (solo edición)
   const [logs, setLogs]         = useState([]);
@@ -177,6 +184,13 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
     setTasks(ts => ts.filter(x => (x.id ?? x._localId) !== (t.id ?? t._localId)));
   };
 
+  const reassignLocalTask = (t, newAssigneeId) => {
+    setTasks(ts => ts.map(x => (x.id ?? x._localId) === (t.id ?? t._localId)
+      ? { ...x, assigneeId: newAssigneeId, _reassigned: !x._new }
+      : x));
+    setEditingTaskId(null);
+  };
+
   const handleSave = async () => {
     if (!form.name.trim()) { setError('El nombre del proyecto es obligatorio'); return; }
     if (!isEdit && tasks.length === 0) { setError('Agrega al menos una tarea para crear el proyecto'); return; }
@@ -186,6 +200,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         added:   tasks.filter(t => t._new).map(t => ({ title: t.title, dueDate: t.dueDate, done: t.done, weight: t.weight, assigneeId: t.assigneeId })),
         removed: removedTasks,
         toggled: tasks.filter(t => t._toggled && t.id).map(t => ({ id: t.id, done: t.done })),
+        reassigned: tasks.filter(t => t._reassigned && t.id).map(t => ({ id: t.id, assigneeId: t.assigneeId })),
       };
       await onSave({
         name:                  form.name.trim(),
@@ -522,7 +537,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
             {tasks.length > 0 && (
               <div className="pm-task-list">
                 {tasks.map(t => (
-                  <div key={t.id ?? t._localId} className="pm-task">
+                  <div key={t.id ?? t._localId} className="pm-task" style={{ flexWrap: 'wrap' }}>
                     <button type="button"
                       className={`task-check${t.done ? ' task-check--done' : ''}`}
                       onClick={() => toggleLocalTask(t)}>
@@ -530,7 +545,10 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       )}
                     </button>
-                    <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                      <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
+                      {t.createdAt && <span style={{ fontSize: 10.5, color: 'var(--text3)' }}>Creada {fmtDateTime(t.createdAt)}</span>}
+                    </div>
                     {t.assigneeId && (() => {
                       const owner = users.find(u => u.id === t.assigneeId);
                       return owner ? (
@@ -544,9 +562,28 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                       </span>
                     )}
                     {canManageTasks && (
+                      <button type="button" className="task-del" style={{ opacity: 1 }}
+                        onClick={() => setEditingTaskId(editingTaskId === (t.id ?? t._localId) ? null : (t.id ?? t._localId))} title="Editar responsable">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                        </svg>
+                      </button>
+                    )}
+                    {canManageTasks && (
                       <button type="button" className="task-del" style={{ opacity: 1 }} onClick={() => removeLocalTask(t)} title="Eliminar tarea">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
+                    )}
+                    {editingTaskId === (t.id ?? t._localId) && (
+                      <div style={{ display: 'flex', gap: 6, width: '100%', marginTop: 4, paddingLeft: 26 }}>
+                        <select className="pm-input" style={{ flex: 1, fontSize: 12.5, padding: '6px 8px' }}
+                          defaultValue={t.assigneeId ? String(t.assigneeId) : ''}
+                          onChange={e => reassignLocalTask(t, e.target.value ? Number(e.target.value) : null)}>
+                          <option value="">Sin asignar</option>
+                          {taskAssigneePool.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
+                        </select>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingTaskId(null)}>Cerrar</button>
+                      </div>
                     )}
                   </div>
                 ))}

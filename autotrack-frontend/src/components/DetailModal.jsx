@@ -17,7 +17,14 @@ const PR_L    = { high: 'Alta',   mid: 'Media',  low: 'Baja'   };
 const TIPO_LABEL = { automatizacion: 'Automatización', analitica: 'Analítica', compartido: 'Compartido', asignacion_flash: 'Asignación Flash' };
 const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', compartido: 'tipo-compartido', asignacion_flash: 'tipo-flash' };
 
-export default function DetailModal({ open, project, onClose, onEdit, onAddLog, onCloseSupport, onAddTask, onToggleTask, onDeleteTask, currentUser, users = [] }) {
+const fmtDateTime = (isoStr) => {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+    + ', ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+};
+
+export default function DetailModal({ open, project, onClose, onEdit, onAddLog, onCloseSupport, onAddTask, onToggleTask, onDeleteTask, onUpdateTask, currentUser, users = [] }) {
   const isManager = currentUser?.role === 'manager';
   // Líderes reales gestionan todo; ingenieros/miembros de Analítica solo lo suyo.
   const isLeader     = ['admin', 'leader_analytics'].includes(currentUser?.role);
@@ -34,6 +41,8 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   const [taskSaving, setTaskSaving] = useState(false);
   const [busyTaskIds, setBusyTaskIds] = useState(new Set());
   const [isBlock, setIsBlock]       = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editAssignee, setEditAssignee]   = useState('');
 
   const tipo = project?.tipo || 'automatizacion';
   // Una tarea se puede asignar a cualquiera del equipo correspondiente al proyecto —
@@ -85,6 +94,18 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
       });
       setTaskText(''); setTaskWeight(2);
     } finally { setTaskSaving(false); }
+  };
+
+  const startEditTask = (t) => {
+    setEditingTaskId(t.id);
+    setEditAssignee(t.assigneeId ? String(t.assigneeId) : '');
+  };
+
+  const saveEditTask = async (taskId) => {
+    await withTaskBusy(taskId, () => onUpdateTask(project.id, taskId, {
+      assigneeId: editAssignee ? Number(editAssignee) : null,
+    }));
+    setEditingTaskId(null);
   };
 
   // Evita disparar dos peticiones sobre la misma tarea (doble clic en el checkbox o en
@@ -271,7 +292,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
             {tasks.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 8 }}>
                 {tasks.map(t => (
-                  <div key={t.id} className="task-row">
+                  <div key={t.id} className="task-row" style={{ flexWrap: 'wrap', alignItems: editingTaskId === t.id ? 'flex-start' : 'center' }}>
                     <button
                       className={`task-check${t.done ? ' task-check--done' : ''}`}
                       disabled={!canEdit || busyTaskIds.has(t.id)}
@@ -283,7 +304,12 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                         </svg>
                       )}
                     </button>
-                    <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                      <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
+                      {t.createdAt && (
+                        <span style={{ fontSize: 10.5, color: 'var(--text3)' }}>Creada {fmtDateTime(t.createdAt)}</span>
+                      )}
+                    </div>
                     {t.assigneeId && (() => {
                       const owner = taskAssigneePool.find(u => u.id === t.assigneeId);
                       return owner ? (
@@ -291,12 +317,33 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                       ) : null;
                     })()}
                     {canEdit && (
+                      <button className="task-del" style={{ opacity: 1 }} disabled={busyTaskIds.has(t.id)}
+                        onClick={() => startEditTask(t)} title="Editar responsable">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                        </svg>
+                      </button>
+                    )}
+                    {canEdit && (
                       <button className="task-del" disabled={busyTaskIds.has(t.id)}
                         onClick={() => withTaskBusy(t.id, () => onDeleteTask(project.id, t.id))} title="Eliminar tarea">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
                       </button>
+                    )}
+                    {editingTaskId === t.id && (
+                      <div style={{ display: 'flex', gap: 6, width: '100%', marginTop: 4, paddingLeft: 26 }}>
+                        <select className="form-input" style={{ flex: 1, fontSize: 12.5, padding: '6px 8px' }}
+                          value={editAssignee} onChange={e => setEditAssignee(e.target.value)} title="Asignar a">
+                          <option value="">Sin asignar</option>
+                          {taskAssigneePool.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
+                        </select>
+                        <button className="btn btn-primary btn-sm" disabled={busyTaskIds.has(t.id)} onClick={() => saveEditTask(t.id)}>
+                          Guardar
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setEditingTaskId(null)}>Cancelar</button>
+                      </div>
                     )}
                   </div>
                 ))}
