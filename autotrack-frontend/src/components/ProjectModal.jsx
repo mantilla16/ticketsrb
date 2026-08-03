@@ -521,15 +521,16 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   <option value={3}>Grande</option>
                 </select>
                 {taskAssigneePool.length > 0 && (
-                  <select className="pm-input" style={{ width: 150 }} value={taskAssignee}
-                    onChange={e => setTaskAssignee(e.target.value)} title="Asignar a">
-                    <option value="">Sin asignar</option>
+                  <select className="pm-input" style={{ width: 150, borderColor: taskAssignee ? undefined : 'var(--high)' }} value={taskAssignee}
+                    onChange={e => setTaskAssignee(e.target.value)} title="Asignar a (obligatorio)">
+                    <option value="" disabled>Asignar a…</option>
                     {taskAssigneePool.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
                   </select>
                 )}
                 <input className="pm-input" type="date" style={{ width: 150 }}
                   value={taskDate} onChange={e => setTaskDate(e.target.value)} />
-                <button type="button" className="btn btn-primary btn-sm" onClick={addLocalTask} disabled={!taskTitle.trim()}>
+                <button type="button" className="btn btn-primary btn-sm" onClick={addLocalTask}
+                  disabled={!taskTitle.trim() || (taskAssigneePool.length > 0 && !taskAssignee)}>
                   Agregar
                 </button>
               </div>

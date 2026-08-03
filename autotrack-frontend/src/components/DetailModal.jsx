@@ -369,13 +369,14 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                   <option value={3}>Grande</option>
                 </select>
                 {taskAssigneePool.length > 0 && (
-                  <select className="form-input" style={{ width: 130, fontSize: 13, padding: '7px 10px' }}
-                    value={taskAssignee} onChange={e => setTaskAssignee(e.target.value)} title="Asignar a">
-                    <option value="">Sin asignar</option>
+                  <select className="form-input" style={{ width: 130, fontSize: 13, padding: '7px 10px', borderColor: taskAssignee ? undefined : 'var(--high)' }}
+                    value={taskAssignee} onChange={e => setTaskAssignee(e.target.value)} title="Asignar a (obligatorio)">
+                    <option value="" disabled>Asignar a…</option>
                     {taskAssigneePool.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
                   </select>
                 )}
-                <button className="btn btn-ghost btn-sm" onClick={addTask} disabled={taskSaving || !taskText.trim()}>
+                <button className="btn btn-ghost btn-sm" onClick={addTask}
+                  disabled={taskSaving || !taskText.trim() || (taskAssigneePool.length > 0 && !taskAssignee)}>
                   Agregar
                 </button>
               </div>
