@@ -23,7 +23,11 @@ async function getInstance({ msClientId, msTenantId }) {
       auth: {
         clientId: msClientId,
         authority: `https://login.microsoftonline.com/${msTenantId}`,
-        redirectUri: window.location.origin,
+        // Tiene que incluir la ruta base: con la aplicación bajo /mesa, el
+        // `origin` a secas devolvería a la raíz —donde vive otra aplicación—
+        // y además no coincidiría con la URI registrada en Entra.
+        // BASE_URL ya termina en «/», así que la URI a registrar es ésta tal cual.
+        redirectUri: window.location.origin + import.meta.env.BASE_URL,
       },
       cache: {
         // La sesión de la aplicación la gobierna nuestro propio JWT con su
