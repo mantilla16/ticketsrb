@@ -130,23 +130,90 @@ export const SERVICE_LINES = [
 
 /* ──────────────────────────────── Roles ───────────────────────────────── */
 
+/**
+ * Roles y capacidades. Es un espejo de `autotrack-backend/src/config/roles.js`:
+ * aquí se decide qué se muestra, allá qué se permite. La del servidor es la
+ * que manda — esconder un botón no es un control de acceso.
+ */
 export const ROLE = {
-  admin:            { label: 'Coordinador de Mesa',   short: 'Coordinación', desk: true,  triage: true,  manage: true },
-  leader_analytics: { label: 'Líder de Analítica',    short: 'Analítica',    desk: true,  triage: true,  manage: true },
-  engineer:         { label: 'Analista',              short: 'Analista',     desk: true,  triage: false, manage: false },
-  member_analytics: { label: 'Analista de Datos',     short: 'Analítica',    desk: true,  triage: true,  manage: false },
-  manager:          { label: 'Gerencia',              short: 'Gerencia',     desk: true,  triage: false, manage: false },
-  user:             { label: 'Auditor solicitante',   short: 'Auditoría',    desk: false, triage: false, manage: false },
+  admin: {
+    label: 'Administrador',
+    bandeja: true, triage: true, eliminarTickets: true,
+    gestionarProyectos: true, crearProyectos: true, gestionarUsuarios: true,
+    ejecuta: false,
+    equipos: ['automatizacion', 'analitica'],
+  },
+  /* Coordina la mesa completa sin poderes de administración: no gestiona
+     usuarios ni borra nada. Para quien lleva el día a día de los dos equipos
+     sin ser dueño del sistema. */
+  coordinator: {
+    label: 'Coordinador',
+    bandeja: true, triage: true, eliminarTickets: false,
+    gestionarProyectos: true, crearProyectos: true, gestionarUsuarios: false,
+    ejecuta: false,
+    equipos: ['automatizacion', 'analitica'],
+  },
+  leader_analytics: {
+    label: 'Líder de Analítica',
+    bandeja: true, triage: true, eliminarTickets: true,
+    gestionarProyectos: true, crearProyectos: true, gestionarUsuarios: false,
+    ejecuta: false,
+    equipos: ['analitica'],
+  },
+  member_analytics: {
+    label: 'Analista de Datos',
+    bandeja: true, triage: true, eliminarTickets: false,
+    gestionarProyectos: false, crearProyectos: true, gestionarUsuarios: false,
+    ejecuta: true,
+    equipos: ['analitica'],
+  },
+  engineer: {
+    label: 'Analista',
+    bandeja: true, triage: false, eliminarTickets: false,
+    gestionarProyectos: false, crearProyectos: false, gestionarUsuarios: false,
+    ejecuta: true,
+    equipos: ['automatizacion'],
+  },
+  manager: {
+    label: 'Gerencia',
+    bandeja: true, triage: false, eliminarTickets: false,
+    gestionarProyectos: false, crearProyectos: false, gestionarUsuarios: false,
+    ejecuta: false,
+    equipos: ['automatizacion', 'analitica'],
+  },
+  user: {
+    label: 'Auditor solicitante',
+    bandeja: false, triage: false, eliminarTickets: false,
+    gestionarProyectos: false, crearProyectos: false, gestionarUsuarios: false,
+    ejecuta: false,
+    equipos: [],
+  },
 };
 
+/** Rol desconocido → el más restringido. */
 export const roleOf = (r) => ROLE[r] || ROLE.user;
 
+/** ¿Tiene esta capacidad? Se pregunta por lo que se puede hacer, no por el rol. */
+export const can = (user, capacidad) => Boolean(roleOf(user?.role)[capacidad]);
+
 /** ¿Ve la bandeja completa de la mesa, o solo sus propios tickets? */
-export const isDesk   = (user) => roleOf(user?.role).desk;
+export const isDesk = (user) => can(user, 'bandeja');
 /** ¿Puede cambiar estado, asignar y responder? */
-export const canTriage = (user) => roleOf(user?.role).triage;
-/** ¿Puede eliminar tickets y administrar usuarios? */
-export const canManage = (user) => roleOf(user?.role).manage;
+export const canTriage = (user) => can(user, 'triage');
+/** ¿Puede eliminar tickets? */
+export const canManage = (user) => can(user, 'eliminarTickets');
+/** ¿Ejecuta trabajos, o solo los coordina? Decide quién sale en los tableros. */
+export const ejecuta = (user) => can(user, 'ejecuta');
+/** Quienes ejecutan en un equipo dado — las columnas del tablero de equipo. */
+export const executorsOf = (users, equipo) =>
+  users.filter(u => can(u, 'ejecuta') && teamsOf(u).includes(equipo));
+/** Quienes pueden quedar como responsables de un trabajo. */
+export const assignables = (users) => users.filter(u => teamsOf(u).length > 0);
+
+/** Equipos cuyos trabajos ve este rol. */
+export const teamsOf = (user) => roleOf(user?.role).equipos;
+/** ¿Coordina los dos equipos? Decide si ve las dos vistas de ejecución. */
+export const seesBothTeams = (user) => teamsOf(user).length > 1;
 
 /* ───────────────────────── Referencia del ticket ──────────────────────── */
 

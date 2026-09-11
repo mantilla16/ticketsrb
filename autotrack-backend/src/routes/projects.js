@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const pool = require('../config/database');
 const auth = require('../middleware/auth');
-const requireRole = require('../middleware/requireRole');
+const { requierePermiso, puede, filtroEquipos } = require('../config/roles');
 const { body, validationResult } = require('express-validator');
 const { notify } = require('../utils/notify');
 const escapeHtml = require('../utils/escapeHtml');
@@ -11,8 +11,7 @@ const STATUS_LABEL = {
   testing: 'En testing', done: 'Finalizado', soporte: 'Soporte', cancelado: 'Cancelado',
 };
 
-const TEAM_LEADS        = ['admin', 'leader_analytics'];
-const RESTRICTED_EDITORS = ['engineer', 'member_analytics'];
+
 
 // Tabla de responsables múltiples — la crea el propio usuario de la app para evitar problemas de GRANT
 let assigneesReady = null;
@@ -97,12 +96,12 @@ async function recalcProgress(id) {
   return progress;
 }
 
-// Los líderes (admin/leader_analytics) gestionan todo; ingenieros/miembros solo lo suyo.
-// Devuelve true si puede continuar; si no, ya envió la respuesta 403/404.
+// Quien coordina gestiona cualquier proyecto; quien ejecuta, solo los que
+// tiene asignados. Devuelve true si puede continuar; si no, ya respondió.
 async function assertProjectAccess(req, res, projectId) {
   const role = req.user.role;
-  if (TEAM_LEADS.includes(role)) return true;
-  if (!RESTRICTED_EDITORS.includes(role)) {
+  if (puede(role, 'gestionarProyectos')) return true;
+  if (!puede(role, 'editarProyectosPropios')) {
     res.status(403).json({ error: 'No tienes permisos para esta acción' });
     return false;
   }
@@ -241,11 +240,8 @@ router.get('/', auth, async (req, res) => {
   try {
     let { rows } = await pool.query(`${PROJECT_JOIN} ORDER BY p.created_at DESC`);
     // Visibilidad por equipo: cada equipo ve lo suyo + compartidos
-    if (req.user.role === 'engineer') {
-      rows = rows.filter(r => (r.tipo || 'automatizacion') !== 'analitica');
-    } else if (req.user.role === 'member_analytics') {
-      rows = rows.filter(r => ['analitica', 'compartido'].includes(r.tipo || 'automatizacion'));
-    }
+    const soloSuEquipo = filtroEquipos(req.user.role);
+    if (soloSuEquipo) rows = rows.filter(r => soloSuEquipo(r.tipo));
     if (!rows.length) return res.json([]);
 
     const ids = rows.map(p => p.id);
@@ -293,7 +289,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // POST /api/projects
-router.post('/', auth, requireRole('admin', 'leader_analytics', 'member_analytics'), validators, async (req, res) => {
+router.post('/', auth, requierePermiso('crearProyectos'), validators, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
@@ -396,7 +392,7 @@ router.put('/:id', auth, validators, async (req, res) => {
 });
 
 // DELETE /api/projects/:id
-router.delete('/:id', auth, requireRole('admin', 'leader_analytics'), async (req, res) => {
+router.delete('/:id', auth, requierePermiso('eliminarProyectos'), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM projects WHERE id=$1 RETURNING id', [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });

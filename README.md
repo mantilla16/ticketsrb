@@ -112,14 +112,24 @@ cd autotrack-frontend && npm install && npm run dev
 
 ## Roles
 
-| Rol interno        | En la interfaz         | Qué puede hacer                                        |
-|--------------------|------------------------|--------------------------------------------------------|
-| `user`             | Auditor solicitante    | Radicar tickets, seguirlos y aportar información        |
-| `engineer`         | Analista               | Ver la bandeja y ejecutar los trabajos a su nombre      |
-| `member_analytics` | Analista de Datos      | Igual, más triage de los tickets de analítica           |
-| `leader_analytics` | Líder de Analítica     | Triage completo, asignación y respuesta                 |
-| `admin`            | Coordinador de Mesa    | Todo lo anterior, más eliminar tickets y gestionar usuarios |
-| `manager`          | Gerencia               | Lectura de bandeja, reportes y cronograma               |
+| Rol interno        | En la interfaz      | Equipos | Qué puede hacer |
+|--------------------|---------------------|---------|-----------------|
+| `admin`            | Administrador       | ambos   | Todo, incluidos usuarios y eliminación |
+| `coordinator`      | Coordinador         | ambos   | Bandeja, triage, asignación y reportes de los dos equipos. No administra usuarios ni elimina |
+| `leader_analytics` | Líder de Analítica  | analítica | Coordina su equipo y elimina lo suyo |
+| `member_analytics` | Analista de Datos   | analítica | Ejecuta sus trabajos y hace triage de sus tickets |
+| `engineer`         | Analista            | automatización | Ejecuta los trabajos que tiene asignados |
+| `manager`          | Gerencia            | ambos   | Solo lectura: bandeja, reportes y cronograma |
+| `user`             | Auditor solicitante | —       | Radica tickets y sigue los suyos |
+
+Los permisos no se comprueban por nombre de rol sino por **capacidad**
+(`triage`, `eliminarTickets`, `gestionarUsuarios`…). La tabla vive en
+`autotrack-backend/src/config/roles.js`, y el frontend tiene su espejo en
+`src/lib/tickets.js` para decidir qué mostrar. La del servidor es la que manda:
+esconder un botón no es un control de acceso.
+
+Añadir un rol es declararlo en esos dos archivos; ni las rutas ni el menú
+necesitan cambios, porque preguntan por capacidades.
 
 Un correo del dominio institucional que entra por primera vez se crea como
 **auditor solicitante**; el coordinador lo promueve desde *Usuarios*.

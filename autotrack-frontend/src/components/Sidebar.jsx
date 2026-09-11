@@ -7,52 +7,64 @@
    El auditor solicitante ve una sola entrada — sus tickets — porque es lo
    único que necesita: radicar y seguir. */
 
-import { ORG, roleOf } from '../lib/tickets';
+import { ORG, roleOf, can, teamsOf } from '../lib/tickets';
 import { asset } from '../lib/assets';
 import Icon from './ui/Icon';
 
-const DESK   = ['admin', 'leader_analytics', 'engineer', 'member_analytics', 'manager'];
-const LEADS  = ['admin', 'leader_analytics'];
-const ENGINE = ['admin', 'engineer', 'leader_analytics', 'member_analytics'];
-
-/* `badge` nombra la métrica que la entrada muestra; App la calcula. */
+/**
+ * Cada entrada declara qué capacidad o equipo la habilita, no una lista de
+ * roles. Así, añadir un rol es declararlo en `lib/tickets.js` y nada más: el
+ * menú se recalcula solo y no queda ninguna lista que olvidar actualizar.
+ *
+ *   cap    — capacidad necesaria (ver ROLE en lib/tickets.js)
+ *   equipo — además, que el rol trabaje con ese equipo
+ *   badge  — métrica que muestra la entrada; App la calcula
+ */
 export const SECTIONS = [
   { group: 'Mesa de servicio' },
-  { id: 'inbox',    label: 'Bandeja',       icon: 'inbox',  roles: DESK,            badge: 'unassigned' },
-  { id: 'mine',     label: 'Mis tickets',   icon: 'ticket', roles: [...DESK, 'user'], badge: 'mine' },
-  { id: 'board',    label: 'Flujo',         icon: 'board',  roles: DESK },
+  { id: 'inbox',  label: 'Bandeja',     icon: 'inbox',  cap: 'bandeja', badge: 'unassigned' },
+  { id: 'mine',   label: 'Mis tickets', icon: 'ticket', badge: 'mine' },   // todos, incluido el auditor
+  { id: 'board',  label: 'Flujo',       icon: 'board',  cap: 'bandeja' },
 
-  { group: 'Ejecución', roles: ENGINE },
-  { id: 'team-kanban', label: 'Proyectos',        icon: 'users',    roles: ['admin', 'engineer'] },
-  { id: 'analytics',   label: 'Equipo Analítica', icon: 'trend',    roles: ['admin', 'leader_analytics', 'member_analytics'] },
-  { id: 'gantt',       label: 'Cronograma',       icon: 'calendar', roles: [...ENGINE, 'manager'] },
+  { group: 'Ejecución' },
+  { id: 'team-kanban', label: 'Proyectos',        icon: 'users',    cap: 'bandeja', equipo: 'automatizacion' },
+  { id: 'analytics',   label: 'Equipo Analítica', icon: 'trend',    cap: 'bandeja', equipo: 'analitica' },
+  { id: 'gantt',       label: 'Cronograma',       icon: 'calendar', cap: 'bandeja' },
 
-  { group: 'Análisis', roles: DESK },
-  { id: 'reports',   label: 'Reportes',  icon: 'chart',   roles: DESK },
-  { id: 'dashboard', label: 'Panel',     icon: 'target',  roles: [...ENGINE, 'manager'] },
-  { id: 'historial', label: 'Historial', icon: 'archive', roles: [...ENGINE, 'manager'] },
+  { group: 'Análisis' },
+  { id: 'reports',   label: 'Reportes',  icon: 'chart',   cap: 'bandeja' },
+  { id: 'dashboard', label: 'Panel',     icon: 'target',  cap: 'bandeja' },
+  { id: 'historial', label: 'Historial', icon: 'archive', cap: 'bandeja' },
 
-  { group: 'Administración', roles: LEADS },
-  { id: 'users', label: 'Usuarios', icon: 'user', roles: ['admin'] },
+  { group: 'Administración' },
+  { id: 'users', label: 'Usuarios', icon: 'user', cap: 'gestionarUsuarios' },
 ];
 
-/** Secciones que el rol puede abrir — también la usa App para validar la sección activa. */
+/** ¿Este rol puede abrir esta sección? */
+function habilitada(seccion, user) {
+  if (seccion.cap && !can(user, seccion.cap)) return false;
+  if (seccion.equipo && !teamsOf(user).includes(seccion.equipo)) return false;
+  return true;
+}
+
+/** Secciones que el rol puede abrir — App la usa para validar la sección activa. */
 export function sectionsFor(role) {
-  return SECTIONS.filter(s => s.id && s.roles.includes(role));
+  const user = { role };
+  return SECTIONS.filter(s => s.id && habilitada(s, user));
 }
 
 /**
  * Deja solo las entradas del rol y descarta los encabezados que se quedaron
  * sin nada debajo, para que ningún rol vea un grupo vacío.
  */
-function buildMenu(role) {
-  const kept = SECTIONS.filter(s => s.group || s.roles.includes(role));
+function buildMenu(user) {
+  const kept = SECTIONS.filter(s => s.group || habilitada(s, user));
   return kept.filter((s, i) => !s.group || (kept[i + 1] && !kept[i + 1].group));
 }
 
 export default function Sidebar({ section, onSection, user, onLogout, isOpen, badges = {} }) {
   const role    = user?.role || 'user';
-  const visible = buildMenu(role);
+  const visible = buildMenu({ role });
 
   return (
     <aside className={`rb-sidebar${isOpen ? ' is-open' : ''}`}>

@@ -1,47 +1,61 @@
 import { useState, useEffect } from 'react';
 
+const IC = (d) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
+);
+
+/* Los roles y lo que puede cada uno se declaran en lib/tickets.js; aquí solo
+   viven su descripción y su color. El orden va de más permisos a menos. */
 const ROLES = [
   {
     value: 'admin',
-    label: 'Líder Automatización',
-    desc: 'Acceso total — proyectos, equipo, solicitudes y configuración',
-    color: '#92400E', bg: 'var(--rb-warning-bg)',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+    label: 'Administrador',
+    desc: 'Todo, incluidos usuarios y eliminación de tickets y trabajos',
+    color: '#7A1810', bg: 'var(--rb-danger-bg)',
+    icon: IC(<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />),
+  },
+  {
+    value: 'coordinator',
+    label: 'Coordinador',
+    desc: 'Coordina los dos equipos: bandeja, triage, asignación y reportes. No administra usuarios ni elimina',
+    color: 'var(--rb-navy)', bg: 'var(--rb-navy-tint)',
+    icon: IC(<><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></>),
   },
   {
     value: 'leader_analytics',
-    label: 'Líder Analítica',
-    desc: 'Gestiona proyectos de analítica, asigna miembros y revisa solicitudes',
-    color: '#5B21B6', bg: 'var(--rb-violet-bg)',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>,
-  },
-  {
-    value: 'engineer',
-    label: 'Ingeniero Automatización',
-    desc: 'Ve proyectos asignados, actualiza avance y agrega notas',
-    color: '#3730A3', bg: '#EEF2FF',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
+    label: 'Líder de Analítica',
+    desc: 'Coordina el equipo de analítica de datos y sus trabajos',
+    color: 'var(--rb-magenta-ink)', bg: 'var(--rb-violet-bg)',
+    icon: IC(<><path d="M3 3v18h18" /><path d="M7 16l4-4 4 4 4-4" /></>),
   },
   {
     value: 'member_analytics',
-    label: 'Miembro Analítica',
-    desc: 'Ve proyectos de analítica asignados y actualiza avance',
-    color: '#0E7490', bg: '#E4F5F8',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9h.01M15 9h.01M9 15s1 1 3 1 3-1 3-1"/></svg>,
+    label: 'Analista de Datos',
+    desc: 'Ejecuta los trabajos de analítica y hace triage de sus tickets',
+    color: 'var(--rb-cyan-ink)', bg: 'var(--rb-info-bg)',
+    icon: IC(<><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5" /><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3" /></>),
+  },
+  {
+    value: 'engineer',
+    label: 'Analista',
+    desc: 'Ejecuta los trabajos de automatización que tiene asignados',
+    color: 'var(--rb-teal-ink)', bg: 'var(--rb-success-bg)',
+    icon: IC(<><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></>),
   },
   {
     value: 'manager',
-    label: 'Gerente',
-    desc: 'Ve el dashboard ejecutivo, historial y cronograma — solo lectura',
-    color: '#047857', bg: 'var(--rb-success-bg)',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>,
+    label: 'Gerencia',
+    desc: 'Solo lectura: bandeja, reportes y cronograma',
+    color: 'var(--rb-gray-ink)', bg: 'var(--rb-neutral-bg)',
+    icon: IC(<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></>),
   },
   {
     value: 'user',
-    label: 'Área Solicitante',
-    desc: 'Solo puede enviar solicitudes y ver su estado',
-    color: '#0369A1', bg: '#F0F9FF',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    label: 'Auditor solicitante',
+    desc: 'Radica tickets y sigue los suyos. Es el rol de toda cuenta nueva',
+    color: 'var(--rb-orange-ink)', bg: 'var(--rb-warning-bg)',
+    icon: IC(<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>),
   },
 ];
 

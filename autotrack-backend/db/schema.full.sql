@@ -9,8 +9,10 @@
 --   psql -U autotrack -d autotrack -f db/schema.full.sql
 
 -- ─────────────────────────── users ───────────────────────────
--- Roles usados por el código: admin, leader_analytics, member_analytics,
--- engineer, manager, user. El acceso real es vía Google; `password` guarda
+-- Roles usados por el código: admin, coordinator, leader_analytics,
+-- member_analytics, engineer, manager, user. Sus permisos se declaran en
+-- src/config/roles.js; la columna no lleva CHECK para no tener que migrar
+-- cada vez que se añade uno. El acceso real es vía Google; `password` guarda
 -- un hash aleatorio que nunca se usa para autenticar.
 CREATE TABLE IF NOT EXISTS users (
   id               SERIAL PRIMARY KEY,

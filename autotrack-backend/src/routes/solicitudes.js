@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const pool   = require('../config/database');
 const auth   = require('../middleware/auth');
-const requireRole = require('../middleware/requireRole');
+const { requierePermiso, rol, puede } = require('../config/roles');
 const multer = require('multer');
 const path   = require('path');
 const fs     = require('fs');
@@ -77,15 +77,16 @@ function uploadSingle(req, res, next) {
 }
 
 // GET /api/solicitudes
-// admin → todas; user → solo las propias
+// Según el rol: toda la mesa, lo de su equipo, o solo lo propio.
 router.get('/', auth, async (req, res) => {
   try {
+    // Quien no tiene bandeja ve solo lo suyo. Quien la tiene ve todo si
+    // coordina los dos equipos, y lo de su equipo más los compartidos si no.
     const role = req.user.role;
-    const isAdmin = ['admin', 'leader_analytics', 'manager'].includes(role);
-    const isAnalytics = role === 'member_analytics';
-    const whereClause = isAdmin ? ''
-      : isAnalytics ? "WHERE s.equipo IN ('analitica', 'compartido')"
-      : 'WHERE s.user_id = $1';
+    const equipos = rol(role).equipos;
+    const whereClause = !puede(role, 'bandeja') ? 'WHERE s.user_id = $1'
+      : equipos.length === 1 ? `WHERE s.equipo IN ('${equipos[0]}', 'compartido')`
+      : '';
     const { rows } = await pool.query(
       `SELECT s.id, s.title, s.description, s.type, s.priority, s.area,
               s.due_date, s.file_name, s.file_path, s.status, s.notes,
@@ -106,7 +107,7 @@ router.get('/', auth, async (req, res) => {
        LEFT JOIN users a ON s.assignee_id = a.id
        ${whereClause}
        ORDER BY s.created_at DESC`,
-      isAdmin || isAnalytics ? [] : [req.user.id]
+      puede(role, 'bandeja') ? [] : [req.user.id]
     );
     res.json(rows);
   } catch (err) {
@@ -149,7 +150,7 @@ router.post('/', auth, uploadSingle, async (req, res) => {
 });
 
 // PUT /api/solicitudes/:id/status  — solo admin
-router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member_analytics'), async (req, res) => {
+router.put('/:id/status', auth, requierePermiso('triage'), async (req, res) => {
   const { status, notes, assigneeId, fechaReunion, equipo, invitados } = req.body;
   // `status` no tiene CHECK en la tabla, así que la lista blanca vive aquí.
   const valid = ['recibido','en_revision','reunion_agendada','aceptado','convertido','cerrado','rechazado',
@@ -275,7 +276,7 @@ router.put('/:id/info', auth, async (req, res) => {
 });
 
 // PATCH /api/solicitudes/:id/project-created  — solo admin
-router.patch('/:id/project-created', auth, requireRole('admin', 'leader_analytics', 'member_analytics'), async (req, res) => {
+router.patch('/:id/project-created', auth, requierePermiso('triage'), async (req, res) => {
   try {
     await pool.query(
       'UPDATE solicitudes SET project_created=TRUE WHERE id=$1',
@@ -289,7 +290,7 @@ router.patch('/:id/project-created', auth, requireRole('admin', 'leader_analytic
 });
 
 // DELETE /api/solicitudes/:id  — solo admin
-router.delete('/:id', auth, requireRole('admin', 'leader_analytics'), async (req, res) => {
+router.delete('/:id', auth, requierePermiso('eliminarTickets'), async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT file_path FROM solicitudes WHERE id=$1', [req.params.id]

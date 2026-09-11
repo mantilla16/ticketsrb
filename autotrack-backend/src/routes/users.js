@@ -2,7 +2,7 @@ const router = require('express').Router();
 const pool = require('../config/database');
 const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
-const requireRole = require('../middleware/requireRole');
+const { requierePermiso } = require('../config/roles');
 
 function genInitials(name) {
   return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
@@ -25,7 +25,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // POST /api/users — admin only: create user (el acceso siempre es vía Google, sin contraseña)
-router.post('/', auth, requireRole('admin'), async (req, res) => {
+router.post('/', auth, requierePermiso('gestionarUsuarios'), async (req, res) => {
   const { name, email, role } = req.body;
   if (!name || !email) {
     return res.status(400).json({ error: 'Nombre y correo son requeridos' });
@@ -53,7 +53,7 @@ router.post('/', auth, requireRole('admin'), async (req, res) => {
 });
 
 // PUT /api/users/:id — admin only: update user
-router.put('/:id', auth, requireRole('admin'), async (req, res) => {
+router.put('/:id', auth, requierePermiso('gestionarUsuarios'), async (req, res) => {
   const { name, email, role } = req.body;
   const { id } = req.params;
 
@@ -91,7 +91,7 @@ router.put('/:id', auth, requireRole('admin'), async (req, res) => {
 });
 
 // POST /api/users/:id/unlock — admin only: desbloquear cuenta tras intentos fallidos
-router.post('/:id/unlock', auth, requireRole('admin'), async (req, res) => {
+router.post('/:id/unlock', auth, requierePermiso('gestionarUsuarios'), async (req, res) => {
   try {
     const { rowCount } = await pool.query(
       'UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1',
@@ -106,7 +106,7 @@ router.post('/:id/unlock', auth, requireRole('admin'), async (req, res) => {
 });
 
 // DELETE /api/users/:id — admin only
-router.delete('/:id', auth, requireRole('admin'), async (req, res) => {
+router.delete('/:id', auth, requierePermiso('gestionarUsuarios'), async (req, res) => {
   const { id } = req.params;
   if (parseInt(id) === req.user.id) {
     return res.status(400).json({ error: 'No puedes eliminar tu propio usuario' });

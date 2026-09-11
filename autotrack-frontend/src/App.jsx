@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './context/AuthContext';
 import { TicketsProvider, useTickets } from './context/TicketsContext';
 import { projectsAPI, usersAPI } from './services/api';
-import { ORG, isDesk, isOpen, slaOf } from './lib/tickets';
+import { ORG, isDesk, isOpen, slaOf, can, teamsOf, roleOf, executorsOf, assignables } from './lib/tickets';
 import { asset } from './lib/assets';
 
 import Login from './pages/Login';
@@ -44,14 +44,13 @@ const STATUS_NAMES = {
   testing: 'En testing', done: 'Finalizado', soporte: 'En soporte', cancelado: 'Cancelado',
 };
 
-const LEADER_ROLES = ['admin', 'leader_analytics'];
-
-/** Sección inicial según el rol: cada quien entra donde está su trabajo. */
+/**
+ * Sección inicial: cada quien entra donde está su trabajo. Quien coordina
+ * abre la bandeja; quien ejecuta o solo solicita, lo suyo.
+ */
 function defaultSection(role) {
-  if (role === 'user')             return 'mine';
-  if (role === 'engineer')         return 'mine';
-  if (role === 'member_analytics') return 'mine';
-  return 'inbox';
+  const r = roleOf(role);
+  return r.bandeja && r.gestionarProyectos ? 'inbox' : 'mine';
 }
 
 /* Payload completo para PUT /projects/:id — evita que updates parciales
@@ -168,28 +167,31 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
   }, [projects]);
 
   /* ── Visibilidad por equipo ────────────────────────────────────────────
-     Ingeniería no ve Analítica; Analítica ve lo suyo, lo compartido y las
-     asignaciones flash que realmente sean de alguien de su equipo (una flash
-     puede ser de cualquiera de los dos, así que se valida por responsable). */
-  const analyticsIds = new Set(
-    users.filter(u => ['member_analytics', 'leader_analytics'].includes(u.role)).map(u => u.id),
-  );
-  const isAnalyticsFlash = (p) => p.tipo === 'asignacion_flash'
-    && [...(p.assigneeIds || [p.assigneeId]), p.coAssigneeId, p.generalAssigneeId]
-      .filter(Boolean).some(id => analyticsIds.has(id));
+     Quien coordina los dos equipos lo ve todo. Quien trabaja en uno solo ve
+     lo suyo, lo compartido y las asignaciones flash que sean realmente de
+     alguien de su equipo: una flash puede ser de cualquiera de los dos, así
+     que se valida por responsable y no por el tipo. */
+  const equipos = teamsOf(user);
+  const soloUnEquipo = equipos.length === 1 ? equipos[0] : null;
 
-  const visibleProjects = user.role === 'engineer'
-    ? projects.filter(p => (p.tipo || 'automatizacion') !== 'analitica')
-    : ['member_analytics', 'leader_analytics'].includes(user.role)
-      ? projects.filter(p => ['analitica', 'compartido'].includes(p.tipo || 'automatizacion') || isAnalyticsFlash(p))
-      : projects;
+  const idsDelEquipo = new Set(
+    users.filter(u => teamsOf(u).length === 1 && teamsOf(u)[0] === soloUnEquipo).map(u => u.id),
+  );
+  const esFlashDelEquipo = (p) => p.tipo === 'asignacion_flash'
+    && [...(p.assigneeIds || [p.assigneeId]), p.coAssigneeId, p.generalAssigneeId]
+      .filter(Boolean).some(id => idsDelEquipo.has(id));
+
+  const visibleProjects = !soloUnEquipo ? projects : projects.filter(p => {
+    const tipo = p.tipo || 'automatizacion';
+    return tipo === soloUnEquipo || tipo === 'compartido' || esFlashDelEquipo(p);
+  });
 
   const detailProject = detailModal.projectId
     ? visibleProjects.find(p => p.id === detailModal.projectId)
     : null;
 
-  const isLeader     = LEADER_ROLES.includes(user.role);
-  const canManage    = ['admin', 'leader_analytics', 'member_analytics'].includes(user.role);
+  const isLeader     = can(user, 'gestionarProyectos');
+  const canManage    = can(user, 'crearProyectos');
   const desk         = isDesk(user);
   const isTicketView = ['inbox', 'mine', 'board', 'reports'].includes(section);
 
@@ -211,7 +213,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
 
   let { title, sub } = TITLES[section] || TITLES.inbox;
   if (section === 'mine' && !desk) sub = 'Tus solicitudes a la mesa de servicio y en qué va cada una';
-  if (section === 'dashboard' && ['engineer', 'member_analytics'].includes(user.role)) {
+  if (section === 'dashboard' && !can(user, 'gestionarProyectos')) {
     title = 'Mi panel';
     sub   = 'Tus tareas pendientes y tus trabajos en curso';
   }
@@ -431,7 +433,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
             )}
 
             {section === 'dashboard' && (
-              ['engineer', 'member_analytics'].includes(user.role)
+              !can(user, 'gestionarProyectos')
                 ? <PersonalDashboardView projects={visibleProjects} users={users} currentUser={user}
                     onCardClick={openDetail} onNavigate={changeSection} />
                 : <DashboardView projects={visibleProjects} users={users} solicitudes={tickets}
@@ -442,7 +444,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
             {section === 'team-kanban' && (
               <AnalyticsTeamView
                 variant="auto" projects={visibleProjects}
-                users={users.filter(u => u.role === 'engineer')}
+                users={executorsOf(users, 'automatizacion')}
                 onCardClick={openDetail} onNavigate={changeSection}
               />
             )}
@@ -450,7 +452,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
             {section === 'analytics' && (
               <AnalyticsTeamView
                 projects={projects}
-                users={users.filter(u => u.role === 'member_analytics')}
+                users={executorsOf(users, 'analitica')}
                 onCardClick={openDetail} onNavigate={changeSection}
               />
             )}
@@ -458,7 +460,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
             {section === 'gantt' && (
               <GanttView
                 projects={visibleProjects}
-                users={users.filter(u => ['engineer', 'member_analytics', 'leader_analytics', 'admin'].includes(u.role))}
+                users={assignables(users)}
                 onRowClick={openDetail}
               />
             )}

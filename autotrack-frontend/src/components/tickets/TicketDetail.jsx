@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  STATUS_FLOW, statusOf, categoryOf, ticketRef, slaOf, isClosed,
+  STATUS_FLOW, statusOf, categoryOf, ticketRef, slaOf, isClosed, teamsOf,
   fmtDate, fmtDateTime, fmtMeeting, dateOnly, timeOnly, canTriage, canManage,
 } from '../../lib/tickets';
 import {
@@ -27,11 +27,14 @@ const TEAMS = [
   { value: 'compartido',     label: 'Ambos equipos' },
 ];
 
-const TEAM_ROLES = {
-  analitica:      ['member_analytics', 'leader_analytics'],
-  compartido:     ['engineer', 'admin', 'member_analytics', 'leader_analytics'],
-  automatizacion: ['engineer', 'admin'],
-};
+/* Quién puede quedar como responsable según el equipo que atiende: los que
+   trabajan en ese equipo. Los compartidos admiten a cualquiera de los dos. */
+const responsablesPara = (users, equipo) =>
+  users.filter(u => {
+    const suyos = teamsOf(u);
+    if (!suyos.length) return false;
+    return equipo === 'compartido' ? true : suyos.includes(equipo);
+  });
 
 function Fact({ k, children }) {
   return (
@@ -73,10 +76,7 @@ export default function TicketDetail({
     setGuests(''); setExtra(''); setError(''); setBusy(false); setConfirmDelete(false);
   }, [ticket]);
 
-  const assignables = useMemo(
-    () => users.filter(u => (TEAM_ROLES[team] || TEAM_ROLES.automatizacion).includes(u.role)),
-    [users, team],
-  );
+  const assignables = useMemo(() => responsablesPara(users, team), [users, team]);
 
   if (!ticket) return null;
 
