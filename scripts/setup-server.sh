@@ -6,8 +6,9 @@
 #  Uso:
 #      sudo APP_DOMAIN=mesa.rbcol.co bash setup-server.sh
 #
-#  Si el puerto 80 ya lo ocupa otra aplicación, la mesa se publica aparte:
-#      sudo HTTP_PORT=8080 PUBLIC_URL=https://host.ts.net:8443 bash setup-server.sh
+#  Si el puerto 80 ya lo ocupa otra aplicación, la mesa se cuelga de una ruta
+#  dentro de ese mismo sitio — la URL queda sin puerto:
+#      sudo BASE_PATH=/mesa PUBLIC_URL=https://host.ts.net/mesa bash setup-server.sh
 #
 #  Es idempotente: se puede volver a correr sobre un servidor ya instalado
 #  sin romper nada ni perder datos.
@@ -27,6 +28,14 @@ APP_PORT="${APP_PORT:-3001}"
 # Puerto en el que escucha nginx. Se cambia cuando el 80 ya está ocupado por
 # otra aplicación del servidor y la mesa se publica aparte.
 HTTP_PORT="${HTTP_PORT:-80}"
+
+# Ruta bajo la que vive la mesa cuando comparte servidor con otra aplicación.
+# Vacío = la mesa es el sitio completo. Con "/mesa", nginx la cuelga de ahí y
+# el puerto interno de la API queda invisible, igual que en analitica-puc.
+BASE_PATH="${BASE_PATH:-}"
+BASE_PATH="${BASE_PATH%/}"
+# Sitio existente al que engancharse. Vacío = se detecta el comodín del puerto.
+ATTACH_SITE="${ATTACH_SITE:-}"
 
 # `_` acepta cualquier nombre de host: sirve para entrar por IP mientras no
 # haya dominio. Con APP_DOMAIN definido, nginx responde solo a ese nombre.
@@ -57,11 +66,11 @@ for f in /etc/nginx/sites-enabled/*; do
     CHOQUE="$CHOQUE $(basename "$f")"
   fi
 done
-if [ -n "$CHOQUE" ] && [ "$APP_DOMAIN" = "_" ]; then
+if [ -n "$CHOQUE" ] && [ "$APP_DOMAIN" = "_" ] && [ -z "$BASE_PATH" ]; then
   echo "El puerto $HTTP_PORT ya lo ocupa como comodín:$CHOQUE"
   echo
-  echo "Publica la mesa en otro puerto —sin tocar ese sitio—:"
-  echo "    sudo HTTP_PORT=8080 bash setup-server.sh"
+  echo "Cuélgala de una ruta dentro de ese mismo sitio (URL sin puerto):"
+  echo "    sudo BASE_PATH=/mesa bash setup-server.sh"
   echo "o dale un nombre de host propio:"
   echo "    sudo APP_DOMAIN=mesa.rbcol.co bash setup-server.sh"
   exit 1
@@ -76,6 +85,15 @@ if ss -lntp 2>/dev/null | grep -q ":$APP_PORT "; then
     echo "Elige otro con:  sudo APP_PORT=3002 bash setup-server.sh"
     exit 1
   fi
+fi
+
+if [ -n "$BASE_PATH" ] && [ -z "$ATTACH_SITE" ]; then
+  ATTACH_SITE=$(echo "$CHOQUE" | awk '{print $1}')
+  [ -z "$ATTACH_SITE" ] && {
+    echo "BASE_PATH requiere un sitio de nginx al que engancharse y no encontré"
+    echo "ninguno escuchando en el puerto $HTTP_PORT. Indícalo con ATTACH_SITE=nombre."
+    exit 1
+  }
 fi
 
 say "Instalando dependencias del sistema"
@@ -136,6 +154,7 @@ else
       PUBLIC_URL="http://$APP_DOMAIN"
     fi
     [ "$HTTP_PORT" != "80" ] && PUBLIC_URL="$PUBLIC_URL:$HTTP_PORT"
+    PUBLIC_URL="$PUBLIC_URL$BASE_PATH"
   fi
   cat > "$ENV_FILE" <<ENVEOF
 # Generado por scripts/setup-server.sh — contiene secretos, no versionar.
@@ -180,7 +199,10 @@ ok "esquema al día"
 say "Compilando el frontend"
 cd "$APP_DIR/autotrack-frontend"
 npm install --silent
-VITE_API_URL=/api npx vite build --base=/ >/dev/null
+# Con BASE_PATH, los assets y las llamadas a la API tienen que llevar el
+# prefijo: si no, el navegador los pediría en la raíz y caerían en la otra
+# aplicación del servidor.
+VITE_API_URL="${BASE_PATH}/api" npx vite build --base="${BASE_PATH}/" >/dev/null
 mkdir -p "$WEB_ROOT"
 rm -rf "${WEB_ROOT:?}/"*
 cp -r dist/* "$WEB_ROOT/"
@@ -188,7 +210,73 @@ ok "publicado en $WEB_ROOT"
 
 # ── Nginx ─────────────────────────────────────────────────────────────────
 say "Configurando nginx"
-cat > "/etc/nginx/sites-available/$SERVICE" <<NGINXEOF
+if [ -n "$BASE_PATH" ]; then
+  # ── Modo ruta ───────────────────────────────────────────────────────────
+  # No se crea un sitio nuevo: se añaden dos `location` al que ya existe, que
+  # es como analitica-puc enruta su propio /api/. El bloque vive en un archivo
+  # aparte y solo se inserta una línea `include`, para poder revertirlo.
+  SNIPPET="/etc/nginx/snippets/$SERVICE.conf"
+  mkdir -p /etc/nginx/snippets
+  cat > "$SNIPPET" <<SNIPEOF
+# Mesa de Servicio bajo $BASE_PATH — generado por scripts/setup-server.sh.
+# Quitar: borrar la línea 'include $SNIPPET;' del sitio y recargar nginx.
+
+# La API primero: es más específica que la ruta del frontend y nginx elige
+# el prefijo más largo. El slash final en ambos lados quita el prefijo
+# (/mesa/api/users -> 127.0.0.1:$APP_PORT/api/users).
+location $BASE_PATH/api/ {
+    proxy_pass            http://127.0.0.1:$APP_PORT/api/;
+    proxy_http_version    1.1;
+    proxy_read_timeout    600s;
+    proxy_set_header      Host \$host;
+    proxy_set_header      X-Real-IP \$remote_addr;
+    proxy_set_header      X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header      X-Forwarded-Proto \$scheme;
+    client_max_body_size  12M;
+}
+
+# El frontend: 'alias' en vez de 'root' porque la ruta del disco no repite
+# el prefijo de la URL. El try_files termina en el index para que el
+# enrutador del navegador resuelva las rutas internas.
+location $BASE_PATH/ {
+    alias $WEB_ROOT/;
+    try_files \$uri \$uri/ $BASE_PATH/index.html;
+}
+
+# Sin la barra final el navegador pediría $BASE_PATH y no entraría.
+location = $BASE_PATH {
+    return 301 $BASE_PATH/;
+}
+SNIPEOF
+
+  SITIO="/etc/nginx/sites-available/$ATTACH_SITE"
+  [ -f "$SITIO" ] || SITIO="/etc/nginx/sites-enabled/$ATTACH_SITE"
+  [ -f "$SITIO" ] || { echo "No encuentro el sitio $ATTACH_SITE"; exit 1; }
+
+  if grep -q "include $SNIPPET;" "$SITIO"; then
+    ok "el sitio $ATTACH_SITE ya incluye la mesa"
+  else
+    cp "$SITIO" "$SITIO.antes-de-mesa-servicio"
+    # Se inserta dentro del primer bloque server, justo tras su apertura.
+    awk -v inc="    include $SNIPPET;" '
+      !hecho && /^[[:space:]]*server[[:space:]]*\{/ { print; print inc; hecho=1; next }
+      { print }
+    ' "$SITIO.antes-de-mesa-servicio" > "$SITIO"
+
+    if nginx -t >/dev/null 2>&1; then
+      ok "mesa añadida a $ATTACH_SITE (respaldo en $SITIO.antes-de-mesa-servicio)"
+    else
+      mv "$SITIO.antes-de-mesa-servicio" "$SITIO"
+      echo "  La configuración de nginx quedó inválida; se restauró el original."
+      nginx -t
+      exit 1
+    fi
+  fi
+  systemctl reload nginx
+  ok "nginx sirviendo la mesa en $BASE_PATH/"
+else
+  # ── Modo sitio completo ─────────────────────────────────────────────────
+  cat > "/etc/nginx/sites-available/$SERVICE" <<NGINXEOF
 server {
     listen $HTTP_PORT;
     server_name $APP_DOMAIN;
@@ -196,7 +284,6 @@ server {
     root $WEB_ROOT;
     index index.html;
 
-    # SPA: cualquier ruta desconocida la resuelve el enrutador del cliente.
     location / {
         try_files \$uri \$uri/ /index.html;
     }
@@ -205,23 +292,20 @@ server {
         proxy_pass            http://127.0.0.1:$APP_PORT;
         proxy_http_version    1.1;
         proxy_read_timeout    600s;
-        proxy_send_timeout    600s;
         proxy_set_header      Host \$host;
         proxy_set_header      X-Real-IP \$remote_addr;
         proxy_set_header      X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header      X-Forwarded-Proto \$scheme;
     }
 
-    # Los adjuntos pueden pesar hasta 10 MB (límite de multer en el backend).
     client_max_body_size 12M;
 }
 NGINXEOF
-ln -sf "/etc/nginx/sites-available/$SERVICE" "/etc/nginx/sites-enabled/$SERVICE"
-# El sitio por defecto solo estorba si la mesa es el comodín; con un dominio
-# propio pueden convivir.
-[ "$APP_DOMAIN" = "_" ] && [ "$HTTP_PORT" = "80" ] && rm -f /etc/nginx/sites-enabled/default
-nginx -t >/dev/null && systemctl reload nginx
-ok "nginx sirviendo $APP_DOMAIN"
+  ln -sf "/etc/nginx/sites-available/$SERVICE" "/etc/nginx/sites-enabled/$SERVICE"
+  [ "$APP_DOMAIN" = "_" ] && [ "$HTTP_PORT" = "80" ] && rm -f /etc/nginx/sites-enabled/default
+  nginx -t >/dev/null && systemctl reload nginx
+  ok "nginx sirviendo $APP_DOMAIN"
+fi
 
 # ── Servicio ──────────────────────────────────────────────────────────────
 say "Registrando el servicio"
