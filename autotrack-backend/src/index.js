@@ -38,10 +38,17 @@ app.use(rateLimit({
 
 // Orígenes permitidos. CORS_ORIGINS acepta una lista separada por comas para
 // no tener que tocar el código al cambiar de dominio o agregar integraciones.
-const corsOrigins = [
+//
+// Se normaliza a origen (esquema + host + puerto): cuando la aplicación vive
+// bajo una ruta —https://host/mesa— esa URL incluye el path, pero el navegador
+// manda `Origin: https://host` y la comparación de CORS nunca casaría.
+const soloOrigen = (u) => {
+  try { return new URL(u).origin; } catch { return u; }
+};
+const corsOrigins = [...new Set([
   process.env.FRONTEND_URL || 'http://localhost:5173',
   ...(process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean),
-];
+].map(soloOrigen))];
 app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 

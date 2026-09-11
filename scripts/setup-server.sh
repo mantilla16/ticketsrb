@@ -369,8 +369,13 @@ cat <<FIN
   Logs       journalctl -u $SERVICE -f
   Actualizar bash $APP_DIR/scripts/deploy.sh
 
-  Falta para poder entrar: MS_CLIENT_ID y MS_TENANT_ID en el .env
-  y reiniciar con  systemctl restart $SERVICE
+$(if [ -z "$MS_CLIENT_ID" ] || [ -z "$MS_TENANT_ID" ]; then
+    echo "  Falta para poder entrar: MS_CLIENT_ID y MS_TENANT_ID en el .env"
+    echo "  y reiniciar con  systemctl restart $SERVICE"
+  else
+    echo "  Registra esta URL como URI de redirección (plataforma SPA) en el"
+    echo "  registro de la aplicación de Entra ID, o el login dará AADSTS50011."
+  fi)
 ╚════════════════════════════════════════════════════════════╝
 
 FIN
