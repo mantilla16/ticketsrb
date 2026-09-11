@@ -37,6 +37,32 @@ ok()  { printf '  \033[32m✓\033[0m %s\n' "$1"; }
 
 [ "$(id -u)" -eq 0 ] || { echo "Ejecuta con sudo."; exit 1; }
 
+# ── Comprobaciones previas ────────────────────────────────────────────────
+# Si el servidor ya sirve otro sitio, `server_name _` lo convertiría en el
+# servidor por defecto y le robaría el tráfico. Con otros sitios activos se
+# exige un dominio explícito en vez de adivinar.
+OTROS_SITIOS=$(ls /etc/nginx/sites-enabled/ 2>/dev/null | grep -v "^default$" | grep -v "^$SERVICE$" || true)
+if [ -n "$OTROS_SITIOS" ] && [ "$APP_DOMAIN" = "_" ]; then
+  echo "Este servidor ya sirve otros sitios en nginx:"
+  echo "$OTROS_SITIOS" | sed 's/^/    /'
+  echo
+  echo "Usar un comodín los dejaría sin tráfico. Vuelve a correr indicando el"
+  echo "nombre de host de la mesa, por ejemplo:"
+  echo "    sudo APP_DOMAIN=mesa.rbcol.co bash setup-server.sh"
+  exit 1
+fi
+
+# El puerto de la API tiene que estar libre, o systemd arrancará en bucle.
+if ss -lntp 2>/dev/null | grep -q ":$APP_PORT "; then
+  QUIEN=$(ss -lntp 2>/dev/null | grep ":$APP_PORT " | head -1)
+  if ! systemctl is-active --quiet "$SERVICE"; then
+    echo "El puerto $APP_PORT ya está ocupado por otro proceso:"
+    echo "    $QUIEN"
+    echo "Elige otro con:  sudo APP_PORT=3002 bash setup-server.sh"
+    exit 1
+  fi
+fi
+
 say "Instalando dependencias del sistema"
 apt-get update -qq
 apt-get install -y -qq curl git nginx postgresql postgresql-contrib openssl
@@ -167,7 +193,9 @@ server {
 }
 NGINXEOF
 ln -sf "/etc/nginx/sites-available/$SERVICE" "/etc/nginx/sites-enabled/$SERVICE"
-rm -f /etc/nginx/sites-enabled/default
+# El sitio por defecto solo estorba si la mesa es el comodín; con un dominio
+# propio pueden convivir.
+[ "$APP_DOMAIN" = "_" ] && rm -f /etc/nginx/sites-enabled/default
 nginx -t >/dev/null && systemctl reload nginx
 ok "nginx sirviendo $APP_DOMAIN"
 
