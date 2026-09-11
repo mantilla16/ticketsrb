@@ -1,43 +1,43 @@
-name: Deploy to production
+name: Desplegar a producción
 
+# Se dispara solo con un push a master, o a mano desde la pestaña Actions.
 on:
   push:
     branches: [master]
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  verificar:
+    name: Verificar que compila
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout código
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Instalar dependencias frontend
+      - name: Comprobar sintaxis del backend
+        run: |
+          cd autotrack-backend
+          for f in $(find src db -name '*.js'); do node --check "$f"; done
+
+      - name: Compilar el frontend
         run: |
           cd autotrack-frontend
           npm install
-
-      - name: Build frontend
-        run: |
-          cd autotrack-frontend
           VITE_API_URL=/api npx vite build --base=/
 
-      - name: SCP — copiar dist al servidor
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: "autotrack-frontend/dist/*"
-          target: "/var/www/html/autotrack/autotrack-frontend/dist/"
-          strip_components: 2
-
-      - name: SSH — actualizar API y reiniciar servicio
+  desplegar:
+    name: Desplegar en el servidor
+    needs: verificar
+    runs-on: ubuntu-latest
+    # Sin las credenciales del servidor el despliegue se salta en vez de
+    # fallar: así un push sigue verificando que el proyecto compila aunque
+    # todavía no haya servidor configurado.
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    steps:
+      - name: Actualizar el servidor por SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -45,10 +45,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            git config --global --add safe.directory /var/www/html/autotrack
-            cd /var/www/html/autotrack
-            git fetch origin master
-            git reset --hard origin/master
-            cd autotrack-backend
-            npm install --omit=dev
-            systemctl restart autotrack
+            set -e
+            sudo bash /var/www/mesa-servicio/scripts/deploy.sh

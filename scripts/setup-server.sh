@@ -1,160 +1,221 @@
 #!/bin/bash
-# ═══════════════════════════════════════════════════════
-#  AutoTrack — Setup para DigitalOcean Ubuntu 22.04
-#  IP: 64.23.209.179
-#  Uso: bash setup-server.sh
-# ═══════════════════════════════════════════════════════
-set -e
+# ═══════════════════════════════════════════════════════════════════════════
+#  Mesa de Servicio — Russell Bedford Barranquilla
+#  Instalación en un servidor Ubuntu 22.04 / 24.04 limpio.
+#
+#  Uso:
+#      sudo APP_DOMAIN=mesa.rbcol.co bash setup-server.sh
+#
+#  Es idempotente: se puede volver a correr sobre un servidor ya instalado
+#  sin romper nada ni perder datos.
+#
+#  No contiene ninguna credencial. La contraseña de la base se genera sola y
+#  queda únicamente en el .env del backend, con permisos 600.
+# ═══════════════════════════════════════════════════════════════════════════
+set -euo pipefail
 
-APP_DIR="/var/www/autotrack"
-REPO="https://github.com/bleinermorales-collab/SEGUIMIENTO-PROYECTO.git"
-DB_USER="autotrack"
-DB_PASS="At2026Americana!"
-DB_NAME="autotrack"
-JWT_SECRET="$(openssl rand -hex 32)"
+# ── Parámetros (todos sobreescribibles por entorno) ────────────────────────
+REPO="${REPO:-https://github.com/mantilla16/ticketsrb.git}"
+BRANCH="${BRANCH:-master}"
+APP_DIR="${APP_DIR:-/var/www/mesa-servicio}"
+WEB_ROOT="${WEB_ROOT:-/var/www/html/mesa-servicio}"
+SERVICE="${SERVICE:-mesa-servicio}"
+APP_PORT="${APP_PORT:-3001}"
 
-echo ""
-echo "╔══════════════════════════════════════╗"
-echo "║   AutoTrack — Instalación servidor   ║"
-echo "╚══════════════════════════════════════╝"
-echo ""
+# `_` acepta cualquier nombre de host: sirve para entrar por IP mientras no
+# haya dominio. Con APP_DOMAIN definido, nginx responde solo a ese nombre.
+APP_DOMAIN="${APP_DOMAIN:-_}"
+AUTH_ALLOWED_DOMAIN="${AUTH_ALLOWED_DOMAIN:-rbcol.co}"
+GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 
-# ── 1. Sistema ──
-echo "▶ Actualizando sistema..."
-apt-get update -qq && apt-get upgrade -y -qq
+DB_NAME="${DB_NAME:-mesa_servicio}"
+DB_USER="${DB_USER:-mesa_servicio}"
 
-# ── 2. Node.js 20 ──
-echo "▶ Instalando Node.js 20..."
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
-apt-get install -y nodejs -qq
+say() { printf '\n\033[1;34m▶ %s\033[0m\n' "$1"; }
+ok()  { printf '  \033[32m✓\033[0m %s\n' "$1"; }
 
-# ── 3. PostgreSQL ──
-echo "▶ Instalando PostgreSQL..."
-apt-get install -y postgresql postgresql-contrib -qq
-systemctl enable postgresql
-systemctl start postgresql
+[ "$(id -u)" -eq 0 ] || { echo "Ejecuta con sudo."; exit 1; }
 
-# ── 4. Nginx ──
-echo "▶ Instalando Nginx..."
-apt-get install -y nginx -qq
-systemctl enable nginx
+say "Instalando dependencias del sistema"
+apt-get update -qq
+apt-get install -y -qq curl git nginx postgresql postgresql-contrib openssl
+if ! command -v node >/dev/null || [ "$(node -v | cut -c2-3)" -lt 20 ]; then
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null 2>&1
+  apt-get install -y -qq nodejs
+fi
+ok "node $(node -v) · nginx · postgresql"
 
-# ── 5. Base de datos ──
-echo "▶ Configurando base de datos PostgreSQL..."
-sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';" 2>/dev/null || echo "   (usuario ya existe)"
-sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>/dev/null || echo "   (base de datos ya existe)"
+systemctl enable --now postgresql nginx >/dev/null 2>&1
 
-# ── 6. Clonar repo ──
-echo "▶ Clonando repositorio..."
-mkdir -p $APP_DIR
-if [ -d "$APP_DIR/.git" ]; then
-  cd $APP_DIR && git pull
+# ── Base de datos ─────────────────────────────────────────────────────────
+say "Preparando la base de datos"
+DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'")
+if [ "$DB_EXISTS" = "1" ]; then
+  ok "la base «$DB_NAME» ya existe — no se toca"
+  KEEP_DB=1
 else
-  git clone $REPO $APP_DIR
+  DB_PASS="$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)"
+  sudo -u postgres psql -qc "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+  sudo -u postgres psql -qc "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+  ok "base «$DB_NAME» creada con contraseña generada al azar"
+  KEEP_DB=0
 fi
 
-# ── 7. Backend ──
-echo "▶ Instalando dependencias del backend..."
-cd $APP_DIR/autotrack-backend
-npm install --omit=dev -q
+# ── Código ────────────────────────────────────────────────────────────────
+say "Descargando el código"
+if [ -d "$APP_DIR/.git" ]; then
+  git -C "$APP_DIR" remote set-url origin "$REPO"
+  git -C "$APP_DIR" fetch --quiet origin "$BRANCH"
+  git -C "$APP_DIR" reset --quiet --hard "origin/$BRANCH"
+else
+  mkdir -p "$(dirname "$APP_DIR")"
+  git clone --quiet --branch "$BRANCH" "$REPO" "$APP_DIR"
+fi
+ok "$APP_DIR en $(git -C "$APP_DIR" rev-parse --short HEAD)"
 
-echo "▶ Creando .env del backend..."
-cat > $APP_DIR/autotrack-backend/.env << ENVEOF
+# ── Configuración del backend ─────────────────────────────────────────────
+ENV_FILE="$APP_DIR/autotrack-backend/.env"
+say "Configurando el backend"
+if [ -f "$ENV_FILE" ]; then
+  ok ".env existente — se conserva (edítalo a mano si cambia algo)"
+else
+  [ "$KEEP_DB" = "1" ] && {
+    echo "  La base ya existía pero no hay .env: no puedo adivinar su contraseña."
+    echo "  Crea $ENV_FILE a mano con DATABASE_URL y vuelve a correr el script."
+    exit 1
+  }
+  PUBLIC_URL="http://${APP_DOMAIN}"
+  [ "$APP_DOMAIN" = "_" ] && PUBLIC_URL="http://$(hostname -I | awk '{print $1}')"
+  cat > "$ENV_FILE" <<ENVEOF
+# Generado por scripts/setup-server.sh — contiene secretos, no versionar.
 DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
-JWT_SECRET=$JWT_SECRET
-PORT=3001
+JWT_SECRET=$(openssl rand -hex 32)
+PORT=$APP_PORT
 NODE_ENV=production
+
+# Identidad de la firma
+AUTH_ALLOWED_DOMAIN=$AUTH_ALLOWED_DOMAIN
+FRONTEND_URL=$PUBLIC_URL
+FRONTEND_URL_PUBLIC=$PUBLIC_URL
+
+# Login con Google (pégalo cuando tengas el client ID del dominio)
+GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
+
+# Notificaciones por correo — opcional, ver .env.example
+GOOGLE_SERVICE_ACCOUNT_EMAIL=
+GOOGLE_PRIVATE_KEY=
+REPORT_FROM_EMAIL=
 ENVEOF
+  chmod 600 "$ENV_FILE"
+  ok ".env creado con secretos generados (permisos 600)"
+fi
 
-echo "▶ Ejecutando schema SQL..."
-sudo -u postgres psql -d $DB_NAME -f $APP_DIR/autotrack-backend/db/schema.sql
+cd "$APP_DIR/autotrack-backend"
+npm install --omit=dev --silent
+ok "dependencias del backend"
 
-echo "▶ Ejecutando seed de proyectos..."
-cd $APP_DIR/autotrack-backend && node scripts/seed.js
+say "Aplicando el esquema de la base"
+# schema.full.sql es idempotente (CREATE TABLE IF NOT EXISTS): seguro de
+# repetir sobre una base que ya tiene datos.
+DB_URL=$(sed -n 's/^DATABASE_URL=//p' "$ENV_FILE")
+psql "$DB_URL" -q -f "$APP_DIR/autotrack-backend/db/schema.full.sql"
+ok "esquema al día"
 
-# ── 8. Frontend ──
-echo "▶ Instalando dependencias del frontend..."
-cd $APP_DIR/autotrack-frontend
-npm install -q
+# ── Frontend ──────────────────────────────────────────────────────────────
+say "Compilando el frontend"
+cd "$APP_DIR/autotrack-frontend"
+npm install --silent
+VITE_API_URL=/api npx vite build --base=/ >/dev/null
+mkdir -p "$WEB_ROOT"
+rm -rf "${WEB_ROOT:?}/"*
+cp -r dist/* "$WEB_ROOT/"
+ok "publicado en $WEB_ROOT"
 
-echo "▶ Compilando frontend..."
-VITE_API_URL=/api npm run build
-
-echo "▶ Copiando build a nginx..."
-mkdir -p /var/www/html/autotrack
-cp -r $APP_DIR/autotrack-frontend/dist/* /var/www/html/autotrack/
-
-# ── 9. Nginx config ──
-echo "▶ Configurando Nginx..."
-cat > /etc/nginx/sites-available/autotrack << 'NGINXEOF'
+# ── Nginx ─────────────────────────────────────────────────────────────────
+say "Configurando nginx"
+cat > "/etc/nginx/sites-available/$SERVICE" <<NGINXEOF
 server {
     listen 80;
-    server_name 64.23.209.179;
+    server_name $APP_DOMAIN;
 
-    # Frontend (React SPA)
-    root /var/www/html/autotrack;
+    root $WEB_ROOT;
     index index.html;
 
+    # SPA: cualquier ruta desconocida la resuelve el enrutador del cliente.
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files \$uri \$uri/ /index.html;
     }
 
-    # Backend API — proxy a Node.js :3001
     location /api {
-        proxy_pass              http://127.0.0.1:3001;
-        proxy_http_version      1.1;
-        proxy_connect_timeout   1200s;
-        proxy_send_timeout      1200s;
-        proxy_read_timeout      1200s;
-        send_timeout            1200s;
-        proxy_set_header        Host $host;
-        proxy_set_header        X-Real-IP $remote_addr;
-        proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header        X-Forwarded-Proto $scheme;
-        proxy_set_header        Upgrade $http_upgrade;
-        proxy_set_header        Connection 'upgrade';
-        proxy_cache_bypass      $http_upgrade;
+        proxy_pass            http://127.0.0.1:$APP_PORT;
+        proxy_http_version    1.1;
+        proxy_read_timeout    600s;
+        proxy_send_timeout    600s;
+        proxy_set_header      Host \$host;
+        proxy_set_header      X-Real-IP \$remote_addr;
+        proxy_set_header      X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header      X-Forwarded-Proto \$scheme;
     }
+
+    # Los adjuntos pueden pesar hasta 10 MB (límite de multer en el backend).
+    client_max_body_size 12M;
 }
 NGINXEOF
-
-ln -sf /etc/nginx/sites-available/autotrack /etc/nginx/sites-enabled/autotrack
+ln -sf "/etc/nginx/sites-available/$SERVICE" "/etc/nginx/sites-enabled/$SERVICE"
 rm -f /etc/nginx/sites-enabled/default
-nginx -t && systemctl reload nginx
+nginx -t >/dev/null && systemctl reload nginx
+ok "nginx sirviendo $APP_DOMAIN"
 
-# ── 10. Servicio systemd ──
-echo "▶ Creando servicio systemd para el backend..."
-cat > /etc/systemd/system/autotrack.service << SVCEOF
+# ── Servicio ──────────────────────────────────────────────────────────────
+say "Registrando el servicio"
+cat > "/etc/systemd/system/$SERVICE.service" <<SVCEOF
 [Unit]
-Description=AutoTrack API (Node.js)
+Description=Mesa de Servicio — API (Russell Bedford Barranquilla)
 After=network.target postgresql.service
 
 [Service]
 Type=simple
-User=root
 WorkingDirectory=$APP_DIR/autotrack-backend
+EnvironmentFile=$ENV_FILE
 ExecStart=/usr/bin/node src/index.js
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=autotrack
+SyslogIdentifier=$SERVICE
 
 [Install]
 WantedBy=multi-user.target
 SVCEOF
-
 systemctl daemon-reload
-systemctl enable autotrack
-systemctl start autotrack
+systemctl enable --now "$SERVICE" >/dev/null
+sleep 2
+systemctl restart "$SERVICE"
+ok "servicio $SERVICE activo"
 
-echo ""
-echo "╔══════════════════════════════════════════╗"
-echo "║            ✅  LISTO                     ║"
-echo "║                                          ║"
-echo "║  App:  http://64.23.209.179              ║"
-echo "║  API:  http://64.23.209.179/api          ║"
-echo "║                                          ║"
-echo "║  Contraseña del equipo: americana2026    ║"
-echo "╚══════════════════════════════════════════╝"
-echo ""
+# ── Comprobación ──────────────────────────────────────────────────────────
+say "Comprobando"
+sleep 2
+if curl -fsS "http://127.0.0.1:$APP_PORT/api/health" >/dev/null; then
+  ok "la API responde"
+  curl -fsS "http://127.0.0.1:$APP_PORT/api/health"; echo
+else
+  echo "  La API no respondió. Revisa:  journalctl -u $SERVICE -n 40 --no-pager"
+  exit 1
+fi
+
+cat <<FIN
+
+╔════════════════════════════════════════════════════════════╗
+  Instalación completada.
+
+  App        http://${APP_DOMAIN/_/$(hostname -I | awk '{print $1}')}
+  Config     $ENV_FILE
+  Logs       journalctl -u $SERVICE -f
+  Actualizar bash $APP_DIR/scripts/deploy.sh
+
+  Falta para poder entrar: pegar GOOGLE_CLIENT_ID en el .env
+  y reiniciar con  systemctl restart $SERVICE
+╚════════════════════════════════════════════════════════════╝
+
+FIN

@@ -33,4 +33,5 @@ autotrack-backend/uploads/
 # Respaldos y borradores locales
 *.bak
 *.bak_*
+autotrack-backend/test-*.js
 
