@@ -39,11 +39,34 @@ const SECRET = () => process.env.MS_CLIENT_SECRET;
 const rutaToken = () =>
   process.env.MAIL_TOKEN_FILE || path.join(__dirname, '../../correo-token.json');
 
+/**
+ * Lee el refresh token. Distingue «no hay autorización» de «no puedo leerla»:
+ * el token se guarda con permisos 600, así que un proceso que corra con otro
+ * usuario del que autorizó recibe EACCES. Confundir los dos casos hace que la
+ * aplicación diga «sin configurar» cuando en realidad está configurada y lo
+ * que falta es ejecutar con los permisos correctos.
+ */
 function leerRefresh() {
   try {
     return JSON.parse(fs.readFileSync(rutaToken(), 'utf8')).refresh_token || null;
-  } catch {
-    return null;
+  } catch (err) {
+    if (err.code === 'EACCES' || err.code === 'EPERM') {
+      const e = new Error(
+        `No se puede leer ${rutaToken()} (permisos). La autorización existe pero ` +
+        'este proceso no tiene acceso: ejecútalo con el mismo usuario que la creó.');
+      e.code = 'TOKEN_INACCESIBLE';
+      throw e;
+    }
+    return null; // no existe: todavía no se ha autorizado
+  }
+}
+
+/** Estado de la autorización delegada, para diagnósticos. */
+function estadoToken() {
+  try {
+    return leerRefresh() ? 'presente' : 'ausente';
+  } catch (err) {
+    return err.code === 'TOKEN_INACCESIBLE' ? 'inaccesible' : 'ausente';
   }
 }
 
@@ -62,12 +85,17 @@ function guardarRefresh(token) {
 /** Modo efectivo según lo que haya configurado. */
 function modo() {
   if (!TENANT() || !CLIENT()) return null;
-  if (leerRefresh()) return 'DELEGADO';
+  // Un token que existe pero no se puede leer tiene que salir a la luz, no
+  // degradar en silencio al plan B ni parecer falta de configuración.
+  if (estadoToken() === 'inaccesible') leerRefresh();
+  if (estadoToken() === 'presente') return 'DELEGADO';
   if (SECRET())      return 'APLICACION';
   return null;
 }
 
-const graphReady = () => modo() !== null;
+const graphReady = () => {
+  try { return modo() !== null; } catch { return true; } // configurado, pero inaccesible
+};
 
 /* El token de acceso dura una hora. Se reutiliza hasta un minuto antes de
    caducar: pedir uno por cada correo funcionaría, pero Microsoft limita la
@@ -222,6 +250,6 @@ function explicarGraph(err) {
 }
 
 module.exports = {
-  enviarPorGraph, graphReady, explicarGraph, modo,
-  iniciarDispositivo, consultarDispositivo, guardarRefresh, rutaToken,
+  enviarPorGraph, graphReady, explicarGraph, modo, estadoToken, rutaToken,
+  iniciarDispositivo, consultarDispositivo, guardarRefresh,
 };

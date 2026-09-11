@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 const escapeHtml = require('./escapeHtml');
-const { enviarPorGraph, graphReady } = require('./graphMail');
+const { enviarPorGraph, graphReady, modo: graphMode } = require('./graphMail');
 
 const APP_URL   = process.env.FRONTEND_URL_PUBLIC || process.env.FRONTEND_URL || 'http://localhost:5173';
 const FALLBACK_SENDER = process.env.REPORT_FROM_EMAIL;
@@ -146,8 +146,12 @@ async function sendNotificationEmail({
 
   try {
     if (graphReady()) {
+      // Con permiso delegado el remitente es quien autorizó y se llega por
+      // /me, así que MAIL_FROM solo hace falta en el modo de aplicación.
       const from = process.env.MAIL_FROM || process.env.SMTP_FROM || process.env.SMTP_USER;
-      if (!from) return console.error('Falta MAIL_FROM: no hay buzón desde el que enviar.');
+      if (!from && graphMode() !== 'DELEGADO') {
+        return console.error('Falta MAIL_FROM: no hay buzón desde el que enviar.');
+      }
       return await enviarPorGraph({ from, to, subject: title, html, replyTo, attachments });
     }
 
