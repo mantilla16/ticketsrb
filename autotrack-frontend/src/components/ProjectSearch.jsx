@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { colorClass } from '../utils/helpers';
 
 const STATUS_DOT = {
-  backlog: '#a86040', progress: '#f9924d', standby: '#78716C',
-  testing: '#e87d3a', done: '#16A34A', soporte: '#0891b2', cancelado: '#DC2626',
+  backlog: 'var(--rb-navy)', progress: 'var(--rb-navy-soft)', standby: '#78716C',
+  testing: '#e87d3a', done: 'var(--rb-success)', soporte: '#0B6E80', cancelado: 'var(--rb-danger)',
 };
 const STATUS_L = {
   backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
@@ -66,7 +66,7 @@ export default function ProjectSearch({ projects, onSelect }) {
             <div className="psearch-empty">Sin resultados para "{query}"</div>
           ) : results.map(p => (
             <button key={p.id} className="psearch-item" onClick={() => select(p.id)}>
-              <span className="psearch-dot" style={{ background: STATUS_DOT[p.status] || '#a86040' }} />
+              <span className="psearch-dot" style={{ background: STATUS_DOT[p.status] || 'var(--rb-navy)' }} />
               <span className="psearch-item-body">
                 <span className="psearch-item-name">{p.name}</span>
                 <span className="psearch-item-meta">

@@ -12,8 +12,8 @@ const STATUS_L = {
   done: 'Finalizado', soporte: 'En soporte', cancelado: 'Cancelado',
 };
 const BAR_COLOR = {
-  backlog: '#D9CFC7', progress: '#F97316',
-  standby: '#C9BBAD', testing: '#F59E0B', done: '#22C55E', soporte: '#0891b2', cancelado: '#DC2626',
+  backlog: 'var(--rb-n-300)', progress: 'var(--rb-navy)',
+  standby: '#C9BBAD', testing: 'var(--rb-warning)', done: 'var(--rb-success)', soporte: '#0B6E80', cancelado: 'var(--rb-danger)',
 };
 
 const fmtDMY   = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
@@ -84,17 +84,17 @@ export default function GanttView({ projects, users = [], onRowClick }) {
       {/* Stats */}
       <div className="gv-stats">
         <div className="gv-stat">
-          <span className="gv-stat-icon" style={{ background: '#FEF2F2', color: '#EF4444' }}>
+          <span className="gv-stat-icon" style={{ background: 'var(--rb-danger-bg)', color: 'var(--rb-danger)' }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           </span>
           <div>
             <div className="gv-stat-label">Entregas vencidas</div>
-            <div className="gv-stat-num" style={overdueN > 0 ? { color: '#EF4444' } : undefined}>{overdueN}</div>
+            <div className="gv-stat-num" style={overdueN > 0 ? { color: 'var(--rb-danger)' } : undefined}>{overdueN}</div>
             <div className="gv-stat-sub">requieren atención</div>
           </div>
         </div>
         <div className="gv-stat">
-          <span className="gv-stat-icon" style={{ background: '#FFF3E8', color: '#F97316' }}>
+          <span className="gv-stat-icon" style={{ background: 'var(--rb-navy-tint)', color: 'var(--rb-navy)' }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           </span>
           <div>
@@ -104,7 +104,7 @@ export default function GanttView({ projects, users = [], onRowClick }) {
           </div>
         </div>
         <div className="gv-stat" style={{ borderRight: 'none' }}>
-          <span className="gv-stat-icon" style={{ background: '#FFF3E8', color: '#F97316' }}>
+          <span className="gv-stat-icon" style={{ background: 'var(--rb-navy-tint)', color: 'var(--rb-navy)' }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </span>
           <div>
@@ -200,10 +200,10 @@ export default function GanttView({ projects, users = [], onRowClick }) {
                         </td>
                         <td style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
                           {p.dueDate ? (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: overdue ? '#EF4444' : 'var(--text2)', fontWeight: overdue ? 700 : 400 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: overdue ? 'var(--rb-danger)' : 'var(--text2)', fontWeight: overdue ? 700 : 400 }}>
                               {fmtDMY(p.dueDate)}
                               {overdue && (
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="#EF4444" stroke="#EF4444" strokeWidth="0"><circle cx="12" cy="12" r="10" fill="#FEE2E2"/><rect x="11" y="6" width="2" height="8" rx="1" fill="#EF4444"/><rect x="11" y="16" width="2" height="2" rx="1" fill="#EF4444"/></svg>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--rb-danger)" stroke="var(--rb-danger)" strokeWidth="0"><circle cx="12" cy="12" r="10" fill="var(--rb-danger-bg)"/><rect x="11" y="6" width="2" height="8" rx="1" fill="var(--rb-danger)"/><rect x="11" y="16" width="2" height="2" rx="1" fill="var(--rb-danger)"/></svg>
                               )}
                             </span>
                           ) : <span style={{ color: 'var(--text3)' }}>—</span>}
@@ -216,7 +216,7 @@ export default function GanttView({ projects, users = [], onRowClick }) {
                                 <div className="gv-today-line" style={{ left: `${todayPct}%` }} />
                                 <div className="gv-bar" style={{ left: `${left}%`, width: `${width}%`, background: BAR_COLOR[p.status] || 'var(--accent)' }} />
                               </div>
-                              <span className="gv-tl-date" style={overdue ? { color: '#EF4444', fontWeight: 700 } : undefined}>{fmtShort(p.dueDate)}</span>
+                              <span className="gv-tl-date" style={overdue ? { color: 'var(--rb-danger)', fontWeight: 700 } : undefined}>{fmtShort(p.dueDate)}</span>
                             </div>
                           ) : (
                             <span style={{ fontSize: 11.5, color: 'var(--text3)', fontStyle: 'italic' }}>Sin fecha de inicio / entrega</span>

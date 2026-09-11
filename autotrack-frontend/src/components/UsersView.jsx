@@ -101,7 +101,7 @@ export default function UsersView({ users, projects, currentUser, onEdit, onDele
                     {u.locked && (
                       <button
                         className="uv-action-btn"
-                        style={{ background: '#FEF2F2', color: '#EF4444', borderColor: 'rgba(239,68,68,.3)' }}
+                        style={{ background: 'var(--rb-danger-bg)', color: 'var(--rb-danger)', borderColor: 'rgba(239,68,68,.3)' }}
                         onClick={() => onUnlock(u.id)}
                         title="Cuenta bloqueada por intentos fallidos — clic para desbloquear"
                       >

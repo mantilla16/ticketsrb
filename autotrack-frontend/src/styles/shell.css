@@ -1,0 +1,187 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   ESTRUCTURA DE LA APLICACIÓN — barra lateral, cabecera y lienzo de página
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.rb-shell {
+  display: grid;
+  grid-template-columns: var(--rb-sidebar-w) minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--rb-bg);
+}
+
+/* ─────────────────────────── Barra lateral ───────────────────────── */
+.rb-sidebar {
+  position: sticky; top: 0; align-self: start;
+  height: 100vh; z-index: 60;
+  display: flex; flex-direction: column;
+  background: var(--sb-bg);
+  border-right: 1px solid rgba(255, 255, 255, .06);
+}
+
+/* El área de seguridad del logo la da el padding; no se recorta ni se
+   deforma, y nada se apoya contra él. */
+.rb-brand {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+.rb-brand-logo { width: 168px; height: auto; display: block; }
+.rb-brand-sub {
+  display: block; font-size: var(--rb-fs-xs); font-weight: 400;
+  color: rgba(255, 255, 255, .55); letter-spacing: .01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.rb-nav { flex: 1; overflow-y: auto; padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; }
+.rb-nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); background-clip: content-box; }
+
+.rb-nav-group {
+  font-size: 10px; font-weight: 700; letter-spacing: .01em;
+  color: rgba(255, 255, 255, .32);
+  padding: 14px 10px 6px;
+}
+.rb-nav-group:first-child { padding-top: 2px; }
+
+.rb-nav-item {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; height: 36px; padding: 0 10px;
+  border-radius: var(--rb-r-sm);
+  font-size: var(--rb-fs-md); font-weight: 400;
+  color: var(--sb-text); text-align: left;
+  transition: background var(--rb-t-fast) var(--rb-ease), color var(--rb-t-fast) var(--rb-ease);
+}
+.rb-nav-item svg { flex: none; opacity: .85; }
+.rb-nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rb-nav-item:hover { background: rgba(255, 255, 255, .06); color: var(--sb-text-hover); }
+.rb-nav-item.is-active {
+  background: var(--sb-item-active); color: var(--sb-text-active); font-weight: 700;
+}
+.rb-nav-item.is-active svg { opacity: 1; }
+/* Marca de página actual: el fondo solo no se distingue sobre el navy. */
+.rb-nav-item.is-active::before {
+  content: ''; position: absolute; left: -10px; top: 7px; bottom: 7px;
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--rb-cyan);
+}
+.rb-nav-badge {
+  min-width: 19px; height: 19px; padding: 0 5px; border-radius: var(--rb-r-pill);
+  display: grid; place-items: center;
+  font-size: 10.5px; font-weight: 700;
+  background: rgba(255, 255, 255, .14); color: #fff;
+}
+.rb-nav-item.is-active .rb-nav-badge { background: rgba(255, 255, 255, .22); }
+.rb-nav-badge--alert { background: var(--rb-danger); color: #fff; }
+
+.rb-sidebar-foot { padding: 10px; border-top: 1px solid rgba(255, 255, 255, .07); }
+.rb-userchip {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 9px; border-radius: var(--rb-r-md);
+  transition: background var(--rb-t-fast) var(--rb-ease);
+  text-align: left;
+}
+.rb-userchip:hover { background: rgba(255, 255, 255, .07); }
+.rb-userchip-name { color: #fff; font-size: var(--rb-fs-sm); font-weight: 700; }
+.rb-userchip-role { color: rgba(255, 255, 255, .45); font-size: 11px; }
+.rb-userchip svg { color: rgba(255, 255, 255, .35); flex: none; }
+
+/* ───────────────────────── Área principal ────────────────────────── */
+.rb-main { display: flex; flex-direction: column; min-width: 0; min-height: 100vh; overflow-x: hidden; }
+
+.rb-topbar {
+  position: sticky; top: 0; z-index: 50;
+  height: var(--rb-topbar-h);
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 var(--rb-gutter);
+  background: rgba(255, 255, 255, .86);
+  backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--rb-line);
+}
+.rb-topbar-title { font-size: var(--rb-fs-xl); font-weight: 700; letter-spacing: -.018em; line-height: 1.15; }
+.rb-topbar-sub   { font-size: var(--rb-fs-sm); color: var(--rb-text-3); margin-top: 1px; }
+.rb-topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.rb-burger { display: none; }
+
+.rb-page {
+  flex: 1; width: 100%; min-width: 0; max-width: var(--rb-maxw);
+  margin: 0 auto; padding: var(--rb-gutter);
+  display: flex; flex-direction: column; gap: 16px;
+}
+/* Ningún bloque ancho (tablas, cronogramas) debe empujar el ancho de la
+   página: cada uno resuelve su desbordamiento con scroll propio. */
+.rb-page > * { min-width: 0; max-width: 100%; }
+
+/* ───────────────────────── Métricas / KPIs ───────────────────────── */
+.rb-stats { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+.rb-stat {
+  background: var(--rb-surface); border: 1px solid var(--rb-line);
+  border-radius: var(--rb-r-lg); padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 3px;
+  text-align: left; position: relative; overflow: hidden;
+  transition: border-color var(--rb-t-fast) var(--rb-ease), box-shadow var(--rb-t-fast) var(--rb-ease);
+}
+button.rb-stat:hover { border-color: var(--rb-navy-line); box-shadow: var(--rb-sh-sm); }
+button.rb-stat.is-active { border-color: var(--rb-navy-soft); box-shadow: var(--rb-ring); }
+.rb-stat-label {
+  font-size: var(--rb-fs-xs); font-weight: 700; color: var(--rb-text-3); letter-spacing: .01em;
+  display: flex; align-items: center; gap: 6px;
+}
+.rb-stat-value {
+  font-size: var(--rb-fs-3xl); font-weight: 700; letter-spacing: -.03em;
+  line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--rb-navy);
+}
+.rb-stat-foot { font-size: var(--rb-fs-xs); color: var(--rb-text-3); }
+.rb-stat-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--rb-navy); }
+.rb-stat[data-tone='danger']  .rb-stat-accent { background: var(--rb-danger); }
+.rb-stat[data-tone='warning'] .rb-stat-accent { background: var(--rb-warning); }
+.rb-stat[data-tone='success'] .rb-stat-accent { background: var(--rb-success); }
+.rb-stat[data-tone='violet']  .rb-stat-accent { background: var(--rb-violet); }
+.rb-stat[data-tone='neutral'] .rb-stat-accent { background: var(--rb-n-300); }
+
+/* ─────────────────────────── Notificaciones ──────────────────────── */
+.rb-bell { position: relative; }
+.rb-bell-dot {
+  position: absolute; top: 5px; right: 5px;
+  min-width: 15px; height: 15px; padding: 0 4px; border-radius: var(--rb-r-pill);
+  background: var(--rb-danger); color: #fff;
+  font-size: 9.5px; font-weight: 700;
+  display: grid; place-items: center;
+  border: 2px solid var(--rb-surface);
+}
+
+/* ───────────────────────────── Responsive ────────────────────────── */
+@media (max-width: 1024px) {
+  .rb-shell { grid-template-columns: minmax(0, 1fr); }
+  .rb-sidebar {
+    position: fixed; left: 0; top: 0; width: var(--rb-sidebar-w);
+    transform: translateX(-100%);
+    transition: transform 240ms var(--rb-ease-out);
+    box-shadow: var(--rb-sh-xl);
+  }
+  .rb-sidebar.is-open { transform: none; }
+  .rb-scrim {
+    position: fixed; inset: 0; z-index: 55;
+    background: rgba(10, 22, 38, .4);
+    animation: rbFade var(--rb-t) var(--rb-ease);
+  }
+  .rb-burger {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: var(--rb-r-sm);
+    color: var(--rb-text-2);
+  }
+  .rb-burger:hover { background: var(--rb-n-100); }
+}
+
+@media (max-width: 640px) {
+  :root { --rb-gutter: 14px; }
+  .rb-topbar { padding: 0 14px; }
+  .rb-topbar-sub { display: none; }
+  .rb-stat-value { font-size: var(--rb-fs-2xl); }
+}
+
+@media print {
+  .rb-sidebar, .rb-topbar, .rb-scrim { display: none !important; }
+  .rb-shell { display: block; }
+  .rb-page { padding: 0; max-width: none; }
+}

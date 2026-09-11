@@ -1,9 +1,9 @@
 export const ST = {
-  backlog:  { l: 'Por hacer',  dot: '#b0c4d0', cls: 'status-backlog' },
-  progress: { l: 'En proceso', dot: '#336B87', cls: 'status-progress' },
-  standby:  { l: 'En standby', dot: '#763626', cls: 'status-standby' },
-  testing:  { l: 'En testing', dot: '#2A3132', cls: 'status-testing' },
-  done:     { l: 'Finalizado', dot: '#3d7a54', cls: 'status-done' },
+  backlog:  { l: 'Por hacer',  dot: 'var(--c-backlog)',  cls: 'status-backlog' },
+  progress: { l: 'En proceso', dot: 'var(--c-progress)', cls: 'status-progress' },
+  standby:  { l: 'En standby', dot: 'var(--c-standby)',  cls: 'status-standby' },
+  testing:  { l: 'En testing', dot: 'var(--c-testing)',  cls: 'status-testing' },
+  done:     { l: 'Finalizado', dot: 'var(--c-done)',     cls: 'status-done' },
 };
 
 export const PR = {

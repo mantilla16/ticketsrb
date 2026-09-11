@@ -5,14 +5,14 @@ const ROLES = [
     value: 'admin',
     label: 'Líder Automatización',
     desc: 'Acceso total — proyectos, equipo, solicitudes y configuración',
-    color: '#92400E', bg: '#FEF3C7',
+    color: '#92400E', bg: 'var(--rb-warning-bg)',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
   },
   {
     value: 'leader_analytics',
     label: 'Líder Analítica',
     desc: 'Gestiona proyectos de analítica, asigna miembros y revisa solicitudes',
-    color: '#5B21B6', bg: '#F5F3FF',
+    color: '#5B21B6', bg: 'var(--rb-violet-bg)',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>,
   },
   {
@@ -26,14 +26,14 @@ const ROLES = [
     value: 'member_analytics',
     label: 'Miembro Analítica',
     desc: 'Ve proyectos de analítica asignados y actualiza avance',
-    color: '#0E7490', bg: '#ECFEFF',
+    color: '#0E7490', bg: '#E4F5F8',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9h.01M15 9h.01M9 15s1 1 3 1 3-1 3-1"/></svg>,
   },
   {
     value: 'manager',
     label: 'Gerente',
     desc: 'Ve el dashboard ejecutivo, historial y cronograma — solo lectura',
-    color: '#047857', bg: '#ECFDF5',
+    color: '#047857', bg: 'var(--rb-success-bg)',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>,
   },
   {
@@ -45,7 +45,7 @@ const ROLES = [
   },
 ];
 
-const AVATAR_COLORS = ['#f9924d','#d4763a','#5a2807','#c4622d','#8a3a10'];
+const AVATAR_COLORS = ['var(--rb-navy-soft)','#d4763a','#5a2807','#c4622d','#8a3a10'];
 
 function initials(name) {
   return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || '?';
@@ -142,7 +142,7 @@ export default function UserModal({ open, user: editUser, onSave, onClose }) {
 
             <div className="um-field">
               <div style={{ fontSize: 11.5, color: 'var(--text3)', background: 'var(--bg2, rgba(0,0,0,.03))', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px' }}>
-                El acceso a AMBARC es solo con Google — no se define contraseña. {isEdit ? 'El usuario' : 'La persona'} entrará con su cuenta institucional {form.email ? `(${form.email})` : ''}.
+                El acceso a la Mesa de Servicio es solo con Google — no se define contraseña. {isEdit ? 'El usuario' : 'La persona'} entrará con su cuenta institucional {form.email ? `(${form.email})` : ''}.
               </div>
             </div>
 

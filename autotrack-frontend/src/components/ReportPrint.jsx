@@ -1,10 +1,10 @@
 /* Informe PDF — se muestra únicamente al imprimir (Exportar → guardar como PDF) */
 
 const TIPO_INFO = {
-  automatizacion:  { label: 'Automatización', color: '#F97316', bg: '#FFF3E8' },
-  analitica:       { label: 'Analítica',       color: '#7c3aed', bg: '#F5F3FF' },
-  compartido:      { label: 'Compartidos',     color: '#0891b2', bg: '#E0F2FE' },
-  asignacion_flash:{ label: 'Flash',           color: '#F59E0B', bg: '#FEF3C7' },
+  automatizacion:  { label: 'Automatización', color: 'var(--rb-navy)', bg: 'var(--rb-navy-tint)' },
+  analitica:       { label: 'Analítica',       color: '#7c3aed', bg: 'var(--rb-violet-bg)' },
+  compartido:      { label: 'Compartidos',     color: '#0B6E80', bg: '#E4F5F8' },
+  asignacion_flash:{ label: 'Flash',           color: 'var(--rb-warning)', bg: 'var(--rb-warning-bg)' },
 };
 
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -27,13 +27,12 @@ function PageShell({ title, periodLabel, page, children }) {
     <div className="rp-page">
       <div className="rp-head">
         <div className="rp-brand">
-          <img src="/logo-symbol-192.png" alt="" className="rp-brand-icon" />
-          AMBARC
+          <img src="/logo-russell-bedford.svg" alt="Russell Bedford" className="rp-brand-icon" />
         </div>
         <span className="rp-period">{periodLabel}</span>
       </div>
       <h1 className="rp-title">{title}</h1>
-      <div className="rp-sub">Resumen del trabajo de Automatización y Analítica</div>
+      <div className="rp-sub">Mesa de Servicio · Russell Bedford Barranquilla</div>
       <hr className="rp-rule" />
       <div className="rp-body">{children}</div>
       <div className="rp-foot">Página {page}</div>
@@ -75,14 +74,14 @@ export default function ReportPrint({ projects, users, solicitudes = [], periodL
   const flat = (v) => [v * .5, v * .7, v * .55, v * .8, v * .7, v * .9, v];
 
   const kpis = [
-    { l: 'Total',       v: total,        c: '#C96A1A', ic: 'total' },
-    { l: 'En proceso',  v: cnt.progress, c: '#F97316', ic: 'progress' },
-    { l: 'En standby',  v: cnt.standby,  c: '#A8907C', ic: 'standby' },
-    { l: 'En testing',  v: cnt.testing,  c: '#F59E0B', ic: 'testing' },
-    { l: 'Finalizados', v: cnt.done,     c: '#22C55E', ic: 'done' },
-    { l: 'Por hacer',   v: cnt.backlog,  c: '#6B7280', ic: 'backlog' },
-    { l: 'Soporte',     v: cnt.soporte,  c: '#EF4444', ic: 'soporte' },
-    { l: 'Cancelados',  v: cnt.cancelado,c: '#DC2626', ic: 'cancelado' },
+    { l: 'Total',       v: total,        c: 'var(--rb-navy)', ic: 'total' },
+    { l: 'En proceso',  v: cnt.progress, c: 'var(--rb-navy)', ic: 'progress' },
+    { l: 'En standby',  v: cnt.standby,  c: 'var(--rb-n-400)', ic: 'standby' },
+    { l: 'En testing',  v: cnt.testing,  c: 'var(--rb-warning)', ic: 'testing' },
+    { l: 'Finalizados', v: cnt.done,     c: 'var(--rb-success)', ic: 'done' },
+    { l: 'Por hacer',   v: cnt.backlog,  c: 'var(--rb-neutral)', ic: 'backlog' },
+    { l: 'Soporte',     v: cnt.soporte,  c: 'var(--rb-danger)', ic: 'soporte' },
+    { l: 'Cancelados',  v: cnt.cancelado,c: 'var(--rb-danger)', ic: 'cancelado' },
   ];
 
   // Carga por persona
@@ -112,9 +111,9 @@ export default function ReportPrint({ projects, users, solicitudes = [], periodL
   const convRate = solTotal ? Math.round(solStats.convertidas / solTotal * 100) : 0;
 
   const PR_BADGE = {
-    high: { l: 'Alta',  c: '#EF4444', bg: '#FEF2F2' },
-    mid:  { l: 'Media', c: '#F97316', bg: '#FFF3E8' },
-    low:  { l: 'Baja',  c: '#22C55E', bg: '#ECFDF3' },
+    high: { l: 'Alta',  c: 'var(--rb-danger)', bg: 'var(--rb-danger-bg)' },
+    mid:  { l: 'Media', c: 'var(--rb-navy)', bg: 'var(--rb-navy-tint)' },
+    low:  { l: 'Baja',  c: 'var(--rb-success)', bg: 'var(--rb-success-bg)' },
   };
 
   return (
@@ -149,7 +148,7 @@ export default function ReportPrint({ projects, users, solicitudes = [], periodL
         <div className="rp-card">
           <div className="rp-card-title">Distribución de proyectos</div>
           <div className="rp-mini-label">Por prioridad</div>
-          {[['high', 'Alta', '#EF4444'], ['mid', 'Media', '#F97316'], ['low', 'Baja', '#22C55E']].map(([k, l, c]) => (
+          {[['high', 'Alta', 'var(--rb-danger)'], ['mid', 'Media', 'var(--rb-navy)'], ['low', 'Baja', 'var(--rb-success)']].map(([k, l, c]) => (
             <div key={k} className="rp-bar-row">
               <span className="rp-bar-label">{l}</span>
               <span className="rp-bar-track"><span className="rp-bar-fill" style={{ width: `${Math.round(prCnt[k] / maxPr * 100)}%`, background: c }} /></span>
@@ -179,9 +178,9 @@ export default function ReportPrint({ projects, users, solicitudes = [], periodL
         </div>
 
         <div className="rp-legend">
-          <span><i style={{ background: '#EF4444' }} /> Alta carga (&gt;70%)</span>
-          <span><i style={{ background: '#F97316' }} /> Media (40–70%)</span>
-          <span><i style={{ background: '#22C55E' }} /> Baja (&lt;40%)</span>
+          <span><i style={{ background: 'var(--rb-danger)' }} /> Alta carga (&gt;70%)</span>
+          <span><i style={{ background: 'var(--rb-navy)' }} /> Media (40–70%)</span>
+          <span><i style={{ background: 'var(--rb-success)' }} /> Baja (&lt;40%)</span>
           <span><i style={{ background: '#B8B0A8' }} /> Sin carga</span>
         </div>
       </PageShell>
@@ -216,10 +215,10 @@ export default function ReportPrint({ projects, users, solicitudes = [], periodL
             <div className="rp-section-title" style={{ marginTop: 26 }}>Solicitudes internas</div>
             <div className="rp-sols">
               {[
-                { l: 'Recibidas',              v: solStats.recibidas,   c: '#F97316', bg: '#FFF3E8', ic: 'inbox' },
-                { l: 'En revisión',            v: solStats.revision,    c: '#F59E0B', bg: '#FEF7E8', ic: 'clock' },
-                { l: 'Reunión agendada',       v: solStats.reunion,     c: '#EF4444', bg: '#FEF2F2', ic: 'cal' },
-                { l: 'Convertidas en proyecto', v: solStats.convertidas, c: '#22C55E', bg: '#ECFDF3', ic: 'check' },
+                { l: 'Recibidas',              v: solStats.recibidas,   c: 'var(--rb-navy)', bg: 'var(--rb-navy-tint)', ic: 'inbox' },
+                { l: 'En revisión',            v: solStats.revision,    c: 'var(--rb-warning)', bg: 'var(--rb-warning-bg)', ic: 'clock' },
+                { l: 'Reunión agendada',       v: solStats.reunion,     c: 'var(--rb-danger)', bg: 'var(--rb-danger-bg)', ic: 'cal' },
+                { l: 'Convertidas en proyecto', v: solStats.convertidas, c: 'var(--rb-success)', bg: 'var(--rb-success-bg)', ic: 'check' },
               ].map(({ l, v, c, bg, ic }) => (
                 <div key={l} className="rp-sol" style={{ background: bg }}>
                   <span style={{ color: c }}>{RP_ICON[ic]}</span>
@@ -232,7 +231,7 @@ export default function ReportPrint({ projects, users, solicitudes = [], periodL
               <span className="rp-conv-label">Tasa de conversión</span>
               <span className="rp-conv-pct">{convRate}%</span>
               <span className="rp-bar-track" style={{ flex: 1 }}>
-                <span className="rp-bar-fill" style={{ width: `${convRate}%`, background: '#F97316' }} />
+                <span className="rp-bar-fill" style={{ width: `${convRate}%`, background: 'var(--rb-navy)' }} />
               </span>
               <span className="rp-conv-note">{solStats.convertidas} de {solTotal} solicitudes</span>
             </div>

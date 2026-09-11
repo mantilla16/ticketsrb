@@ -2,28 +2,28 @@ import { useRef, useEffect, useState } from 'react';
 import { colorClass } from '../utils/helpers';
 
 /* ════════════════════════════════════════════════════════════════════════════
-   Centro de Control — Dashboard Gerencial AMBARC
-   Guía: bento grid, cards blancas radio 8px borde #ECE7E2, sin sombras fuertes.
+   Panel de ejecución — visión gerencial de los trabajos en curso
+   Guía: bento grid, cards blancas radio 8px borde var(--rb-n-200), sin sombras fuertes.
    Solo 6 bloques: KPIs · Carga del equipo · Portafolio · Embudo · Demanda · Tendencias
 ════════════════════════════════════════════════════════════════════════════ */
 
-const INK2 = '#7A736C';
+const INK2 = 'var(--rb-n-500)';
 
 const STATUS_PILL = {
-  backlog:  { l: 'Por iniciar',   bg: '#F3F4F6', c: '#6B7280' },
-  progress: { l: 'En curso',      bg: '#FFF3E8', c: '#F9924D' },
-  standby:  { l: 'En pausa',      bg: '#F5EFE9', c: '#A8907C' },
-  testing:  { l: 'En validación', bg: '#FEF3C7', c: '#D97706' },
-  done:     { l: 'Finalizado',    bg: '#ECFDF3', c: '#16A34A' },
-  soporte:  { l: 'Soporte',       bg: '#E0F2FE', c: '#0891b2' },
-  cancelado:{ l: 'Cancelado',     bg: '#FEE2E2', c: '#DC2626' },
+  backlog:  { l: 'Por iniciar',   bg: 'var(--rb-neutral-bg)', c: 'var(--rb-neutral)' },
+  progress: { l: 'En curso',      bg: 'var(--rb-navy-tint)', c: 'var(--rb-navy-soft)' },
+  standby:  { l: 'En pausa',      bg: 'var(--rb-n-100)', c: 'var(--rb-n-400)' },
+  testing:  { l: 'En validación', bg: 'var(--rb-warning-bg)', c: 'var(--rb-warning)' },
+  done:     { l: 'Finalizado',    bg: 'var(--rb-success-bg)', c: 'var(--rb-success)' },
+  soporte:  { l: 'Soporte',       bg: '#E4F5F8', c: '#0B6E80' },
+  cancelado:{ l: 'Cancelado',     bg: 'var(--rb-danger-bg)', c: 'var(--rb-danger)' },
 };
-const RISK_PILL = { l: 'En riesgo', bg: '#FEF2F2', c: '#DC2626' };
+const RISK_PILL = { l: 'En riesgo', bg: 'var(--rb-danger-bg)', c: 'var(--rb-danger)' };
 
 const PR_PILL = {
-  high: { l: 'Alta',  bg: '#FEF2F2', c: '#DC2626' },
-  mid:  { l: 'Media', bg: '#FEF3C7', c: '#D97706' },
-  low:  { l: 'Baja',  bg: '#ECFDF3', c: '#16A34A' },
+  high: { l: 'Alta',  bg: 'var(--rb-danger-bg)', c: 'var(--rb-danger)' },
+  mid:  { l: 'Media', bg: 'var(--rb-warning-bg)', c: 'var(--rb-warning)' },
+  low:  { l: 'Baja',  bg: 'var(--rb-success-bg)', c: 'var(--rb-success)' },
 };
 
 // Tareas "de" una persona: si la tarea tiene un responsable propio, solo es suya si es
@@ -199,7 +199,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
         if (i > 0) pdf.addPage([794, 1123], 'portrait');
         pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 794, 1123);
       }
-      pdf.save(`Informe_AMBARC_${new Date().toISOString().slice(0, 10)}.pdf`);
+      pdf.save(`Informe_MesaDeServicio_${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (err) {
       console.error('PDF export failed:', err);
       window.print();
@@ -283,9 +283,9 @@ export default function DashboardView({ projects: allProjects, users, solicitude
 
   const teamRows = teamLoads.map(r => {
     const ocup = avgLoad > 0 ? Math.round(r.urgencyLoad / avgLoad * 100) : 0;
-    const estado = ocup > 150 ? { l: 'Sobrecarga', bg: '#FEF2F2', c: '#DC2626' }
-      : ocup >= 110 ? { l: 'Alta carga', bg: '#FEF3C7', c: '#D97706' }
-      : { l: 'Saludable', bg: '#ECFDF3', c: '#16A34A' };
+    const estado = ocup > 150 ? { l: 'Sobrecarga', bg: 'var(--rb-danger-bg)', c: 'var(--rb-danger)' }
+      : ocup >= 110 ? { l: 'Alta carga', bg: 'var(--rb-warning-bg)', c: 'var(--rb-warning)' }
+      : { l: 'Saludable', bg: 'var(--rb-success-bg)', c: 'var(--rb-success)' };
     return { ...r, ocup, estado };
   }).sort((a, b) => b.ocup - a.ocup);
 
@@ -403,9 +403,9 @@ export default function DashboardView({ projects: allProjects, users, solicitude
                     <td style={{ color: INK2, whiteSpace: 'nowrap' }}>{equipo}</td>
                     <td style={{ textAlign: 'center', fontWeight: 600 }}>{total}</td>
                     <td style={{ textAlign: 'center', fontWeight: 600 }}>{tasksAssigned}</td>
-                    <td style={{ textAlign: 'center', fontWeight: 700, color: tasksPending > 0 ? '#D97706' : INK2 }}>{tasksPending}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 700, color: tasksPending > 0 ? 'var(--rb-warning)' : INK2 }}>{tasksPending}</td>
                     <td style={{ textAlign: 'center', fontWeight: 600 }}>{tasksTotal}</td>
-                    <td style={{ textAlign: 'center', fontWeight: 700, color: bloqueos > 0 ? '#D97706' : INK2 }}>{bloqueos}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 700, color: bloqueos > 0 ? 'var(--rb-warning)' : INK2 }}>{bloqueos}</td>
                     <td style={{ whiteSpace: 'nowrap', color: INK2 }}>{next ? fmtDM(next.dueDate) : '—'}</td>
                     <td><span className="dx-pill" style={{ background: estado.bg, color: estado.c }}>{estado.l}</span></td>
                   </tr>
@@ -446,7 +446,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
                       <td>
                         <div style={{ fontWeight: 700, fontSize: 12 }}>{p.progress || 0}%</div>
                         <div className="dx-bar" style={{ width: 70, marginTop: 3 }}>
-                          <span style={{ width: `${p.progress || 0}%`, background: '#F9924D' }} />
+                          <span style={{ width: `${p.progress || 0}%`, background: 'var(--rb-navy-soft)' }} />
                         </div>
                       </td>
                       <td style={{ whiteSpace: 'nowrap', color: INK2 }}>{fmtShort(p.dueDate)}</td>
@@ -496,7 +496,7 @@ export default function DashboardView({ projects: allProjects, users, solicitude
           <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginTop: 4 }}>
             {demanda.map(([area, n]) => (
               <div key={area} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 92, fontSize: 12, color: '#5A2807', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={area}>{area}</span>
+                <span style={{ width: 92, fontSize: 12, color: 'var(--rb-navy)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={area}>{area}</span>
                 <div className="dx-bar" style={{ flex: 1, height: 10 }}>
                   <span style={{ width: `${(n / demandaMax) * 100}%`, background: `rgba(249,146,77,${(0.35 + (n / demandaMax) * 0.65).toFixed(2)})` }} />
                 </div>

@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { colorClass } from '../utils/helpers';
 
 const PR = {
-  high: { l: 'Alta',  bg: '#FEF2F2', c: '#EF4444' },
-  mid:  { l: 'Media', bg: '#FFF3E8', c: '#F97316' },
-  low:  { l: 'Baja',  bg: '#ECFDF3', c: '#22C55E' },
+  high: { l: 'Alta',  bg: 'var(--rb-danger-bg)', c: 'var(--rb-danger)' },
+  mid:  { l: 'Media', bg: 'var(--rb-navy-tint)', c: 'var(--rb-navy)' },
+  low:  { l: 'Baja',  bg: 'var(--rb-success-bg)', c: 'var(--rb-success)' },
 };
 
 const STATUS_L = {
@@ -12,12 +12,12 @@ const STATUS_L = {
   testing: 'En testing', done: 'Finalizado', soporte: 'En soporte', cancelado: 'Cancelado',
 };
 const STATUS_BG = {
-  backlog: '#F3F4F6', progress: '#FFF3E8', standby: '#F5EFE9',
-  testing: '#FEF3C7', done: '#ECFDF3', soporte: '#e0f2fe', cancelado: '#FEE2E2',
+  backlog: 'var(--rb-neutral-bg)', progress: 'var(--rb-navy-tint)', standby: 'var(--rb-n-100)',
+  testing: 'var(--rb-warning-bg)', done: 'var(--rb-success-bg)', soporte: '#e0f2fe', cancelado: 'var(--rb-danger-bg)',
 };
 const STATUS_C = {
-  backlog: '#6B7280', progress: '#F97316', standby: '#A8907C',
-  testing: '#D97706', done: '#22C55E', soporte: '#0891b2', cancelado: '#DC2626',
+  backlog: 'var(--rb-neutral)', progress: 'var(--rb-navy)', standby: 'var(--rb-n-400)',
+  testing: 'var(--rb-warning)', done: 'var(--rb-success)', soporte: '#0B6E80', cancelado: 'var(--rb-danger)',
 };
 
 const PREVIEW = 5;
@@ -97,8 +97,8 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
                     <div className="at-col-count">{list.length} proyecto{list.length !== 1 ? 's' : ''}</div>
                   </div>
                   <div className="at-col-stats">
-                    <span><i style={{ background: '#F97316' }} />{active} activos</span>
-                    <span><i style={{ background: '#22C55E' }} />{done} finalizados</span>
+                    <span><i style={{ background: 'var(--rb-navy)' }} />{active} activos</span>
+                    <span><i style={{ background: 'var(--rb-success)' }} />{done} finalizados</span>
                   </div>
                 </div>
 
@@ -138,9 +138,9 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
                               <div className="at-card-meta">
                                 <span className={`avatar-xs ${colorClass(u.colorIndex)}`}>{u.initials}</span>
                                 <span className="at-card-bar">
-                                  <span style={{ width: `${pct}%`, background: pct >= 80 ? '#22C55E' : 'var(--accent)' }} />
+                                  <span style={{ width: `${pct}%`, background: pct >= 80 ? 'var(--rb-success)' : 'var(--accent)' }} />
                                 </span>
-                                <span className="at-card-pct" style={{ color: pct >= 80 ? '#22C55E' : 'var(--accent)' }}>{pct}%</span>
+                                <span className="at-card-pct" style={{ color: pct >= 80 ? 'var(--rb-success)' : 'var(--accent)' }}>{pct}%</span>
                               </div>
                             </div>
                             <div className="at-card-side">
@@ -207,11 +207,11 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
               <span className="chart-title" style={{ marginBottom: 0 }}>Resumen del equipo</span>
             </div>
             {[
-              { n: totalAna,  l: isAuto ? 'Totales de Automatización' : 'Totales de Analítica', u: 'proyectos', c: '#F97316', bg: '#FFF3E8',
+              { n: totalAna,  l: isAuto ? 'Totales de Automatización' : 'Totales de Analítica', u: 'proyectos', c: 'var(--rb-navy)', bg: 'var(--rb-navy-tint)',
                 ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> },
-              { n: totalComp, l: 'Compartidos', u: 'proyectos', c: '#F97316', bg: '#FFF3E8',
+              { n: totalComp, l: 'Compartidos', u: 'proyectos', c: 'var(--rb-navy)', bg: 'var(--rb-navy-tint)',
                 ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
-              { n: weekCount, l: 'Próximas entregas', u: 'esta semana', c: '#22C55E', bg: '#ECFDF3',
+              { n: weekCount, l: 'Próximas entregas', u: 'esta semana', c: 'var(--rb-success)', bg: 'var(--rb-success-bg)',
                 ic: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></svg> },
             ].map(({ n, l, u: unit, c, bg, ic }) => (
               <div key={l} className="at-sum-row">

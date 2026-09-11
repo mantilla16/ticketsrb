@@ -1,0 +1,63 @@
+/* Reset, tipografía base y utilidades transversales. */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--rb-font);
+  font-size: var(--rb-fs-md);
+  line-height: 1.5;
+  color: var(--rb-text);
+  background: var(--rb-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'tnum' 0;
+}
+
+h1, h2, h3, h4 { font-weight: 700; letter-spacing: -.011em; line-height: 1.25; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { background: none; border: none; cursor: pointer; }
+a { color: var(--rb-navy); text-decoration: none; }
+a:hover { color: var(--rb-navy-soft); }
+
+/* Foco visible solo por teclado — accesible sin ensuciar el clic con ratón. */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--rb-navy-soft);
+  outline-offset: 2px;
+  border-radius: var(--rb-r-xs);
+}
+
+::selection { background: var(--rb-navy-tint); color: var(--rb-navy); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--rb-n-300);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--rb-r-pill);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--rb-n-400); background-clip: content-box; }
+
+/* ─── Utilidades ─── */
+.rb-row      { display: flex; align-items: center; gap: 8px; }
+.rb-col      { display: flex; flex-direction: column; }
+.rb-spacer   { flex: 1; }
+.rb-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rb-clamp-2  { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rb-mono     { font-family: var(--rb-mono); font-variant-numeric: tabular-nums; }
+.rb-sr-only  {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

@@ -1,0 +1,110 @@
+/* Pantalla de acceso — dos columnas: relato de marca y una sola acción. */
+
+.lg-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(420px, .95fr);
+  background: var(--rb-bg);
+}
+
+/* ─────────────────────────── Columna de marca ───────────────────────── */
+.lg-aside {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 44px 52px 28px;
+  color: #fff;
+  /* Fondo oscuro corporativo plano. El manual no admite degradados que no
+     estén definidos, así que el azul marino va liso. */
+  background: var(--rb-navy);
+}
+.lg-aside-inner { position: relative; max-width: 520px; }
+
+.lg-brand { margin-bottom: 56px; }
+.lg-brand img { width: 240px; height: auto; display: block; }
+.lg-brand-city {
+  font-size: var(--rb-fs-sm); letter-spacing: .01em;
+  color: rgba(255, 255, 255, .55); margin-top: 6px;
+}
+
+.lg-headline {
+  font-size: clamp(30px, 3.6vw, 44px); font-weight: 700;
+  letter-spacing: -.032em; line-height: 1.14; margin-bottom: 16px;
+}
+.lg-headline em { font-style: normal; color: var(--rb-cyan); }
+.lg-lede {
+  font-size: var(--rb-fs-lg); line-height: 1.62;
+  color: rgba(255, 255, 255, .68); max-width: 44ch; margin-bottom: 40px;
+}
+
+.lg-pillars { list-style: none; display: flex; flex-direction: column; gap: 20px; }
+.lg-pillars li { display: flex; gap: 13px; align-items: flex-start; }
+.lg-pillar-icon {
+  width: 34px; height: 34px; border-radius: var(--rb-r-md); flex: none;
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, .09);
+  border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--rb-cyan);
+}
+.lg-pillars strong { display: block; font-size: var(--rb-fs-md); font-weight: 700; }
+.lg-pillars span   { display: block; font-size: var(--rb-fs-sm); color: rgba(255, 255, 255, .55); margin-top: 2px; line-height: 1.5; }
+
+.lg-aside-foot {
+  position: relative;
+  font-size: var(--rb-fs-xs); color: rgba(255, 255, 255, .34);
+  letter-spacing: .02em;
+}
+
+/* ─────────────────────────── Columna de acceso ──────────────────────── */
+.lg-panel { display: grid; place-items: center; padding: 40px 32px; }
+
+.lg-card {
+  width: 100%; max-width: 400px;
+  background: var(--rb-surface);
+  border: 1px solid var(--rb-line);
+  border-radius: var(--rb-r-xl);
+  box-shadow: var(--rb-sh-md);
+  padding: 32px 30px;
+}
+.lg-card-title { font-size: var(--rb-fs-2xl); font-weight: 700; letter-spacing: -.024em; }
+.lg-card-sub {
+  font-size: var(--rb-fs-md); color: var(--rb-text-3);
+  line-height: 1.6; margin: 8px 0 24px;
+}
+.lg-card-sub strong { color: var(--rb-text-2); font-weight: 700; }
+
+.lg-gbtn { display: flex; justify-content: center; min-height: 44px; }
+.lg-note { text-align: center; font-size: var(--rb-fs-xs); color: var(--rb-text-4); padding-top: 10px; }
+
+.lg-dev {
+  margin-top: 22px; padding: 14px;
+  border: 1px dashed var(--rb-warning-bd); border-radius: var(--rb-r-md);
+  background: var(--rb-warning-bg);
+}
+.lg-dev-title {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .01em;
+  color: var(--rb-warning); margin-bottom: 10px;
+}
+.lg-dev code {
+  font-family: var(--rb-mono); font-size: 11px;
+  background: rgba(0, 0, 0, .06); padding: 1px 4px; border-radius: 4px;
+}
+
+.lg-legal {
+  margin-top: 24px; padding-top: 18px;
+  border-top: 1px solid var(--rb-line-soft);
+  font-size: var(--rb-fs-xs); color: var(--rb-text-4); line-height: 1.6;
+}
+
+/* ─────────────────────────────── Responsive ─────────────────────────── */
+@media (max-width: 900px) {
+  .lg-page { grid-template-columns: minmax(0, 1fr); }
+  .lg-aside { padding: 28px 24px 20px; }
+  .lg-brand { margin-bottom: 28px; }
+  .lg-headline { font-size: 28px; }
+  .lg-lede { margin-bottom: 24px; font-size: var(--rb-fs-md); }
+  .lg-pillars { flex-direction: row; flex-wrap: wrap; gap: 14px; }
+  .lg-pillars li { flex: 1 1 220px; }
+  .lg-pillars span { display: none; }
+  .lg-aside-foot { display: none; }
+  .lg-panel { padding: 28px 20px 48px; }
+}

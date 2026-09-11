@@ -185,7 +185,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
             )}
             <div>
               <div className="detail-label">Entrega</div>
-              <div style={{ fontSize: 13, fontFamily: 'var(--mono)', fontWeight: 600, marginTop: 4, color: dSt === 'overdue' ? 'var(--high)' : dSt === 'soon' ? '#E8890C' : 'var(--text)' }}>
+              <div style={{ fontSize: 13, fontFamily: 'var(--mono)', fontWeight: 600, marginTop: 4, color: dSt === 'overdue' ? 'var(--high)' : dSt === 'soon' ? 'var(--rb-navy)' : 'var(--text)' }}>
                 {fmtDate(project.dueDate)}
               </div>
             </div>
@@ -230,7 +230,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
           {/* Shared project breakdown */}
           {tipo === 'compartido' && (project.participationAuto || project.participationAnalitica) && (
             <div style={{ background: 'rgba(8,145,178,.07)', border: '1px solid rgba(8,145,178,.2)', borderRadius: 'var(--radius-sm)', padding: '12px 14px', marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#0891b2', marginBottom: 10 }}>Proyecto compartido</div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', color: '#0B6E80', marginBottom: 10 }}>Proyecto compartido</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {project.participationAuto && (
                   <div>

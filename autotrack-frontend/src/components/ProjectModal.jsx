@@ -416,7 +416,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
           {/* ── Compartido ── */}
           {areaSel === 'compartido' && typeSel === 'proyecto' && (
             <div className="pm-box" style={{ borderColor: 'rgba(8,145,178,.3)' }}>
-              <div className="pm-box-title" style={{ color: '#0891b2' }}>Proyecto compartido</div>
+              <div className="pm-box-title" style={{ color: '#0B6E80' }}>Proyecto compartido</div>
               <div className="pm-grid">
                 <div className="pm-field">
                   <label className="pm-field-label">Responsable general</label>

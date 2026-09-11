@@ -1,95 +1,106 @@
-import { colorClass } from '../utils/helpers';
+/* Navegación principal.
 
-const ROLE_LABEL = {
-  admin:            'Líder Automatización',
-  leader_analytics: 'Líder Analítica',
-  engineer:         'Ingeniero Auto.',
-  member_analytics: 'Miembro Analítica',
-  manager:          'Gerente',
-  user:             'Área Solicitante',
-};
+   La arquitectura de información gira alrededor del ticket: primero la
+   operación de la mesa (bandeja, lo mío, flujo), después la ejecución del
+   trabajo que ya se aceptó, y al final análisis y administración.
 
-const LEADERS  = ['admin', 'leader_analytics'];
-const ENGINEERS = ['admin', 'engineer', 'leader_analytics', 'member_analytics'];
+   El auditor solicitante ve una sola entrada — sus tickets — porque es lo
+   único que necesita: radicar y seguir. */
 
-const ALL_SECTIONS = [
-  {
-    id: 'dashboard', label: 'Dashboard', roles: [...ENGINEERS, 'manager'],
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
-  },
-  {
-    id: 'my-kanban', label: 'Mi Kanban', roles: ['admin'],
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="13" rx="1"/><rect x="17" y="3" width="4" height="16" rx="1"/></svg>,
-  },
-  {
-    id: 'team-kanban', label: 'Equipo Automatización', roles: ['admin', 'engineer'],
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a3.5 3.5 0 0 0-3-3.47"/></svg>,
-  },
-  {
-    id: 'analytics', label: 'Equipo Analítica', roles: ['admin', 'leader_analytics', 'member_analytics'],
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>,
-  },
-  {
-    id: 'solicitudes', label: 'Centro de Solicitudes', roles: [...LEADERS, 'member_analytics', 'user'],
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>,
-  },
-  {
-    id: 'gantt', label: 'Cronograma', roles: [...ENGINEERS, 'manager'],
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="5" x2="21" y2="5"/><rect x="4" y="9" width="9" height="3" rx="1" fill="currentColor" stroke="none"/><rect x="9" y="14" width="8" height="3" rx="1" fill="currentColor" stroke="none"/><line x1="3" y1="20" x2="21" y2="20"/></svg>,
-  },
-  {
-    id: 'historial', label: 'Historial', roles: [...ENGINEERS, 'manager'],
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>,
-  },
-  {
-    id: 'users', label: 'Usuarios', roles: ['admin'],
-    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-  },
+import { ORG, roleOf } from '../lib/tickets';
+import Icon from './ui/Icon';
+
+const DESK   = ['admin', 'leader_analytics', 'engineer', 'member_analytics', 'manager'];
+const LEADS  = ['admin', 'leader_analytics'];
+const ENGINE = ['admin', 'engineer', 'leader_analytics', 'member_analytics'];
+
+/* `badge` nombra la métrica que la entrada muestra; App la calcula. */
+export const SECTIONS = [
+  { group: 'Mesa de servicio' },
+  { id: 'inbox',    label: 'Bandeja',       icon: 'inbox',  roles: DESK,            badge: 'unassigned' },
+  { id: 'mine',     label: 'Mis tickets',   icon: 'ticket', roles: [...DESK, 'user'], badge: 'mine' },
+  { id: 'board',    label: 'Flujo',         icon: 'board',  roles: DESK },
+
+  { group: 'Ejecución', roles: ENGINE },
+  { id: 'team-kanban', label: 'Proyectos',        icon: 'users',    roles: ['admin', 'engineer'] },
+  { id: 'analytics',   label: 'Equipo Analítica', icon: 'trend',    roles: ['admin', 'leader_analytics', 'member_analytics'] },
+  { id: 'gantt',       label: 'Cronograma',       icon: 'calendar', roles: [...ENGINE, 'manager'] },
+
+  { group: 'Análisis', roles: DESK },
+  { id: 'reports',   label: 'Reportes',  icon: 'chart',   roles: DESK },
+  { id: 'dashboard', label: 'Panel',     icon: 'target',  roles: [...ENGINE, 'manager'] },
+  { id: 'historial', label: 'Historial', icon: 'archive', roles: [...ENGINE, 'manager'] },
+
+  { group: 'Administración', roles: LEADS },
+  { id: 'users', label: 'Usuarios', icon: 'user', roles: ['admin'] },
 ];
 
-export default function Sidebar({ section, onSection, user, onLogout, isOpen }) {
-  const role    = user?.role || 'engineer';
-  const visible = ALL_SECTIONS.filter(s => s.roles.includes(role));
+/** Secciones que el rol puede abrir — también la usa App para validar la sección activa. */
+export function sectionsFor(role) {
+  return SECTIONS.filter(s => s.id && s.roles.includes(role));
+}
+
+/**
+ * Deja solo las entradas del rol y descarta los encabezados que se quedaron
+ * sin nada debajo, para que ningún rol vea un grupo vacío.
+ */
+function buildMenu(role) {
+  const kept = SECTIONS.filter(s => s.group || s.roles.includes(role));
+  return kept.filter((s, i) => !s.group || (kept[i + 1] && !kept[i + 1].group));
+}
+
+export default function Sidebar({ section, onSection, user, onLogout, isOpen, badges = {} }) {
+  const role    = user?.role || 'user';
+  const visible = buildMenu(role);
 
   return (
-    <aside className={`sidebar${isOpen ? ' open' : ''}`}>
-      {/* Logo */}
-      <div className="sidebar-logo">
-        <img src="/logo-symbol-192.png" alt="AMBARC" className="sidebar-logo-icon" />
-        <div className="sidebar-logo-text">
-          AMBARC
-          <span>Gestión de Proyectos</span>
-        </div>
+    <aside className={`rb-sidebar${isOpen ? ' is-open' : ''}`}>
+      {/* El manual fija el logo arriba a la izquierda, con área de seguridad
+          alrededor y sin alterar proporciones ni color. */}
+      <div className="rb-brand">
+        <img className="rb-brand-logo" src="/logo-russell-bedford-white.svg"
+          alt={`${ORG.name} ${ORG.city}`} />
+        <span className="rb-brand-sub">{ORG.city} · {ORG.product}</span>
       </div>
 
-      {/* Navigation */}
-      <nav className="sidebar-nav">
-        <div className="sidebar-label">Principal</div>
-        {visible.map(s => (
-          <button
-            key={s.id}
-            className={`nav-item${section === s.id ? ' active' : ''}`}
-            onClick={() => onSection(s.id)}
-          >
-            {s.icon}
-            {s.label}
-          </button>
-        ))}
+      <nav className="rb-nav" aria-label="Navegación principal">
+        {visible.map((s, i) =>
+          s.group ? (
+            <div className="rb-nav-group" key={`g-${i}`}>{s.group}</div>
+          ) : (
+            (() => {
+              const badge = s.badge ? badges[s.badge] : null;
+              return (
+                <button
+                  key={s.id}
+                  className={`rb-nav-item${section === s.id ? ' is-active' : ''}`}
+                  aria-current={section === s.id ? 'page' : undefined}
+                  onClick={() => onSection(s.id)}
+                >
+                  <Icon name={s.icon} size={16} stroke={1.9} />
+                  <span className="rb-nav-label">{s.label}</span>
+                  {badge?.count > 0 && (
+                    <span className={`rb-nav-badge${badge.alert ? ' rb-nav-badge--alert' : ''}`}
+                      title={badge.title}>
+                      {badge.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })()
+          ),
+        )}
       </nav>
 
-      {/* User footer */}
-      <div className="sidebar-footer">
-        <div className="sidebar-user" onClick={onLogout} title="Cerrar sesión">
-          <div className={`avatar-sm ${colorClass(user.colorIndex)}`}>{user.initials}</div>
-          <div className="sidebar-user-info">
-            <div className="sidebar-user-name">{user.name}</div>
-            <div className="sidebar-user-role">{ROLE_LABEL[role] || role}</div>
-          </div>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="2" strokeLinecap="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
-        </div>
+      <div className="rb-sidebar-foot">
+        <button className="rb-userchip" onClick={onLogout} title="Cerrar sesión">
+          <span className="rb-avatar" data-c={(user?.colorIndex ?? 0) % 8}>{user?.initials}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span className="rb-userchip-name rb-truncate" style={{ display: 'block' }}>{user?.name}</span>
+            <span className="rb-userchip-role">{roleOf(role).label}</span>
+          </span>
+          <Icon name="logout" size={14} />
+        </button>
       </div>
     </aside>
   );

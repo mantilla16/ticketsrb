@@ -39,6 +39,15 @@ export function AuthProvider({ children }) {
     return user;
   };
 
+  // Atajo de desarrollo local — el backend solo lo expone fuera de producción
+  const loginDev = async (email) => {
+    const { token, user } = await authAPI.devLogin(email);
+    localStorage.setItem('at-token', token);
+    localStorage.setItem('at-last-activity', String(Date.now()));
+    setUser(user);
+    return user;
+  };
+
   const logout = () => {
     localStorage.removeItem('at-token');
     setUser(null);
@@ -82,7 +91,7 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginGoogle, loginDev, logout }}>
       {children}
     </AuthContext.Provider>
   );

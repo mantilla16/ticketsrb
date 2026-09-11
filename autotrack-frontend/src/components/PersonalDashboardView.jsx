@@ -5,7 +5,7 @@
    propios proyectos. Mismo lenguaje visual (bento grid, dx-*) que DashboardView.
 ════════════════════════════════════════════════════════════════════════════ */
 
-const INK2 = '#7A736C';
+const INK2 = 'var(--rb-n-500)';
 
 function isMine(p, userId) {
   return (p.assigneeIds || [p.assigneeId]).includes(userId)
@@ -42,19 +42,19 @@ function personUrgencyLoad(projects, userId) {
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
 function urgency(dueDate) {
-  if (!dueDate) return { l: 'Sin fecha', bg: '#F3F4F6', c: '#6B7280' };
+  if (!dueDate) return { l: 'Sin fecha', bg: 'var(--rb-neutral-bg)', c: 'var(--rb-neutral)' };
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const soon = new Date(today); soon.setDate(soon.getDate() + 3);
   const d = new Date(dueDate);
-  if (d < today) return { l: 'Vencida', bg: '#FEF2F2', c: '#DC2626' };
-  if (d <= soon) return { l: 'Por vencer', bg: '#FEF3C7', c: '#D97706' };
-  return { l: 'A tiempo', bg: '#ECFDF3', c: '#16A34A' };
+  if (d < today) return { l: 'Vencida', bg: 'var(--rb-danger-bg)', c: 'var(--rb-danger)' };
+  if (d <= soon) return { l: 'Por vencer', bg: 'var(--rb-warning-bg)', c: 'var(--rb-warning)' };
+  return { l: 'A tiempo', bg: 'var(--rb-success-bg)', c: 'var(--rb-success)' };
 }
 
 const PR_PILL = {
-  high: { l: 'Alta',  bg: '#FEF2F2', c: '#DC2626' },
-  mid:  { l: 'Media', bg: '#FEF3C7', c: '#D97706' },
-  low:  { l: 'Baja',  bg: '#ECFDF3', c: '#16A34A' },
+  high: { l: 'Alta',  bg: 'var(--rb-danger-bg)', c: 'var(--rb-danger)' },
+  mid:  { l: 'Media', bg: 'var(--rb-warning-bg)', c: 'var(--rb-warning)' },
+  low:  { l: 'Baja',  bg: 'var(--rb-success-bg)', c: 'var(--rb-success)' },
 };
 
 const IC = (path) => (
@@ -102,9 +102,9 @@ export default function PersonalDashboardView({ projects, users = [], currentUse
   const avgLoad = teamLoads.length ? teamLoads.reduce((a, b) => a + b, 0) / teamLoads.length : 0;
   const myLoad = personUrgencyLoad(mine, userId);
   const ocup = avgLoad > 0 ? Math.round(myLoad / avgLoad * 100) : 0;
-  const estado = ocup > 150 ? { l: 'Sobrecarga', bg: '#FEF2F2', c: '#DC2626' }
-    : ocup >= 110 ? { l: 'Alta carga', bg: '#FEF3C7', c: '#D97706' }
-    : { l: 'Saludable', bg: '#ECFDF3', c: '#16A34A' };
+  const estado = ocup > 150 ? { l: 'Sobrecarga', bg: 'var(--rb-danger-bg)', c: 'var(--rb-danger)' }
+    : ocup >= 110 ? { l: 'Alta carga', bg: 'var(--rb-warning-bg)', c: 'var(--rb-warning)' }
+    : { l: 'Saludable', bg: 'var(--rb-success-bg)', c: 'var(--rb-success)' };
 
   const portafolio = [...activeMine].sort((a, b) => (a.dueDate || '9999') < (b.dueDate || '9999') ? -1 : 1);
 
@@ -116,7 +116,7 @@ export default function PersonalDashboardView({ projects, users = [], currentUse
         <div style={{ flex: 1, minWidth: 200 }}>
           <div className="dx-block-title" style={{ marginBottom: 6 }}>Tu ocupación</div>
           <div className="dx-bar" style={{ maxWidth: 320 }}>
-            <span style={{ width: `${Math.min(100, ocup)}%`, background: ocup > 100 ? '#DC2626' : '#F9924D' }} />
+            <span style={{ width: `${Math.min(100, ocup)}%`, background: ocup > 100 ? 'var(--rb-danger)' : 'var(--rb-navy-soft)' }} />
           </div>
           <div style={{ fontSize: 11.5, color: INK2, marginTop: 5 }}>{myTasks.length} pendientes / {tasksTotal} tareas</div>
         </div>
@@ -147,7 +147,7 @@ export default function PersonalDashboardView({ projects, users = [], currentUse
                       <td>
                         <div style={{ fontWeight: 700, fontSize: 12 }}>{t.projectProgress}%</div>
                         <div className="dx-bar" style={{ width: 70, marginTop: 3 }}>
-                          <span style={{ width: `${t.projectProgress}%`, background: '#F9924D' }} />
+                          <span style={{ width: `${t.projectProgress}%`, background: 'var(--rb-navy-soft)' }} />
                         </div>
                       </td>
                       <td style={{ whiteSpace: 'nowrap', color: INK2 }}>{fmtShort(t.dueDate)}</td>
@@ -190,7 +190,7 @@ export default function PersonalDashboardView({ projects, users = [], currentUse
                       <td>
                         <div style={{ fontWeight: 700, fontSize: 12 }}>{p.progress || 0}%</div>
                         <div className="dx-bar" style={{ width: 70, marginTop: 3 }}>
-                          <span style={{ width: `${p.progress || 0}%`, background: '#F9924D' }} />
+                          <span style={{ width: `${p.progress || 0}%`, background: 'var(--rb-navy-soft)' }} />
                         </div>
                       </td>
                       <td style={{ whiteSpace: 'nowrap', color: INK2 }}>{fmtShort(p.dueDate)}</td>

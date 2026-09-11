@@ -1,0 +1,219 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Russell Bedford Barranquilla — Mesa de Servicio
+   TOKENS DE MARCA — única fuente de verdad del look & feel.
+
+   Valores tomados del manual «Lineamientos de Diseño» de Russell Bedford.
+   Reglas del manual que este archivo materializa:
+     · Solo la paleta cromática oficial. Sin colores externos ni degradados.
+     · Tipografía Lato en todas las aplicaciones digitales, sin excepciones.
+     · Diseño plano: sin sombras duras, biseles ni efectos tridimensionales.
+     · La jerarquía se define con tamaño, peso y color — nunca con mayúsculas.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ═══════════════════ PALETA OFICIAL (manual de marca) ═══════════════════
+     Los cinco colores institucionales más el gris corporativo. El azul marino
+     es el dominante: en el pie de las piezas del manual ocupa casi el doble
+     que cualquier otro. */
+  --rb-navy:    #001871;   /* principal */
+  --rb-cyan:    #00A9CE;
+  --rb-teal:    #00BFB3;
+  --rb-magenta: #981D97;
+  --rb-orange:  #ED8B00;
+  --rb-gray:    #8F9393;
+
+  /* ─── Variantes derivadas ───────────────────────────────────────────────
+     El manual define los colores planos; una interfaz necesita además un tono
+     oscuro para texto pequeño (los planos no alcanzan contraste AA sobre
+     blanco) y un tinte claro para fondos de etiqueta. Se derivan del mismo
+     matiz, sin introducir colores nuevos. */
+  --rb-navy-ink:    #001250;  --rb-navy-tint:    #E6E9F1;  --rb-navy-line:    #B3BCD4;
+  --rb-cyan-ink:    #00697F;  --rb-cyan-tint:    #E5F6FA;  --rb-cyan-line:    #A3DEEC;
+  --rb-teal-ink:    #00776F;  --rb-teal-tint:    #E5F9F7;  --rb-teal-line:    #A3E8E3;
+  --rb-magenta-ink: #7A177A;  --rb-magenta-tint: #F5E8F5;  --rb-magenta-line: #DFB4DF;
+  --rb-orange-ink:  #9C5C00;  --rb-orange-tint:  #FDF3E5;  --rb-orange-line:  #F7D19B;
+  --rb-gray-ink:    #5C6060;  --rb-gray-tint:    #F0F1F1;  --rb-gray-line:    #D3D5D5;
+
+  /* Azul marino más claro, para acentos sobre fondo oscuro (barra lateral). */
+  --rb-navy-soft: #4A5C9E;
+  --rb-navy-deep: #00103F;
+
+  /* ─── Color funcional, fuera del manual ─────────────────────────────────
+     PENDIENTE DE APROBACIÓN. El manual no define un color de alerta y una
+     mesa de servicio necesita señalar un SLA vencido de forma inequívoca;
+     el rojo es la convención universal para eso. Es la única desviación de
+     la paleta: si la dirección de marca prefiere resolverlo con magenta,
+     basta apuntar estas tres variables a --rb-magenta*. */
+  --rb-alert:      #C4122F;
+  --rb-alert-tint: #FBE9EC;
+  --rb-alert-line: #EFB3BE;
+
+  /* ─── Identidad ─── */
+  --rb-org-name: 'Russell Bedford';
+  --rb-org-city: 'Barranquilla';
+
+  /* ═══════════════════════════ NEUTROS ═══════════════════════════════════ */
+  --rb-n-0:   #FFFFFF;
+  --rb-n-25:  #FCFCFD;
+  --rb-n-50:  #F6F7F9;
+  --rb-n-100: #EEEFF2;
+  --rb-n-200: #E1E3E8;
+  --rb-n-300: #C9CCD3;
+  --rb-n-400: #9DA1AA;
+  --rb-n-500: #6F747E;
+  --rb-n-600: #565B64;
+  --rb-n-700: #3D424A;
+  --rb-n-800: #272B31;
+  --rb-n-900: #14171B;
+
+  /* ══════════════════════════ SEMÁNTICOS ═════════════════════════════════
+     Cada intención se resuelve con un color del manual. */
+  --rb-success:  var(--rb-teal-ink);     --rb-success-bg: var(--rb-teal-tint);     --rb-success-bd: var(--rb-teal-line);
+  --rb-warning:  var(--rb-orange-ink);   --rb-warning-bg: var(--rb-orange-tint);   --rb-warning-bd: var(--rb-orange-line);
+  --rb-danger:   var(--rb-alert);        --rb-danger-bg:  var(--rb-alert-tint);    --rb-danger-bd:  var(--rb-alert-line);
+  --rb-info:     var(--rb-cyan-ink);     --rb-info-bg:    var(--rb-cyan-tint);     --rb-info-bd:    var(--rb-cyan-line);
+  --rb-violet:   var(--rb-magenta-ink);  --rb-violet-bg:  var(--rb-magenta-tint);  --rb-violet-bd:  var(--rb-magenta-line);
+  --rb-neutral:  var(--rb-gray-ink);     --rb-neutral-bg: var(--rb-gray-tint);     --rb-neutral-bd: var(--rb-gray-line);
+
+  /* ═════════════════════ ESTADOS DEL TICKET ══════════════════════════════
+     Un color del manual por etapa; ninguno se repite, para que el estado se
+     distinga del indicador de SLA en la misma fila. */
+  --st-recibido-fg:  var(--rb-cyan-ink);     --st-recibido-bg:  var(--rb-cyan-tint);     --st-recibido-bd:  var(--rb-cyan-line);
+  --st-revision-fg:  var(--rb-orange-ink);   --st-revision-bg:  var(--rb-orange-tint);   --st-revision-bd:  var(--rb-orange-line);
+  --st-reunion-fg:   var(--rb-magenta-ink);  --st-reunion-bg:   var(--rb-magenta-tint);  --st-reunion-bd:   var(--rb-magenta-line);
+  --st-aceptado-fg:  var(--rb-navy);         --st-aceptado-bg:  var(--rb-navy-tint);     --st-aceptado-bd:  var(--rb-navy-line);
+  --st-ejecucion-fg: var(--rb-teal-ink);     --st-ejecucion-bg: var(--rb-teal-tint);     --st-ejecucion-bd: var(--rb-teal-line);
+  --st-cerrado-fg:   var(--rb-gray-ink);     --st-cerrado-bg:   var(--rb-gray-tint);     --st-cerrado-bd:   var(--rb-gray-line);
+
+  /* ═══════════════════════════ SUPERFICIES ═══════════════════════════════
+     El manual pide fondos limpios: blancos u oscuros corporativos. */
+  --rb-bg:        var(--rb-n-50);
+  --rb-surface:   var(--rb-n-0);
+  --rb-surface-2: var(--rb-n-25);
+  --rb-surface-3: var(--rb-n-100);
+  --rb-line:      var(--rb-n-200);
+  --rb-line-soft: var(--rb-n-100);
+
+  /* ══════════════════════════ TIPOGRAFÍA ═════════════════════════════════
+     Lato es la única tipografía permitida. Solo tiene 400/700/900 útiles, así
+     que la jerarquía se apoya en tamaño y color, tal como pide el manual. */
+  --rb-font: 'Lato', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --rb-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', monospace;
+
+  --rb-fs-xs:  12px;
+  --rb-fs-sm:  13px;
+  --rb-fs-md:  14px;
+  --rb-fs-lg:  16px;
+  --rb-fs-xl:  19px;
+  --rb-fs-2xl: 24px;
+  --rb-fs-3xl: 32px;
+
+  --rb-w-normal: 400;
+  --rb-w-bold:   700;
+  --rb-w-black:  900;
+
+  --rb-text:   var(--rb-n-900);
+  --rb-text-2: var(--rb-n-600);
+  --rb-text-3: var(--rb-n-500);
+  --rb-text-4: var(--rb-n-400);
+
+  /* ═══════════════════════════ GEOMETRÍA ═════════════════════════════════ */
+  --rb-r-xs:   4px;
+  --rb-r-sm:   6px;
+  --rb-r-md:   8px;
+  --rb-r-lg:   12px;
+  --rb-r-xl:   16px;
+  --rb-r-pill: 999px;
+
+  --rb-sidebar-w: 248px;
+  --rb-topbar-h:  64px;
+  --rb-gutter:    24px;
+  --rb-maxw:      1440px;
+
+  /* ════════════════════════════ SOMBRAS ══════════════════════════════════
+     «No usar sombras duras, biseles o efectos tridimensionales. Priorizar un
+     diseño plano y limpio». La estructura la dan los bordes; la sombra queda
+     reservada a lo que flota sobre la página. */
+  --rb-sh-xs: none;
+  --rb-sh-sm: 0 1px 2px rgba(0, 16, 63, .05);
+  --rb-sh-md: 0 2px 6px rgba(0, 16, 63, .07);
+  --rb-sh-lg: 0 8px 20px rgba(0, 16, 63, .10);
+  --rb-sh-xl: 0 16px 44px rgba(0, 16, 63, .18);
+  --rb-ring:  0 0 0 3px rgba(0, 24, 113, .16);
+
+  /* ═══════════════════════════ MOVIMIENTO ════════════════════════════════
+     «Mantener animaciones sutiles y fluidas. Evitar transiciones bruscas». */
+  --rb-ease:     cubic-bezier(.4, 0, .2, 1);
+  --rb-ease-out: cubic-bezier(.16, 1, .3, 1);
+  --rb-t-fast:   120ms;
+  --rb-t:        180ms;
+
+  /* ══════════════════════════════════════════════════════════════
+     PUENTE CON EL CSS HEREDADO
+     Las vistas que aún no se reescribieron (Cronograma, Analítica,
+     Historial, Usuarios…) leen estas variables. Al apuntarlas a los
+     tokens nuevos heredan la marca sin tocar su marcado.
+     ══════════════════════════════════════════════════════════════ */
+  --accent:        var(--rb-navy);
+  --accent-light:  var(--rb-navy-tint);
+  --accent-hover:  var(--rb-navy-ink);
+  --accent-muted:  rgba(0, 24, 113, .08);
+
+  --sb-bg:          var(--rb-navy);
+  --sb-border:      rgba(255, 255, 255, .08);
+  --sb-text:        rgba(255, 255, 255, .62);
+  --sb-text-hover:  rgba(255, 255, 255, .9);
+  --sb-text-active: #FFFFFF;
+  --sb-item-active: rgba(255, 255, 255, .14);
+
+  --sidebar-w: var(--rb-sidebar-w);
+  --topbar-h:  var(--rb-topbar-h);
+
+  --bg:       var(--rb-bg);
+  --surface:  var(--rb-surface);
+  --surface2: var(--rb-surface-2);
+
+  --text:   var(--rb-text);
+  --text2:  var(--rb-text-2);
+  --text3:  var(--rb-text-3);
+  --text4:  var(--rb-text-4);
+
+  --border:  var(--rb-line);
+  --border2: var(--rb-line);
+  --track:   var(--rb-n-100);
+
+  --high: var(--rb-danger);  --high-bg: var(--rb-danger-bg);
+  --mid:  var(--rb-warning); --mid-bg:  var(--rb-warning-bg);
+  --low:  var(--rb-success); --low-bg:  var(--rb-success-bg);
+  --green: var(--rb-success); --green-bg: var(--rb-success-bg);
+
+  --c-backlog:  var(--rb-neutral);   --c-backlog-bg:  var(--rb-neutral-bg);
+  --c-progress: var(--rb-navy);      --c-progress-bg: var(--rb-navy-tint);
+  --c-standby:  var(--rb-warning);   --c-standby-bg:  var(--rb-warning-bg);
+  --c-testing:  var(--rb-violet);    --c-testing-bg:  var(--rb-violet-bg);
+  --c-done:     var(--rb-success);   --c-done-bg:     var(--rb-success-bg);
+  --c-soporte:  var(--rb-info);      --c-soporte-bg:  var(--rb-info-bg);
+  --c-cancelado: var(--rb-danger);   --c-cancelado-bg: var(--rb-danger-bg);
+
+  --sh:    var(--rb-sh-sm);
+  --sh-md: var(--rb-sh-md);
+  --sh-lg: var(--rb-sh-lg);
+
+  --radius:      var(--rb-r-lg);
+  --radius-sm:   var(--rb-r-md);
+  --radius-pill: var(--rb-r-pill);
+
+  --font: var(--rb-font);
+  --mono: var(--rb-mono);
+
+  --ease-spring: var(--rb-ease-out);
+  --ease-out:    var(--rb-ease);
+
+  --neu-bg:       var(--rb-surface);
+  --neu-input-bg: var(--rb-surface);
+  --neu-border:   1px solid var(--rb-line);
+  --neu-sh:       var(--rb-sh-sm);
+  --neu-sh-hover: var(--rb-sh-md);
+  --neu-inset:    inset 0 0 0 1px var(--rb-line);
+  --neu-focus:    var(--rb-ring);
+}

@@ -1,60 +1,61 @@
+/* Pantalla de acceso.
+
+   Dos columnas: a la izquierda quién es el sistema y qué resuelve; a la
+   derecha una sola acción. El dominio institucional lo dicta el servidor
+   (`AUTH_ALLOWED_DOMAIN`), así que aquí no hay ningún dominio escrito a mano. */
+
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
+import { ORG } from '../lib/tickets';
+import Icon from '../components/ui/Icon';
 
-const ALLOWED_DOMAIN = '@americana.edu.co';
-
-const IC = (path) => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{path}</svg>
-);
-const FEATURES = [
-  {
-    icon: IC(<><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></>),
-    title: 'Seguimiento en tiempo real',
-    desc: 'Monitorea el progreso de tus proyectos al instante.',
-  },
-  {
-    icon: IC(<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>),
-    title: 'Colaboración',
-    desc: 'Trabaja con tu equipo de forma integrada y segura.',
-  },
-  {
-    icon: IC(<><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></>),
-    title: 'Reportes',
-    desc: 'Toma decisiones con datos claros y confiables.',
-  },
+const PILLARS = [
+  { icon: 'send',   title: 'Radica en dos minutos',  desc: 'Un formulario corto y guiado, pensado para el trabajo de auditoría.' },
+  { icon: 'clock',  title: 'Compromiso de atención', desc: 'Cada ticket nace con una fecha de respuesta según su prioridad.' },
+  { icon: 'target', title: 'Trazabilidad completa',  desc: 'Del radicado a la entrega, con evidencia de cada paso.' },
 ];
 
-const LockIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-  </svg>
-);
-
 export default function Login() {
-  const { loginGoogle } = useAuth();
-  const [mode, setMode]     = useState('login'); // 'login' | 'register' — mismo flujo de Google, solo cambia el texto
-  const [error, setError]   = useState('');
+  const { loginGoogle, loginDev } = useAuth();
+  const [error,  setError]  = useState('');
   const [locked, setLocked] = useState(false);
-  const [googleId, setGoogleId] = useState(null);
+  const [config, setConfig] = useState(null);
   const [googleReady, setGoogleReady] = useState(false);
   const gBtnRef = useRef(null);
 
-  // Google Sign-In — solo si el servidor tiene configurado el client ID
+  /* Atajo de desarrollo: doble condición — build de dev y backend con
+     ALLOW_DEV_LOGIN=true. En el bundle de producción no existe. */
+  const [devUsers, setDevUsers] = useState(null);
+  const [devEmail, setDevEmail] = useState('');
+
   useEffect(() => {
-    authAPI.config().then(c => setGoogleId(c.googleClientId)).catch(() => {});
+    authAPI.config()
+      .then(c => {
+        setConfig(c);
+        if (import.meta.env.DEV && c.devLogin) {
+          authAPI.devUsers()
+            .then(us => { setDevUsers(us); setDevEmail(us[0]?.email || ''); })
+            .catch(() => setDevUsers([]));
+        }
+      })
+      .catch(() => setConfig({}));
+
     if (localStorage.getItem('at-idle-logout')) {
       localStorage.removeItem('at-idle-logout');
       setError('Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.');
     }
   }, []);
 
+  const googleId = config?.googleClientId;
+  const domain   = config?.allowedDomain;
+
   useEffect(() => {
     if (!googleId || !gBtnRef.current) return;
     const init = () => {
       window.google.accounts.id.initialize({
         client_id: googleId,
-        hd: 'americana.edu.co',
+        hd: domain,
         callback: async (resp) => {
           setError(''); setLocked(false);
           try { await loginGoogle(resp.credential); }
@@ -65,9 +66,8 @@ export default function Login() {
         },
       });
       window.google.accounts.id.renderButton(gBtnRef.current, {
-        theme: 'outline', size: 'large', width: 360,
-        text: mode === 'register' ? 'signup_with' : 'signin_with',
-        locale: 'es', shape: 'pill',
+        theme: 'outline', size: 'large', width: 340, text: 'signin_with',
+        locale: 'es', shape: 'rectangular',
       });
       setGoogleReady(true);
     };
@@ -77,109 +77,112 @@ export default function Login() {
     s.async = true;
     s.onload = init;
     document.body.appendChild(s);
-  }, [googleId, mode]);
+  }, [googleId, domain, loginGoogle]);
 
   return (
-    <div className="login-page login-page--split">
-      <div className="login-split">
-        {/* ── Columna izquierda: branding ── */}
-        <div className="login-left">
-          <span className="login-dots" aria-hidden="true" />
-          <svg className="login-wave" viewBox="0 0 600 300" preserveAspectRatio="none" aria-hidden="true">
-            <defs>
-              <linearGradient id="waveGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#F97316" stopOpacity=".55" />
-                <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path d="M0,180 C120,120 180,220 320,160 C420,120 480,200 600,140 L600,300 L0,300 Z" fill="url(#waveGrad)" />
-          </svg>
-
-          <div className="login-anim" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', position: 'relative', marginBottom: 34 }}>
-            <div style={{ position: 'relative', marginBottom: 12 }}>
-              <span className="login-logo-glow" />
-              <img src="/logo-symbol-192.png" alt="" className="login-logo-float" style={{ width: 64, height: 64, objectFit: 'contain' }} />
-            </div>
-            <div className="login-logo" style={{ fontSize: 26 }}>AMBAR<span>C</span></div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.4)', marginTop: 2 }}>Gestión de Proyectos</div>
+    <div className="lg-page">
+      {/* ── Presentación ── */}
+      <section className="lg-aside">
+        <div className="lg-aside-inner">
+          <div className="lg-brand">
+            <img src="/logo-russell-bedford-white.svg" alt={`${ORG.name} ${ORG.city}`} />
+            <div className="lg-brand-city">{ORG.city}</div>
           </div>
 
-          <h1 className="login-anim login-hero-title" style={{ animationDelay: '70ms' }}>
-            Gestiona tus proyectos<br />con <span>claridad</span>.
+          <h1 className="lg-headline">
+            La mesa de servicio<br />de nuestros <em>auditores</em>.
           </h1>
-          <p className="login-anim login-hero-sub" style={{ animationDelay: '130ms' }}>
-            Planifica, colabora y da seguimiento a cada detalle desde un solo lugar.
+          <p className="lg-lede">
+            Un solo lugar para pedir apoyo en papeles de trabajo, analítica de datos y
+            automatización — y para saber, en todo momento, en qué va cada solicitud.
           </p>
 
-          <div className="login-features">
-            {FEATURES.map((f, i) => (
-              <div key={f.title} className="login-anim login-feature" style={{ animationDelay: `${190 + i * 70}ms` }}>
-                <div className="login-feature-icon">{f.icon}</div>
-                <div className="login-feature-title">{f.title}</div>
-                <div className="login-feature-desc">{f.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Columna derecha: formulario ── */}
-        <div className="login-right">
-          <div className="login-box">
-            <div className="login-eyebrow">{mode === 'register' ? 'Únete a AMBARC' : 'Bienvenido'}</div>
-            <div className="login-card-title">{mode === 'register' ? 'Crea tu cuenta en AMBARC' : 'Inicia sesión en AMBARC'}</div>
-            <div className="login-card-rule" />
-
-            {error && (
-              <div className={`login-error${locked ? ' login-error--locked' : ''}`}>
-                {locked && <LockIcon />}
-                {error}
-              </div>
-            )}
-
-            <div style={{ marginTop: 8 }}>
-              {googleId ? (
-                <>
-                  <div ref={gBtnRef} style={{ display: 'flex', justifyContent: 'center', minHeight: 44 }} />
-                  {!googleReady && (
-                    <div style={{ textAlign: 'center', fontSize: 12.5, color: 'rgba(255,255,255,.35)', padding: '10px 0' }}>
-                      Cargando inicio de sesión con Google…
-                    </div>
-                  )}
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', textAlign: 'center', marginTop: 14, lineHeight: 1.6 }}>
-                    {mode === 'register'
-                      ? <>Tu cuenta se crea automáticamente con tu correo institucional {ALLOWED_DOMAIN} — no necesitas contraseña.</>
-                      : <>Usa tu cuenta institucional {ALLOWED_DOMAIN}</>}
-                  </div>
-                </>
-              ) : (
-                <div style={{ textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,.45)', padding: '18px 0' }}>
-                  El inicio de sesión con Google no está configurado en el servidor. Contacta al administrador.
+          <ul className="lg-pillars">
+            {PILLARS.map(p => (
+              <li key={p.title}>
+                <span className="lg-pillar-icon"><Icon name={p.icon} size={16} /></span>
+                <div>
+                  <strong>{p.title}</strong>
+                  <span>{p.desc}</span>
                 </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <footer className="lg-aside-foot">
+          {ORG.name} {ORG.city} · Uso interno
+        </footer>
+      </section>
+
+      {/* ── Acceso ── */}
+      <section className="lg-panel">
+        <div className="lg-card">
+          <h2 className="lg-card-title">Iniciar sesión</h2>
+          <p className="lg-card-sub">
+            {domain
+              ? <>Accede con tu cuenta institucional <strong>@{domain}</strong>. Si es tu primera vez, la cuenta se crea sola.</>
+              : <>Accede con tu cuenta institucional. Si es tu primera vez, la cuenta se crea sola.</>}
+          </p>
+
+          {error && (
+            <div className="rb-alert" data-tone="danger" role="alert" style={{ marginBottom: 16 }}>
+              <Icon name={locked ? 'shield' : 'alert'} size={15} />
+              <div>{error}</div>
+            </div>
+          )}
+
+          {config === null ? (
+            <div className="rb-skeleton" style={{ height: 44 }} />
+          ) : googleId ? (
+            <>
+              <div ref={gBtnRef} className="lg-gbtn" />
+              {!googleReady && <div className="lg-note">Cargando inicio de sesión con Google…</div>}
+            </>
+          ) : (
+            <div className="rb-alert" data-tone="warning">
+              <Icon name="alert" size={15} />
+              <div>El inicio de sesión con Google no está configurado en el servidor. Contacta al administrador de la mesa.</div>
+            </div>
+          )}
+
+          {/* ── Acceso local de desarrollo ──
+              El `import.meta.env.DEV &&` va aquí a propósito: Vite lo reemplaza
+              por `false` al compilar y Rollup elimina todo el bloque del bundle. */}
+          {import.meta.env.DEV && devUsers && (
+            <div className="lg-dev">
+              <div className="lg-dev-title">Acceso local de desarrollo</div>
+              {devUsers.length === 0 ? (
+                <p className="rb-hint">
+                  No hay usuarios en la base. Corre <code>npm run seed:local</code> en{' '}
+                  <code>autotrack-backend</code> y recarga.
+                </p>
+              ) : (
+                <>
+                  <select className="rb-select" value={devEmail} onChange={e => setDevEmail(e.target.value)}>
+                    {devUsers.map(u => <option key={u.email} value={u.email}>{u.name} — {u.role}</option>)}
+                  </select>
+                  <button
+                    type="button" className="rb-btn rb-btn--secondary rb-btn--block"
+                    style={{ marginTop: 8 }}
+                    onClick={async () => {
+                      setError(''); setLocked(false);
+                      try { await loginDev(devEmail); }
+                      catch (err) { setError(err.error || 'No se pudo entrar con el atajo local'); }
+                    }}
+                  >
+                    Entrar sin Google
+                  </button>
+                </>
               )}
             </div>
+          )}
 
-            <p style={{ textAlign: 'center', marginTop: 18, fontSize: 12, color: 'rgba(255,255,255,.35)' }}>
-              {mode === 'login' ? (
-                <>
-                  ¿No tienes cuenta?{' '}
-                  <button type="button" onClick={() => { setMode('register'); setError(''); }}
-                    style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'var(--font)' }}>
-                    Regístrate aquí
-                  </button>
-                </>
-              ) : (
-                <>
-                  ¿Ya tienes cuenta?{' '}
-                  <button type="button" onClick={() => { setMode('login'); setError(''); }}
-                    style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 12, fontFamily: 'var(--font)' }}>
-                    Inicia sesión
-                  </button>
-                </>
-              )}
-            </p>
-          </div>
+          <p className="lg-legal">
+            El acceso queda registrado. Al continuar aceptas las políticas internas
+            de tratamiento de información de {ORG.name} {ORG.city}.
+          </p>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
