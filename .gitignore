@@ -25,3 +25,12 @@ Thumbs.db
 
 # Docker volumes (datos locales de PG)
 pgdata/
+
+# Adjuntos subidos por los solicitantes — viven en el disco del servidor,
+# nunca en el repo (el despliegue hace `git reset --hard` y no los toca).
+autotrack-backend/uploads/
+
+# Respaldos y borradores locales
+*.bak
+*.bak_*
+

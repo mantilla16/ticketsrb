@@ -1,109 +1,159 @@
-# AutoTrack — Gestión de Proyectos
+# Mesa de Servicio — Russell Bedford Barranquilla
 
-Sistema full-stack de seguimiento de proyectos para equipos de automatización.
+Sistema interno de tickets. Los auditores radican solicitudes de apoyo (papeles
+de trabajo, analítica de datos, automatización, extracción de información) y la
+mesa las clasifica, las compromete con un SLA y las ejecuta.
+
+El objeto central es el **ticket**. Cuando un ticket se acepta y se le asigna
+responsable, se abre automáticamente el **trabajo** (proyecto) que lo
+materializa, con su tablero, cronograma y bitácora de avance.
 
 ## Stack
 
-- **Backend**: Node.js + Express + PostgreSQL
-- **Frontend**: React + Vite
-- **Auth**: JWT
+- **Backend** — Node.js + Express + PostgreSQL
+- **Frontend** — React 18 + Vite (CSS propio, sin framework de UI)
+- **Acceso** — Google OAuth restringido al dominio institucional, sesión JWT
 
 ---
 
-## Estructura del proyecto
+## Estructura
 
 ```
-SEGUIMIENTO_PROYECTOS/
-├── autotrack-backend/    ← API REST (Node.js + Express)
-└── autotrack-frontend/   ← SPA React
+autotrack/
+├── autotrack-backend/          API REST
+│   ├── src/routes/             auth · users · projects · solicitudes · notifications
+│   ├── src/utils/              correo, notificaciones, calendario
+│   └── db/                     schema.full.sql, bootstrap y seed local
+└── autotrack-frontend/         SPA
+    └── src/
+        ├── lib/tickets.js      modelo de dominio: estados, prioridades, SLA, roles
+        ├── styles/tokens.css   ← toda la identidad visual vive aquí
+        ├── styles/             base · ui · shell · tickets · login · legacy
+        ├── components/ui/      primitivas (botón, campo, badge, modal, panel…)
+        ├── components/tickets/ bandeja, detalle, formulario, tablero, reportes
+        └── components/         vistas de ejecución (proyectos, cronograma, panel)
 ```
 
+### Identidad visual
+
+Aplicada según el manual «Lineamientos de Diseño» de Russell Bedford. Todo el
+color, la tipografía, los radios y las sombras salen de
+`autotrack-frontend/src/styles/tokens.css`; no hay colores de marca escritos en
+los componentes, así que ese archivo reviste la aplicación completa, incluidas
+las vistas heredadas.
+
+**Paleta oficial**
+
+| Color | HEX | Uso en la interfaz |
+|---|---|---|
+| Azul marino | `#001871` | Color principal: barra lateral, acciones primarias, estado «Aceptado» |
+| Cian | `#00A9CE` | Acentos, estado «Recibido» |
+| Turquesa | `#00BFB3` | Estado «En ejecución», resultados favorables |
+| Magenta | `#981D97` | Estado «Reunión agendada» |
+| Naranja | `#ED8B00` | Estado «En revisión», advertencias |
+| Gris | `#8F9393` | Estado «No procede», elementos neutros |
+
+De cada color se derivan un tono oscuro (`-ink`) para texto pequeño y un tinte
+claro (`-tint`) para fondos de etiqueta: los planos no alcanzan contraste AA
+sobre blanco. Es una derivación del mismo matiz, no un color nuevo.
+
+**Única desviación del manual.** El manual no define un color de alerta y la
+mesa necesita señalar un SLA vencido de forma inequívoca. Se usa un rojo
+(`--rb-alert: #C4122F`) declarado aparte en `tokens.css` y marcado como
+pendiente de aprobación; si la dirección de marca prefiere resolverlo con
+magenta, basta reapuntar esas tres variables.
+
+**Tipografía.** Lato en todas las aplicaciones, sin excepciones. Como solo trae
+400/700/900, la jerarquía se apoya en tamaño y color — que es justamente lo que
+pide el manual: «la jerarquía se define mediante tamaño, peso tipográfico y
+color, no por capitalización». Por eso no hay mayúsculas sostenidas en ningún
+título, etiqueta ni encabezado de tabla.
+
+**Logo.** Extraído del manual como vector y guardado en `public/`:
+`logo-russell-bedford.svg` (lockup horizontal) y `logo-symbol.svg` (símbolo),
+cada uno con su variante `-white` para fondo oscuro. Va siempre arriba a la
+izquierda, con área de seguridad y sin alterar proporciones ni color. Los
+favicons se generan del mismo símbolo.
+
+**Otras reglas aplicadas.** Diseño plano: sin degradados, sin sombras duras ni
+efectos tridimensionales; la estructura la dan los bordes. Alineación a la
+izquierda, nunca justificada. Animaciones sutiles.
+
+El nombre de la firma y la ciudad salen de `ORG` en `src/lib/tickets.js`; el
+dominio institucional, de la variable `AUTH_ALLOWED_DOMAIN` del backend.
+
 ---
 
-## Requisitos previos
+## Puesta en marcha
 
-- Node.js 18+
-- PostgreSQL 14+
-- npm
+Requisitos: Node.js 18+, PostgreSQL 14+.
 
----
+Para el entorno local paso a paso —incluido el atajo de acceso sin Google—
+consulta **[DESARROLLO-LOCAL.md](DESARROLLO-LOCAL.md)**.
 
-## 1. Configurar la base de datos
-
-```sql
--- En psql o pgAdmin, crear la base de datos:
-CREATE DATABASE autotrack;
-
--- Luego ejecutar el schema:
--- psql -d autotrack -f autotrack-backend/db/schema.sql
-```
-
----
-
-## 2. Configurar el Backend
+Resumen:
 
 ```bash
-cd autotrack-backend
+# 1. Base de datos
+psql -U postgres -f autotrack-backend/db/bootstrap.local.sql
+psql -U autotrack -d autotrack -f autotrack-backend/db/schema.full.sql
 
-# Instalar dependencias
-npm install
+# 2. Backend
+cd autotrack-backend && npm install && cp .env.example .env && npm run dev
 
-# Crear archivo de entorno
-cp .env.example .env
-
-# Editar .env con tus datos:
-#   DATABASE_URL=postgresql://postgres:TU_PASSWORD@localhost:5432/autotrack
-#   JWT_SECRET=un_secreto_largo_y_seguro
-
-# Ejecutar en modo desarrollo
-npm run dev
+# 3. Frontend
+cd autotrack-frontend && npm install && npm run dev
 ```
 
-El API correrá en: **http://localhost:3001**
+- API → http://localhost:3001
+- App → http://localhost:5173
 
 ---
 
-## 3. Configurar el Frontend
+## Roles
 
-```bash
-cd autotrack-frontend
+| Rol interno        | En la interfaz         | Qué puede hacer                                        |
+|--------------------|------------------------|--------------------------------------------------------|
+| `user`             | Auditor solicitante    | Radicar tickets, seguirlos y aportar información        |
+| `engineer`         | Analista               | Ver la bandeja y ejecutar los trabajos a su nombre      |
+| `member_analytics` | Analista de Datos      | Igual, más triage de los tickets de analítica           |
+| `leader_analytics` | Líder de Analítica     | Triage completo, asignación y respuesta                 |
+| `admin`            | Coordinador de Mesa    | Todo lo anterior, más eliminar tickets y gestionar usuarios |
+| `manager`          | Gerencia               | Lectura de bandeja, reportes y cronograma               |
 
-# Instalar dependencias
-npm install
+Un correo del dominio institucional que entra por primera vez se crea como
+**auditor solicitante**; el coordinador lo promueve desde *Usuarios*.
 
-# (Opcional) Crear .env.local si el backend no está en localhost:3001
-# VITE_API_URL=http://localhost:3001/api
+---
 
-# Ejecutar en modo desarrollo
-npm run dev
+## Ciclo de vida del ticket
+
+```
+Recibido → En revisión → Reunión agendada → Aceptado → En ejecución
+                                                    ↘ No procede
 ```
 
-La app correrá en: **http://localhost:5173**
+Cada ticket nace con un **compromiso de atención** según su prioridad —alta 1
+día hábil, media 3, baja 5— que se muestra en la bandeja y alimenta el
+cumplimiento de SLA en Reportes.
 
 ---
 
-## Funcionalidades
-
-- **Login / Registro** — cada ingeniero tiene su cuenta
-- **Dashboard ejecutivo** — KPIs, gráficos por estado y prioridad, carga por ingeniero
-- **Mi Kanban** — tablero personal con 5 columnas (Por hacer → Finalizado)
-- **Kanban del equipo** — vista de proyectos agrupados por ingeniero
-- **Diagrama de Gantt** — línea de tiempo interactiva con barra "Hoy"
-- **Gestión de proyectos** — crear, editar, eliminar con asignación y fechas
-- **Seguimiento semanal** — logs de avance con actualización de progreso
-
----
-
-## Endpoints del API
+## Endpoints principales
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| POST | /api/auth/register | Registro de usuario |
-| POST | /api/auth/login | Login |
-| GET | /api/auth/me | Usuario actual |
-| GET | /api/users | Lista de ingenieros |
-| GET | /api/projects | Todos los proyectos |
-| POST | /api/projects | Crear proyecto |
-| PUT | /api/projects/:id | Actualizar proyecto |
-| DELETE | /api/projects/:id | Eliminar proyecto |
-| POST | /api/projects/:id/logs | Registrar avance |
+| GET    | /api/auth/config | Client ID de Google y dominio permitido |
+| POST   | /api/auth/google | Login con Google |
+| GET    | /api/auth/me | Usuario actual |
+| GET    | /api/solicitudes | Tickets visibles según el rol |
+| POST   | /api/solicitudes | Radicar un ticket (multipart, admite adjunto) |
+| PUT    | /api/solicitudes/:id/status | Triage: estado, responsable, reunión, respuesta |
+| PUT    | /api/solicitudes/:id/info | El solicitante añade información |
+| DELETE | /api/solicitudes/:id | Eliminar ticket |
+| GET    | /api/projects | Trabajos en ejecución |
+| POST   | /api/projects | Crear trabajo |
+| PUT    | /api/projects/:id | Actualizar trabajo |
+| POST   | /api/projects/:id/logs | Registrar avance |
+| GET    | /api/users | Directorio del equipo |
+| GET    | /api/notifications | Notificaciones en la aplicación |
