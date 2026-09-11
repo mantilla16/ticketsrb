@@ -10,11 +10,19 @@
 # ═══════════════════════════════════════════════════════════════════════════
 set -euo pipefail
 
+# La instalación deja aquí cómo quedó desplegada la mesa —sobre todo la ruta
+# base—. Sin esto, recompilar con la base equivocada deja la página en blanco.
+CONF="${CONF:-/etc/default/mesa-servicio}"
+# shellcheck source=/dev/null
+[ -f "$CONF" ] && . "$CONF"
+
 APP_DIR="${APP_DIR:-/var/www/mesa-servicio}"
 WEB_ROOT="${WEB_ROOT:-/var/www/html/mesa-servicio}"
 SERVICE="${SERVICE:-mesa-servicio}"
 BRANCH="${BRANCH:-master}"
 APP_PORT="${APP_PORT:-3001}"
+BASE_PATH="${BASE_PATH:-}"
+BASE_PATH="${BASE_PATH%/}"
 
 say() { printf '\n\033[1;34m▶ %s\033[0m\n' "$1"; }
 
@@ -34,7 +42,20 @@ npm install --omit=dev --silent
 say "Frontend"
 cd "$APP_DIR/autotrack-frontend"
 npm install --silent
-VITE_API_URL=/api npx vite build --base=/ >/dev/null
+rm -rf dist
+VITE_BASE="${BASE_PATH}/" VITE_API_URL="${BASE_PATH}/api" npx vite build > /tmp/mesa-build.log 2>&1 || {
+  echo "  Falló la compilación:"; tail -20 /tmp/mesa-build.log; exit 1;
+}
+
+# Si la base sale mal, la página queda en blanco sin ningún error visible:
+# más vale abortar aquí que publicarlo.
+ESPERADO="${BASE_PATH}/assets/"
+if ! grep -q "src=\"$ESPERADO" dist/index.html; then
+  echo "  El build no quedó con la ruta base $ESPERADO. index.html pide:"
+  grep -oE 'src="[^"]+"' dist/index.html | sed 's/^/      /'
+  exit 1
+fi
+echo "  compilado para $ESPERADO"
 
 # Se publica en dos pasos para que el sitio no quede a medias mientras copia.
 rm -rf "${WEB_ROOT:?}.nuevo"

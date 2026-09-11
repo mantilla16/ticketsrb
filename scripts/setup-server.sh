@@ -216,7 +216,22 @@ npm install --silent
 # Con BASE_PATH, los assets y las llamadas a la API tienen que llevar el
 # prefijo: si no, el navegador los pediría en la raíz y caerían en la otra
 # aplicación del servidor.
-VITE_API_URL="${BASE_PATH}/api" npx vite build --base="${BASE_PATH}/" >/dev/null
+rm -rf dist
+VITE_BASE="${BASE_PATH}/" VITE_API_URL="${BASE_PATH}/api" npx vite build > /tmp/mesa-build.log 2>&1 || {
+  echo "  Falló la compilación del frontend:"; tail -20 /tmp/mesa-build.log; exit 1;
+}
+
+# Publicar un build con la base equivocada deja la página en blanco sin ningún
+# error visible, así que se comprueba antes de copiar nada.
+ESPERADO="${BASE_PATH}/assets/"
+if ! grep -q "src=\"$ESPERADO" dist/index.html; then
+  echo "  El build no quedó con la ruta base correcta."
+  echo "  Esperaba que index.html pidiera $ESPERADO y pide:"
+  grep -oE 'src="[^"]+"' dist/index.html | sed 's/^/      /'
+  exit 1
+fi
+ok "compilado para $ESPERADO"
+
 mkdir -p "$WEB_ROOT"
 rm -rf "${WEB_ROOT:?}/"*
 cp -r dist/* "$WEB_ROOT/"
@@ -320,6 +335,21 @@ NGINXEOF
   nginx -t >/dev/null && systemctl reload nginx
   ok "nginx sirviendo $APP_DOMAIN"
 fi
+
+# ── Configuración del despliegue ──────────────────────────────────────────
+# deploy.sh tiene que recompilar exactamente igual que la instalación: si no
+# conoce BASE_PATH, genera un build con base «/» y deja la página en blanco.
+CONF="/etc/default/$SERVICE"
+cat > "$CONF" <<CONFEOF
+# Generado por scripts/setup-server.sh — lo lee scripts/deploy.sh.
+APP_DIR=$APP_DIR
+WEB_ROOT=$WEB_ROOT
+SERVICE=$SERVICE
+BRANCH=$BRANCH
+APP_PORT=$APP_PORT
+BASE_PATH=$BASE_PATH
+CONFEOF
+ok "configuración guardada en $CONF"
 
 # ── Servicio ──────────────────────────────────────────────────────────────
 say "Registrando el servicio"
