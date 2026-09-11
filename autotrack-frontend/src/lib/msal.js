@@ -41,20 +41,50 @@ async function getInstance({ msClientId, msTenantId }) {
   return loading;
 }
 
+const REQUEST = (config) => ({
+  scopes: ['openid', 'profile', 'email'],
+  prompt: 'select_account',
+  // Propone directamente la cuenta institucional en vez de preguntar primero
+  // de qué organización es.
+  ...(config.allowedDomain ? { domainHint: config.allowedDomain } : {}),
+});
+
+/* Errores que significan «no se pudo abrir la ventana», no «el usuario dijo
+   que no»: ahí sí tiene sentido reintentar por redirección. */
+const POPUP_BLOQUEADO = new Set(['popup_window_error', 'empty_window_error', 'block_iframe_reload']);
+
 /**
  * Abre la ventana de Microsoft y devuelve el id_token para que el backend lo
- * verifique. `loginHint` con el dominio de la firma hace que Entra proponga
- * directamente la cuenta institucional.
+ * verifique.
+ *
+ * Si el navegador bloquea la ventana emergente se cae a redirección en lugar
+ * de fallar: es lo que ocurre con las políticas corporativas restrictivas y
+ * dentro de navegadores incrustados. En ese caso la función no retorna —la
+ * página navega a Microsoft— y el flujo lo termina `completeRedirect`.
  */
 export async function signIn(config) {
   const app = await getInstance(config);
-  const result = await app.loginPopup({
-    scopes: ['openid', 'profile', 'email'],
-    prompt: 'select_account',
-    ...(config.allowedDomain ? { domainHint: config.allowedDomain } : {}),
-  });
-  if (!result?.idToken) throw new Error('Microsoft no devolvió un token de identidad');
-  return result.idToken;
+  try {
+    const result = await app.loginPopup(REQUEST(config));
+    if (!result?.idToken) throw new Error('Microsoft no devolvió un token de identidad');
+    return result.idToken;
+  } catch (err) {
+    if (!POPUP_BLOQUEADO.has(err?.errorCode)) throw err;
+    await app.loginRedirect(REQUEST(config));
+    return null; // la navegación ya está en curso
+  }
+}
+
+/**
+ * Termina un inicio de sesión por redirección. Se llama al cargar la pantalla
+ * de acceso: devuelve el id_token si venimos de vuelta de Microsoft, y null en
+ * una carga normal.
+ */
+export async function completeRedirect(config) {
+  if (!config?.msClientId || !config?.msTenantId) return null;
+  const app = await getInstance(config);
+  const result = await app.handleRedirectPromise();
+  return result?.idToken || null;
 }
 
 /** Cierra también la sesión del lado de Microsoft en esta pestaña. */

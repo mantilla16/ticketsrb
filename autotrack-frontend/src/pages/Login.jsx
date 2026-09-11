@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import { ORG } from '../lib/tickets';
-import { signIn, describeError } from '../lib/msal';
+import { signIn, completeRedirect, describeError } from '../lib/msal';
 import Icon from '../components/ui/Icon';
 
 const PILLARS = [
@@ -50,10 +50,30 @@ export default function Login() {
   const msReady = Boolean(config?.msClientId && config?.msTenantId);
   const domain  = config?.allowedDomain;
 
+  /* Si el navegador bloqueó la ventana emergente, MSAL redirige a Microsoft y
+     volvemos aquí con el token en la URL: hay que recogerlo al montar. */
+  useEffect(() => {
+    if (!msReady) return;
+    let cancelado = false;
+    completeRedirect(config)
+      .then(idToken => {
+        if (!idToken || cancelado) return;
+        setSigning(true);
+        return loginMicrosoft(idToken);
+      })
+      .catch(err => {
+        if (cancelado) return;
+        setError(err?.error || describeError(err));
+        setSigning(false);
+      });
+    return () => { cancelado = true; };
+  }, [msReady, config, loginMicrosoft]);
+
   const entrar = async () => {
     setError(''); setLocked(false); setSigning(true);
     try {
       const idToken = await signIn(config);
+      if (!idToken) return;  // redirección en curso
       await loginMicrosoft(idToken);
     } catch (err) {
       // Los errores del backend traen `error`; los de MSAL, un código propio.
