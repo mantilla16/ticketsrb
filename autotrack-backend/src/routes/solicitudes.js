@@ -151,7 +151,8 @@ router.post('/', auth, uploadSingle, async (req, res) => {
 // PUT /api/solicitudes/:id/status  — solo admin
 router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member_analytics'), async (req, res) => {
   const { status, notes, assigneeId, fechaReunion, equipo, invitados } = req.body;
-  const valid = ['recibido','en_revision','reunion_agendada','aceptado','rechazado','convertido',
+  // `status` no tiene CHECK en la tabla, así que la lista blanca vive aquí.
+  const valid = ['recibido','en_revision','reunion_agendada','aceptado','convertido','cerrado','rechazado',
                  'nueva','en_proceso','completada','rechazada'];
   if (!valid.includes(status)) {
     return res.status(400).json({ error: 'Estado inválido' });

@@ -15,7 +15,16 @@ const ipLimiter = rateLimit({
 });
 
 const LOCK_MINUTES = 30;
-const ALLOWED_DOMAIN = '@americana.edu.co';
+// Dominio institucional permitido. Configurable por entorno para que la misma
+// base sirva a distintas firmas sin tocar código (Russell Bedford por defecto).
+const ALLOWED_DOMAIN = '@' + (process.env.AUTH_ALLOWED_DOMAIN || 'rbcol.co')
+  .replace(/^@/, '')
+  .toLowerCase();
+
+// Atajo de login para desarrollo local. Doble candado: nunca en producción, y
+// además hay que pedirlo explícitamente con ALLOW_DEV_LOGIN=true.
+const DEV_LOGIN_ENABLED =
+  process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_LOGIN === 'true';
 
 function genInitials(name) {
   return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('');
@@ -52,10 +61,14 @@ router.get('/me', auth, (req, res) => res.json(req.user));
 
 // GET /api/auth/config — expone el client ID de Google al frontend
 router.get('/config', (_req, res) => {
-  res.json({ googleClientId: process.env.GOOGLE_CLIENT_ID || null });
+  res.json({
+    googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+    devLogin: DEV_LOGIN_ENABLED, // el front solo muestra el atajo si el server lo tiene activo
+    allowedDomain: ALLOWED_DOMAIN.slice(1), // el front lo usa como `hd` de Google y para el texto de ayuda
+  });
 });
 
-// POST /api/auth/google — login con Google (cuentas @americana.edu.co)
+// POST /api/auth/google — login con Google (solo cuentas del dominio institucional)
 router.post('/google', ipLimiter, async (req, res) => {
   const { credential } = req.body;
   if (!credential) return res.status(400).json({ error: 'Credencial de Google requerida' });
@@ -108,5 +121,57 @@ router.post('/google', ipLimiter, async (req, res) => {
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
+
+// ───────────────────────────────────────────────────────────────────────────
+// Atajo de desarrollo local — NO existe en producción
+//
+// El login real es exclusivamente Google OAuth restringido al dominio institucional,
+// así que en localhost no se puede entrar sin registrar http://localhost:5173
+// como origen autorizado en Google Cloud Console. Estas dos rutas permiten
+// entrar como cualquier usuario ya existente en la base, sin Google ni clave.
+//
+// Con NODE_ENV=production (el servidor) el bloque no se ejecuta y las rutas
+// caen en el 404 genérico de src/index.js.
+// ───────────────────────────────────────────────────────────────────────────
+if (DEV_LOGIN_ENABLED) {
+  console.warn('\x1b[33m⚠  /api/auth/dev-login ACTIVO — solo para desarrollo local\x1b[0m');
+
+  // GET /api/auth/dev-users — poblar el selector de usuarios del login en dev
+  router.get('/dev-users', async (_req, res) => {
+    try {
+      const { rows } = await pool.query(
+        `SELECT email, name, COALESCE(role, 'engineer') AS role
+         FROM users ORDER BY role, name`
+      );
+      res.json(rows);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error del servidor' });
+    }
+  });
+
+  // POST /api/auth/dev-login — emite un JWT para un usuario existente
+  router.post('/dev-login', async (req, res) => {
+    const email = (req.body?.email || '').trim().toLowerCase();
+    if (!email) return res.status(400).json({ error: 'Correo requerido' });
+    try {
+      const user = (await pool.query('SELECT * FROM users WHERE email = $1', [email])).rows[0];
+      if (!user) {
+        return res.status(404).json({
+          error: `No existe el usuario ${email}. Corre "npm run seed:local" para crear los de prueba.`,
+        });
+      }
+      // Un bloqueo por intentos fallidos no debe estorbar en local
+      await pool.query(
+        'UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1',
+        [user.id]
+      );
+      res.json({ token: makeToken(user), user: fmtUser(user) });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Error del servidor' });
+    }
+  });
+}
 
 module.exports = router;

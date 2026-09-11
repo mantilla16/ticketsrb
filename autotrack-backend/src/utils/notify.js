@@ -2,12 +2,12 @@ const pool = require('../config/database');
 const { sendNotificationEmail } = require('./mailer');
 
 const TYPE_TITLE = {
-  assign:    'Nueva asignación en AMBARC',
-  status:    'Cambio de estado en AMBARC',
-  update:    'Actualización de proyecto en AMBARC',
-  log:       'Avance registrado en AMBARC',
-  task:      'Actividad de tarea en AMBARC',
-  solicitud: 'Actualización de tu solicitud en AMBARC',
+  assign:    'Nueva asignación · Mesa de Servicio',
+  status:    'Cambio de estado · Mesa de Servicio',
+  update:    'Actualización de un trabajo · Mesa de Servicio',
+  log:       'Avance registrado · Mesa de Servicio',
+  task:      'Actividad de tarea · Mesa de Servicio',
+  solicitud: 'Actualización de tu ticket · Mesa de Servicio',
 };
 
 // Enfriamiento por tipo+proyecto para evitar spam de correos (p.ej. agregar/quitar
@@ -76,7 +76,7 @@ async function notify(recipientIds, actorId, projectId, type, message, meta) {
     ]);
     const actorName  = actorRows[0]?.name  || null;
     const actorEmail = actorRows[0]?.email || null;
-    const title = TYPE_TITLE[type] || 'Notificación de AMBARC';
+    const title = TYPE_TITLE[type] || 'Notificación · Mesa de Servicio';
     await Promise.allSettled(
       recipients.map(r => sendNotificationEmail({ to: r.email, title, message, actorName, actorEmail, type, projectId, meta }))
     );

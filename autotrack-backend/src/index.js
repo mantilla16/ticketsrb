@@ -36,14 +36,13 @@ app.use(rateLimit({
   message: { error: 'Demasiadas peticiones. Intenta de nuevo en un momento.' },
 }));
 
-app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://n8n.americana.edu.co',
-    'https://ambarc.americana.edu.co',
-  ],
-  credentials: true,
-}));
+// Orígenes permitidos. CORS_ORIGINS acepta una lista separada por comas para
+// no tener que tocar el código al cambiar de dominio o agregar integraciones.
+const corsOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  ...(process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean),
+];
+app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 
 // Serve uploaded files (solicitudes attachments) — requiere sesión válida.
@@ -58,7 +57,20 @@ app.use('/api/users',        require('./routes/users'));
 app.use('/api/solicitudes',  require('./routes/solicitudes'));
 app.use('/api/notifications', require('./routes/notifications'));
 
-app.get('/api/health', (_, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+// Health check. Expone la configuración efectiva —sin secretos— para poder
+// diagnosticar un despliegue sin entrar por SSH: qué dominio acepta el login,
+// a qué URL apuntan los correos y qué orígenes permite CORS.
+app.get('/api/health', (_, res) => res.json({
+  status: 'ok',
+  time: new Date().toISOString(),
+  config: {
+    allowedDomain:  (process.env.AUTH_ALLOWED_DOMAIN || 'rbcol.co').replace(/^@/, ''),
+    publicUrl:      process.env.FRONTEND_URL_PUBLIC || null,
+    corsOrigins,
+    googleLogin:    Boolean(process.env.GOOGLE_CLIENT_ID),
+    env:            process.env.NODE_ENV || 'development',
+  },
+}));
 
 app.use((req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 
@@ -68,5 +80,11 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`AutoTrack API corriendo en http://localhost:${PORT}`);
+  console.log(`Mesa de Servicio — API en http://localhost:${PORT}`);
+  console.log(`  dominio permitido : @${(process.env.AUTH_ALLOWED_DOMAIN || 'rbcol.co').replace(/^@/, '')}`);
+  console.log(`  URL pública       : ${process.env.FRONTEND_URL_PUBLIC || '(sin definir — los correos enlazarán a ' + corsOrigins[0] + ')'}`);
+  console.log(`  orígenes CORS     : ${corsOrigins.join(', ')}`);
+  if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL_PUBLIC) {
+    console.warn('  ⚠ Falta FRONTEND_URL_PUBLIC: los enlaces de los correos de notificación no apuntarán a la app.');
+  }
 });
