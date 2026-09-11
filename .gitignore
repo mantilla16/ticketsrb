@@ -9,10 +9,14 @@ build/
 **/build/
 
 # Environment variables — NEVER subir al repo
+# El patrón amplio es a propósito: un .env.respaldo o .env.produccion.bak se
+# cuela con `git add -A` si solo se ignoran los nombres exactos.
 .env
-.env.local
-.env.*.local
+.env.*
 **/.env
+**/.env.*
+!.env.example
+!**/.env.example
 
 # Logs
 *.log
