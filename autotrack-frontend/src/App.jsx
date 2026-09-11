@@ -444,7 +444,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
             {section === 'team-kanban' && (
               <AnalyticsTeamView
                 variant="auto" projects={visibleProjects}
-                users={executorsOf(users, 'automatizacion')}
+                users={executorsOf(users, 'automatizacion')} allUsers={users}
                 onCardClick={openDetail} onNavigate={changeSection}
               />
             )}
@@ -452,7 +452,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
             {section === 'analytics' && (
               <AnalyticsTeamView
                 projects={projects}
-                users={executorsOf(users, 'analitica')}
+                users={executorsOf(users, 'analitica')} allUsers={users}
                 onCardClick={openDetail} onNavigate={changeSection}
               />
             )}

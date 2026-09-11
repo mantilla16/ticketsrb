@@ -28,7 +28,7 @@ const fmtDM = (d) => {
   return { day: dt.getDate(), mon: dt.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '') };
 };
 
-export default function AnalyticsTeamView({ projects, users, onCardClick, onNavigate, variant = 'ana' }) {
+export default function AnalyticsTeamView({ projects, users, allUsers, onCardClick, onNavigate, variant = 'ana' }) {
   const [tab, setTab] = useState('all');
   const [expanded, setExpanded] = useState(new Set());
 
@@ -50,6 +50,44 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
     .filter(p => p.dueDate && !['done', 'cancelado'].includes(p.status))
     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
     .slice(0, 5);
+
+  /* Responsables de un proyecto: el principal, los adicionales, el co-responsable
+     y el general. Cualquiera de ellos hace que el proyecto le aparezca. */
+  const responsablesDe = (p) => [
+    ...(p.assigneeIds || (p.assigneeId ? [p.assigneeId] : [])),
+    p.coAssigneeId, p.generalAssigneeId,
+  ].filter(v => v != null).map(Number);
+
+  /* Las columnas son la unión del equipo con quien tenga trabajos asignados.
+     Sin esto, un proyecto cuyo responsable no pertenece al equipo —el
+     coordinador que se lo asigna a sí mismo, por ejemplo— no se vería en
+     ninguna parte: el resumen lo contaría pero la lista saldría vacía. */
+  const directorio = allUsers?.length ? allUsers : users;
+  const columnas = (() => {
+    const porId = new Map(users.map(u => [Number(u.id), u]));
+
+    for (const p of anaProjects.filter(byTab)) {
+      for (const id of responsablesDe(p)) {
+        if (porId.has(id)) continue;
+        const u = directorio.find(x => Number(x.id) === id);
+        // Si no está en el directorio, se reconstruye con lo que trae el
+        // propio proyecto: más vale una columna sin foto que un trabajo
+        // invisible.
+        porId.set(id, u || {
+          id,
+          name: p.assigneeName || p.coAssigneeName || p.generalAssigneeName || 'Responsable externo',
+          initials: (p.assigneeInitials || '?'),
+          colorIndex: p.assigneeColor ?? 0,
+        });
+      }
+    }
+    return [...porId.values()];
+  })();
+
+  /* Los trabajos sin responsable también tienen que verse: son justo los que
+     alguien debería reclamar. */
+  const huerfanos = anaProjects.filter(byTab)
+    .filter(p => !responsablesDe(p).length && !['done', 'cancelado'].includes(p.status));
 
   const toggleExpand = (id) => setExpanded(s => {
     const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n;
@@ -75,10 +113,10 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
       <div className="at-layout">
         {/* Columnas por persona */}
         <div className="at-cols">
-          {users.map(u => {
+          {columnas.map(u => {
             const allForUser = anaProjects
               .filter(byTab)
-              .filter(p => (p.assigneeIds || [p.assigneeId]).includes(u.id) || p.coAssigneeId === u.id);
+              .filter(p => responsablesDe(p).includes(Number(u.id)));
             // Los finalizados y cancelados quedan solo en Historial — aquí no se listan como tarjetas
             const list      = allForUser.filter(p => !['done', 'cancelado'].includes(p.status));
             const active    = list.filter(p => ['progress', 'testing'].includes(p.status)).length;
@@ -197,6 +235,62 @@ export default function AnalyticsTeamView({ projects, users, onCardClick, onNavi
               </div>
             );
           })}
+
+          {/* Sin responsable — los que hay que repartir */}
+          {huerfanos.length > 0 && (
+            <div className="at-col">
+              <div className="at-col-head">
+                <div className="avatar" style={{ background: 'var(--rb-warning-bg)', color: 'var(--rb-warning)' }}>?</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="at-col-name">Sin responsable</div>
+                  <div className="at-col-count">
+                    {huerfanos.length} proyecto{huerfanos.length !== 1 ? 's' : ''} por asignar
+                  </div>
+                </div>
+              </div>
+              {huerfanos.map(p => {
+                const pr = PR[p.priority] || PR.mid;
+                return (
+                  <div key={p.id} className="at-card" onClick={() => onCardClick(p.id)}>
+                    <div className="at-card-top">
+                      <span className="pill-mini" style={{ background: pr.bg, color: pr.c }}>{pr.l}</span>
+                      <span className="pill-mini" style={{ background: STATUS_BG[p.status], color: STATUS_C[p.status] }}>
+                        {STATUS_L[p.status]}
+                      </span>
+                      {p.client && <span className="at-card-client">{p.client}</span>}
+                    </div>
+                    <div className="at-card-main">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="at-card-title">{p.name}</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Ni personas ni trabajos: decir por qué en vez de dejarlo en blanco */}
+          {columnas.length === 0 && huerfanos.length === 0 && (
+            <div className="rb-card" style={{ gridColumn: '1 / -1' }}>
+              <div className="rb-empty">
+                <span className="rb-empty-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  </svg>
+                </span>
+                <div className="rb-empty-title">
+                  {totalAna + totalComp === 0 ? 'Todavía no hay trabajos en ejecución' : 'Nada que mostrar con este filtro'}
+                </div>
+                <p className="rb-empty-text">
+                  {totalAna + totalComp === 0
+                    ? 'Cuando un ticket pase a ejecución con un responsable asignado, el trabajo aparecerá aquí.'
+                    : 'Prueba con otra pestaña: puede que los trabajos estén clasificados como compartidos.'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Panel lateral */}
