@@ -6,6 +6,9 @@
 #  Uso:
 #      sudo APP_DOMAIN=mesa.rbcol.co bash setup-server.sh
 #
+#  Si el puerto 80 ya lo ocupa otra aplicación, la mesa se publica aparte:
+#      sudo HTTP_PORT=8080 PUBLIC_URL=https://host.ts.net:8443 bash setup-server.sh
+#
 #  Es idempotente: se puede volver a correr sobre un servidor ya instalado
 #  sin romper nada ni perder datos.
 #
@@ -21,6 +24,9 @@ APP_DIR="${APP_DIR:-/var/www/mesa-servicio}"
 WEB_ROOT="${WEB_ROOT:-/var/www/html/mesa-servicio}"
 SERVICE="${SERVICE:-mesa-servicio}"
 APP_PORT="${APP_PORT:-3001}"
+# Puerto en el que escucha nginx. Se cambia cuando el 80 ya está ocupado por
+# otra aplicación del servidor y la mesa se publica aparte.
+HTTP_PORT="${HTTP_PORT:-80}"
 
 # `_` acepta cualquier nombre de host: sirve para entrar por IP mientras no
 # haya dominio. Con APP_DOMAIN definido, nginx responde solo a ese nombre.
@@ -41,13 +47,22 @@ ok()  { printf '  \033[32m✓\033[0m %s\n' "$1"; }
 # Si el servidor ya sirve otro sitio, `server_name _` lo convertiría en el
 # servidor por defecto y le robaría el tráfico. Con otros sitios activos se
 # exige un dominio explícito en vez de adivinar.
-OTROS_SITIOS=$(ls /etc/nginx/sites-enabled/ 2>/dev/null | grep -v "^default$" | grep -v "^$SERVICE$" || true)
-if [ -n "$OTROS_SITIOS" ] && [ "$APP_DOMAIN" = "_" ]; then
-  echo "Este servidor ya sirve otros sitios en nginx:"
-  echo "$OTROS_SITIOS" | sed 's/^/    /'
+# Solo hay conflicto si otro sitio ya es el comodín del MISMO puerto: dos
+# comodines en el mismo listen y nginx se queda con el primero.
+CHOQUE=""
+for f in /etc/nginx/sites-enabled/*; do
+  [ -e "$f" ] || continue
+  case "$f" in */default|*/"$SERVICE") continue;; esac
+  if grep -qE "^\s*listen\s+(\[::\]:)?$HTTP_PORT" "$f" && grep -qE "^\s*server_name\s+_\s*;" "$f"; then
+    CHOQUE="$CHOQUE $(basename "$f")"
+  fi
+done
+if [ -n "$CHOQUE" ] && [ "$APP_DOMAIN" = "_" ]; then
+  echo "El puerto $HTTP_PORT ya lo ocupa como comodín:$CHOQUE"
   echo
-  echo "Usar un comodín los dejaría sin tráfico. Vuelve a correr indicando el"
-  echo "nombre de host de la mesa, por ejemplo:"
+  echo "Publica la mesa en otro puerto —sin tocar ese sitio—:"
+  echo "    sudo HTTP_PORT=8080 bash setup-server.sh"
+  echo "o dale un nombre de host propio:"
   echo "    sudo APP_DOMAIN=mesa.rbcol.co bash setup-server.sh"
   exit 1
 fi
@@ -111,8 +126,17 @@ else
     echo "  Crea $ENV_FILE a mano con DATABASE_URL y vuelve a correr el script."
     exit 1
   }
-  PUBLIC_URL="http://${APP_DOMAIN}"
-  [ "$APP_DOMAIN" = "_" ] && PUBLIC_URL="http://$(hostname -I | awk '{print $1}')"
+  # PUBLIC_URL es la dirección por la que la gente entra de verdad: detrás de
+  # Tailscale o de otro proxy no coincide con la IP ni el puerto locales, así
+  # que si se pasa explícitamente manda esa.
+  if [ -z "${PUBLIC_URL:-}" ]; then
+    if [ "$APP_DOMAIN" = "_" ]; then
+      PUBLIC_URL="http://$(hostname -I | awk '{print $1}')"
+    else
+      PUBLIC_URL="http://$APP_DOMAIN"
+    fi
+    [ "$HTTP_PORT" != "80" ] && PUBLIC_URL="$PUBLIC_URL:$HTTP_PORT"
+  fi
   cat > "$ENV_FILE" <<ENVEOF
 # Generado por scripts/setup-server.sh — contiene secretos, no versionar.
 DATABASE_URL=postgresql://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
@@ -166,7 +190,7 @@ ok "publicado en $WEB_ROOT"
 say "Configurando nginx"
 cat > "/etc/nginx/sites-available/$SERVICE" <<NGINXEOF
 server {
-    listen 80;
+    listen $HTTP_PORT;
     server_name $APP_DOMAIN;
 
     root $WEB_ROOT;
@@ -195,7 +219,7 @@ NGINXEOF
 ln -sf "/etc/nginx/sites-available/$SERVICE" "/etc/nginx/sites-enabled/$SERVICE"
 # El sitio por defecto solo estorba si la mesa es el comodín; con un dominio
 # propio pueden convivir.
-[ "$APP_DOMAIN" = "_" ] && rm -f /etc/nginx/sites-enabled/default
+[ "$APP_DOMAIN" = "_" ] && [ "$HTTP_PORT" = "80" ] && rm -f /etc/nginx/sites-enabled/default
 nginx -t >/dev/null && systemctl reload nginx
 ok "nginx sirviendo $APP_DOMAIN"
 
@@ -242,7 +266,7 @@ cat <<FIN
 ╔════════════════════════════════════════════════════════════╗
   Instalación completada.
 
-  App        http://${APP_DOMAIN/_/$(hostname -I | awk '{print $1}')}
+  App        $(sed -n "s/^FRONTEND_URL_PUBLIC=//p" "$ENV_FILE")
   Config     $ENV_FILE
   Logs       journalctl -u $SERVICE -f
   Actualizar bash $APP_DIR/scripts/deploy.sh
