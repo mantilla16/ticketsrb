@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import { ORG } from '../lib/tickets';
 import { asset } from '../lib/assets';
-import { signIn, completeRedirect, describeError } from '../lib/msal';
+import { signIn, completeRedirect, describeError, limpiarFragmento } from '../lib/msal';
 import Icon from '../components/ui/Icon';
 
 const PILLARS = [
@@ -55,14 +55,22 @@ export default function Login() {
   const msReady = Boolean(config?.msClientId && config?.msTenantId);
   const domain  = config?.allowedDomain;
 
-  /* Si el navegador bloqueó la ventana emergente, MSAL redirige a Microsoft y
-     volvemos aquí con el token en la URL: hay que recogerlo al montar. */
+  /* Al volver de Microsoft el código llega en el fragmento de la URL: hay que
+     recogerlo al montar. Si no hay nada que completar —por ejemplo al cerrar
+     sesión con el fragmento todavía en la barra—, se apaga el estado de
+     «conectando» en vez de dejar el botón girando para siempre. */
   useEffect(() => {
-    if (!msReady) return;
+    if (!msReady) {
+      // Sin configuración no hay nada que esperar; y si quedó un fragmento
+      // suelto, se retira para que una recarga no lo vuelva a intentar.
+      if (config) { setSigning(false); limpiarFragmento(); }
+      return;
+    }
     let cancelado = false;
     completeRedirect(config)
       .then(idToken => {
-        if (!idToken || cancelado) return;
+        if (cancelado) return;
+        if (!idToken) return setSigning(false);
         setSigning(true);
         return loginMicrosoft(idToken);
       })

@@ -91,9 +91,24 @@ export async function completeRedirect(config) {
   if (!config?.msClientId || !config?.msTenantId) return null;
   // Solo hay algo que completar si esta carga trae la respuesta de Microsoft.
   if (!VIENE_DE_MICROSOFT) return null;
-  const app = await getInstance(config);
-  const result = await app.handleRedirectPromise();
-  return result?.idToken || null;
+  try {
+    const app = await getInstance(config);
+    const result = await app.handleRedirectPromise();
+    return result?.idToken || null;
+  } finally {
+    // El fragmento se retira siempre, haya salido bien o mal. Si se queda, al
+    // cerrar sesión la aplicación vuelve a creer que viene de Microsoft e
+    // intenta completar un código ya consumido, y el botón se queda colgado.
+    limpiarFragmento();
+  }
+}
+
+/** Quita el #code=… de la barra de direcciones sin recargar ni navegar. */
+export function limpiarFragmento() {
+  try {
+    if (!window.location.hash) return;
+    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+  } catch { /* sin history: no es crítico */ }
 }
 
 /**
@@ -117,6 +132,9 @@ export async function signOut(config) {
   } catch {
     // Que falle la limpieza no debe impedir cerrar sesión.
   }
+  // Cerrar sesión no recarga la página, así que un #code= de la entrada
+  // anterior seguiría en la barra de direcciones.
+  limpiarFragmento();
   // Red de seguridad: si MSAL no llegó a instanciarse, sus claves pueden
   // haber quedado igualmente. Se retiran a mano.
   try {
