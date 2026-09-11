@@ -160,28 +160,37 @@ El backend **verifica la firma** del `id_token` contra las claves públicas del
 inquilino y comprueba emisor, audiencia, `tid` y dominio del correo. Un
 `id_token` sin verificar es texto que manda el navegador.
 
-**Correo saliente — Microsoft Graph.** Con verificación en dos pasos activa,
-la contraseña del buzón no sirve para SMTP y las contraseñas de aplicación
-suelen estar deshabilitadas en el inquilino. Por eso el camino recomendado es
-Graph: la aplicación se autentica con su propio registro y en el servidor no
-queda ninguna credencial personal.
+**Correo saliente — Graph con permiso delegado.** Con verificación en dos
+pasos activa, la contraseña del buzón no sirve para SMTP y las contraseñas de
+aplicación están deshabilitadas por defecto en los inquilinos modernos.
 
-En el registro de Entra: *Permisos de API* → Microsoft Graph → **Permisos de
-aplicación** → `Mail.Send`, y conceder el consentimiento del administrador.
-Después, *Certificados y secretos* → nuevo secreto de cliente. En el `.env`,
-`MS_CLIENT_SECRET` y `MAIL_FROM` (el buzón desde el que salen los avisos).
+El camino recomendado es el **delegado**: lo consiente la propia persona
+—`Mail.Send` delegado no necesita administrador global— y solo permite enviar
+como ella. En el servidor no queda ninguna contraseña, solo un refresh token
+que se revoca desde la cuenta sin tocar nada más. Se autoriza una vez:
 
-Conviene acotar desde qué buzones puede enviar la aplicación; sin ello el
-permiso alcanza a todo el inquilino:
+```bash
+node scripts/autorizar-correo.js
+```
+
+Imprime un código que se escribe en `microsoft.com/devicelogin`. Se usa el
+flujo de código de dispositivo porque el servidor no tiene navegador ni URI de
+redirección. En el registro de Entra hacen falta dos cosas: permiso
+**delegado** `Mail.Send`, y *Autenticación → Configuración avanzada →*
+«Permitir flujos de cliente público» = Sí.
+
+Como **plan B** está Graph con permiso de *aplicación* (`MS_CLIENT_SECRET`),
+que no depende de ninguna persona pero deja enviar como cualquier buzón del
+inquilino: exige consentimiento de administrador y conviene acotarlo.
 
 ```powershell
 New-ApplicationAccessPolicy -AppId <MS_CLIENT_ID> `
   -PolicyScopeGroupId mesa@rbcol.co -AccessRight RestrictAccess
 ```
 
-Queda **SMTP** como alternativa (`SMTP_USER` / `SMTP_PASS`) para buzones sin
-verificación en dos pasos. Sea cual sea el camino, los avisos salen de un solo
-buzón y el `Reply-To` apunta a quien hizo el cambio.
+Y **SMTP** (`SMTP_USER` / `SMTP_PASS`) para buzones sin verificación en dos
+pasos. Sea cual sea el camino, los avisos salen de un solo buzón y el
+`Reply-To` apunta a quien hizo el cambio.
 
 Para comprobarlo sin mover un ticket:
 

@@ -8,7 +8,8 @@
     "dev": "nodemon src/index.js",
     "db:schema": "node db/apply-schema.js",
     "seed:local": "node db/seed.local.js",
-    "probar:correo": "node scripts/probar-correo.js"
+    "probar:correo": "node scripts/probar-correo.js",
+    "autorizar:correo": "node scripts/autorizar-correo.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

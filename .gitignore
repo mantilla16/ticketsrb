@@ -34,6 +34,10 @@ pgdata/
 # nunca en el repo (el despliegue hace `git reset --hard` y no los toca).
 autotrack-backend/uploads/
 
+# Autorización de correo — credencial viva
+correo-token.json
+**/correo-token.json*
+
 # Respaldos y borradores locales
 *.bak
 *.bak_*
