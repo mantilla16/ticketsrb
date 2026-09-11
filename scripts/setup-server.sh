@@ -62,7 +62,10 @@ CHOQUE=""
 for f in /etc/nginx/sites-enabled/*; do
   [ -e "$f" ] || continue
   case "$f" in */default|*/"$SERVICE") continue;; esac
-  if grep -qE "^\s*listen\s+(\[::\]:)?$HTTP_PORT" "$f" && grep -qE "^\s*server_name\s+_\s*;" "$f"; then
+  # Se comparan los puertos declarados en las líneas `listen`, no la cadena
+  # cruda: así `listen 8080` no cuenta como el puerto 80.
+  PUERTOS=$(grep -hE "^[[:space:]]*listen[[:space:]]" "$f" 2>/dev/null | grep -oE "[0-9]+" || true)
+  if echo "$PUERTOS" | grep -qx "$HTTP_PORT"      && grep -qE "^[[:space:]]*server_name[[:space:]]+_[[:space:]]*;" "$f"; then
     CHOQUE="$CHOQUE $(basename "$f")"
   fi
 done
@@ -88,12 +91,23 @@ if ss -lntp 2>/dev/null | grep -q ":$APP_PORT "; then
 fi
 
 if [ -n "$BASE_PATH" ] && [ -z "$ATTACH_SITE" ]; then
+  # Primero el comodín del puerto; si no hay, el único sitio activo. Solo se
+  # pregunta cuando hay varios y no está claro a cuál engancharse.
   ATTACH_SITE=$(echo "$CHOQUE" | awk '{print $1}')
-  [ -z "$ATTACH_SITE" ] && {
-    echo "BASE_PATH requiere un sitio de nginx al que engancharse y no encontré"
-    echo "ninguno escuchando en el puerto $HTTP_PORT. Indícalo con ATTACH_SITE=nombre."
-    exit 1
-  }
+  if [ -z "$ATTACH_SITE" ]; then
+    ACTIVOS=$(ls /etc/nginx/sites-enabled/ 2>/dev/null | grep -v "^$SERVICE$" || true)
+    CUANTOS=$(echo "$ACTIVOS" | grep -c . || true)
+    if [ "$CUANTOS" = "1" ]; then
+      ATTACH_SITE="$ACTIVOS"
+    else
+      echo "No sé a qué sitio de nginx enganchar la mesa."
+      [ -n "$ACTIVOS" ] && { echo "Sitios activos:"; echo "$ACTIVOS" | sed 's/^/    /'; }
+      echo
+      echo "Elige uno:  sudo ATTACH_SITE=<nombre> BASE_PATH=$BASE_PATH bash setup-server.sh"
+      exit 1
+    fi
+  fi
+  ok "la mesa se colgará de «$ATTACH_SITE» bajo $BASE_PATH/"
 fi
 
 say "Instalando dependencias del sistema"
