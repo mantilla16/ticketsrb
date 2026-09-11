@@ -8,6 +8,7 @@
    único que necesita: radicar y seguir. */
 
 import { ORG, roleOf } from '../lib/tickets';
+import { asset } from '../lib/assets';
 import Icon from './ui/Icon';
 
 const DESK   = ['admin', 'leader_analytics', 'engineer', 'member_analytics', 'manager'];
@@ -58,7 +59,7 @@ export default function Sidebar({ section, onSection, user, onLogout, isOpen, ba
       {/* El manual fija el logo arriba a la izquierda, con área de seguridad
           alrededor y sin alterar proporciones ni color. */}
       <div className="rb-brand">
-        <img className="rb-brand-logo" src="/logo-russell-bedford-white.svg"
+        <img className="rb-brand-logo" src={asset('logo-russell-bedford-white.svg')}
           alt={`${ORG.name} ${ORG.city}`} />
         <span className="rb-brand-sub">{ORG.city} · {ORG.product}</span>
       </div>

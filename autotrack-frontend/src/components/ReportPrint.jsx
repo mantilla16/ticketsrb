@@ -1,5 +1,7 @@
 /* Informe PDF — se muestra únicamente al imprimir (Exportar → guardar como PDF) */
 
+import { asset } from '../lib/assets';
+
 const TIPO_INFO = {
   automatizacion:  { label: 'Automatización', color: 'var(--rb-navy)', bg: 'var(--rb-navy-tint)' },
   analitica:       { label: 'Analítica',       color: '#7c3aed', bg: 'var(--rb-violet-bg)' },
@@ -27,7 +29,7 @@ function PageShell({ title, periodLabel, page, children }) {
     <div className="rp-page">
       <div className="rp-head">
         <div className="rp-brand">
-          <img src="/logo-russell-bedford.svg" alt="Russell Bedford" className="rp-brand-icon" />
+          <img src={asset('logo-russell-bedford.svg')} alt="Russell Bedford" className="rp-brand-icon" />
         </div>
         <span className="rp-period">{periodLabel}</span>
       </div>

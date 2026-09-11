@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import { ORG } from '../lib/tickets';
+import { asset } from '../lib/assets';
 import { signIn, completeRedirect, describeError } from '../lib/msal';
 import Icon from '../components/ui/Icon';
 
@@ -89,7 +90,7 @@ export default function Login() {
       <section className="lg-aside">
         <div className="lg-aside-inner">
           <div className="lg-brand">
-            <img src="/logo-russell-bedford-white.svg" alt={`${ORG.name} ${ORG.city}`} />
+            <img src={asset('logo-russell-bedford-white.svg')} alt={`${ORG.name} ${ORG.city}`} />
             <div className="lg-brand-city">{ORG.city}</div>
           </div>
 

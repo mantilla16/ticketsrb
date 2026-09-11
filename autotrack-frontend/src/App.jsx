@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext';
 import { TicketsProvider, useTickets } from './context/TicketsContext';
 import { projectsAPI, usersAPI } from './services/api';
 import { ORG, isDesk, isOpen, slaOf } from './lib/tickets';
+import { asset } from './lib/assets';
 
 import Login from './pages/Login';
 import Sidebar, { sectionsFor } from './components/Sidebar';
@@ -92,7 +93,7 @@ export default function App() {
         display: 'grid', placeItems: 'center', height: '100vh',
         gap: 12, color: 'var(--rb-text-3)', fontFamily: 'var(--rb-font)',
       }}>
-        <img src="/logo-symbol.svg" alt="" width={44} height={44} />
+        <img src={asset('logo-symbol.svg')} alt="" width={44} height={44} />
         <span style={{ fontSize: 'var(--rb-fs-sm)' }}>Cargando {ORG.product}…</span>
       </div>
     );
