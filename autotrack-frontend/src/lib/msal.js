@@ -7,6 +7,30 @@
  *
  * MSAL se carga bajo demanda (import dinámico) para que su peso no entre en
  * el bundle inicial de quien ya tiene la sesión abierta.
+ *
+ * ── Los cinco estados del flujo ───────────────────────────────────────────
+ *
+ * Conviene tenerlos juntos, porque los errores de este módulo vienen siempre
+ * de atender uno y olvidar otro:
+ *
+ *   1. Carga normal, sin fragmento en la URL
+ *      No hay nada que completar. Se muestra el botón.
+ *
+ *   2. Clic en el botón
+ *      `signIn` redirige a Microsoft. La página se abandona; no retorna.
+ *
+ *   3. Vuelta con éxito (#code=…)
+ *      `completeRedirect` canjea el código, devuelve el id_token y limpia el
+ *      fragmento. Solo puede ocurrir UNA vez por carga de página.
+ *
+ *   4. Vuelta con error (#error=…)
+ *      Igual que el 3, pero `handleRedirectPromise` lanza. Se traduce el
+ *      error y se limpia el fragmento para que una recarga no lo repita.
+ *
+ *   5. Cierre de sesión
+ *      NO recarga la página, así que este módulo sigue vivo con su estado.
+ *      Hay que invalidar la redirección pendiente y borrar la caché, o el
+ *      siguiente montaje de la pantalla de acceso vuelve a entrar solo.
  */
 
 let instance = null;
@@ -20,6 +44,14 @@ let configuracion = null;   // se recuerda para poder cerrar sesión sin recibir
    justo después de cerrarla. */
 const VIENE_DE_MICROSOFT =
   typeof window !== 'undefined' && /[#&](code|error|id_token|state)=/.test(window.location.hash);
+
+/* Una carga de página puede completar como máximo UNA redirección.
+   Sin este candado, cerrar sesión —que no recarga— volvía a montar la pantalla
+   de acceso, que llamaba otra vez a handleRedirectPromise() y recibía el
+   resultado cacheado del inicio anterior: entraba de nuevo al instante. Y
+   limpiar la caché no bastaba, porque es asíncrona y la pantalla se monta
+   antes de que termine. */
+let redireccionConsumida = false;
 
 /** Crea —una sola vez— la instancia de MSAL con la configuración del servidor. */
 async function getInstance({ msClientId, msTenantId }) {
@@ -89,6 +121,9 @@ export async function signIn(config) {
  */
 export async function completeRedirect(config) {
   if (!config?.msClientId || !config?.msTenantId) return null;
+  // Ya se procesó (o se descartó) en esta carga: no se vuelve a intentar.
+  if (redireccionConsumida) return null;
+  redireccionConsumida = true;
   // Solo hay algo que completar si esta carga trae la respuesta de Microsoft.
   if (!VIENE_DE_MICROSOFT) return null;
   try {
@@ -123,6 +158,9 @@ export function limpiarFragmento() {
  * esta aplicación.
  */
 export async function signOut(config) {
+  // Cerrar sesión invalida cualquier redirección pendiente: si quedara viva,
+  // el siguiente montaje de la pantalla de acceso volvería a entrar.
+  redireccionConsumida = true;
   const cfg = config?.msClientId ? config : configuracion;
   try {
     if (instance || cfg?.msClientId) {
