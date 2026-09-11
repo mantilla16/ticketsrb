@@ -30,10 +30,12 @@ async function getInstance({ msClientId, msTenantId }) {
         redirectUri: window.location.origin + import.meta.env.BASE_URL,
       },
       cache: {
-        // La sesión de la aplicación la gobierna nuestro propio JWT con su
-        // límite de inactividad; MSAL solo necesita durar lo que dura la
-        // pestaña, así que no deja rastro en localStorage.
-        cacheLocation: 'sessionStorage',
+        // El estado del intercambio tiene que sobrevivir a la ida y vuelta a
+        // Microsoft. sessionStorage se pierde si el navegador restaura la
+        // pestaña en otro contexto; con localStorage el flujo aguanta.
+        // La sesión de la aplicación sigue gobernada por nuestro propio JWT y
+        // su límite de inactividad — esto solo guarda el estado de MSAL.
+        cacheLocation: 'localStorage',
         storeAuthStateInCookie: false,
       },
     });
@@ -53,36 +55,27 @@ const REQUEST = (config) => ({
   ...(config.allowedDomain ? { domainHint: config.allowedDomain } : {}),
 });
 
-/* Errores que significan «no se pudo abrir la ventana», no «el usuario dijo
-   que no»: ahí sí tiene sentido reintentar por redirección. */
-const POPUP_BLOQUEADO = new Set(['popup_window_error', 'empty_window_error', 'block_iframe_reload']);
-
 /**
- * Abre la ventana de Microsoft y devuelve el id_token para que el backend lo
- * verifique.
+ * Lleva a la página de Microsoft. No retorna: la pestaña navega y el flujo lo
+ * termina `completeRedirect` al volver.
  *
- * Si el navegador bloquea la ventana emergente se cae a redirección en lugar
- * de fallar: es lo que ocurre con las políticas corporativas restrictivas y
- * dentro de navegadores incrustados. En ese caso la función no retorna —la
- * página navega a Microsoft— y el flujo lo termina `completeRedirect`.
+ * Se usa redirección y no ventana emergente a propósito. Con `loginPopup` la
+ * aplicación se cargaba dentro del popup, que es un contexto distinto: no ve
+ * el `sessionStorage` donde MSAL dejó el verificador PKCE, así que al intentar
+ * canjear el código fallaba con `no_token_request_cache_error`. Además las
+ * políticas de los equipos corporativos suelen bloquear las ventanas
+ * emergentes. La redirección no tiene ninguno de los dos problemas.
  */
 export async function signIn(config) {
   const app = await getInstance(config);
-  try {
-    const result = await app.loginPopup(REQUEST(config));
-    if (!result?.idToken) throw new Error('Microsoft no devolvió un token de identidad');
-    return result.idToken;
-  } catch (err) {
-    if (!POPUP_BLOQUEADO.has(err?.errorCode)) throw err;
-    await app.loginRedirect(REQUEST(config));
-    return null; // la navegación ya está en curso
-  }
+  await app.loginRedirect(REQUEST(config));
+  return null;
 }
 
 /**
- * Termina un inicio de sesión por redirección. Se llama al cargar la pantalla
- * de acceso: devuelve el id_token si venimos de vuelta de Microsoft, y null en
- * una carga normal.
+ * Termina el inicio de sesión al volver de Microsoft. Se llama al cargar la
+ * pantalla de acceso: devuelve el id_token si venimos de vuelta, y null en una
+ * carga normal.
  */
 export async function completeRedirect(config) {
   if (!config?.msClientId || !config?.msTenantId) return null;
@@ -91,7 +84,7 @@ export async function completeRedirect(config) {
   return result?.idToken || null;
 }
 
-/** Cierra también la sesión del lado de Microsoft en esta pestaña. */
+/** Limpia la caché de MSAL en este navegador. */
 export async function signOut(config) {
   try {
     if (!instance && !config?.msClientId) return;
@@ -109,12 +102,7 @@ export async function signOut(config) {
  */
 export function describeError(err) {
   const code = err?.errorCode || '';
-  if (code === 'user_cancelled' || code === 'popup_window_error' && /closed/i.test(err.message || '')) {
-    return 'Cancelaste el inicio de sesión.';
-  }
-  if (code === 'popup_window_error' || code === 'empty_window_error') {
-    return 'El navegador bloqueó la ventana de Microsoft. Permite las ventanas emergentes de este sitio y vuelve a intentarlo.';
-  }
+  if (code === 'user_cancelled') return 'Cancelaste el inicio de sesión.';
   if (code === 'interaction_in_progress') {
     return 'Ya hay un inicio de sesión en curso. Espera un momento o recarga la página.';
   }

@@ -23,7 +23,11 @@ export default function Login() {
   const [error,   setError]   = useState('');
   const [locked,  setLocked]  = useState(false);
   const [config,  setConfig]  = useState(null);
-  const [signing, setSigning] = useState(false);
+  // Al volver de Microsoft la URL trae el código en el fragmento. Se arranca
+  // ya en «conectando» para no mostrar el botón un instante antes de entrar.
+  const [signing, setSigning] = useState(
+    () => typeof window !== 'undefined' && /[#&](code|error)=/.test(window.location.hash),
+  );
 
   /* Atajo de desarrollo: doble condición — build de dev y backend con
      ALLOW_DEV_LOGIN=true. En el bundle de producción no existe. */
