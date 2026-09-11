@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { authAPI } from '../services/api';
+import { signOut as limpiarMsal } from '../lib/msal';
 
 const AuthContext = createContext(null);
 
@@ -50,7 +51,12 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('at-token');
+    localStorage.removeItem('at-last-activity');
     setUser(null);
+    // Sin esto, la cuenta y los tokens de MSAL siguen en el navegador y el
+    // siguiente inicio de sesión entra sin preguntar nada: parece que cerrar
+    // sesión no hubiera hecho efecto.
+    limpiarMsal();
   };
 
   // ── Cierre automático por inactividad (20 min) ──

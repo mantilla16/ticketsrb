@@ -11,6 +11,15 @@
 
 let instance = null;
 let loading  = null;
+let configuracion = null;   // se recuerda para poder cerrar sesión sin recibirla
+
+/* Se mira el fragmento UNA vez, al cargar el módulo, antes de que MSAL o el
+   enrutador lo limpien. Sirve para saber si esta carga viene de vuelta de
+   Microsoft: sin esta comprobación, `handleRedirectPromise` devuelve el
+   resultado cacheado del login anterior y vuelve a iniciar sesión sola,
+   justo después de cerrarla. */
+const VIENE_DE_MICROSOFT =
+  typeof window !== 'undefined' && /[#&](code|error|id_token|state)=/.test(window.location.hash);
 
 /** Crea —una sola vez— la instancia de MSAL con la configuración del servidor. */
 async function getInstance({ msClientId, msTenantId }) {
@@ -41,6 +50,7 @@ async function getInstance({ msClientId, msTenantId }) {
     });
     await app.initialize();
     instance = app;
+    configuracion = { msClientId, msTenantId };
     return app;
   })();
 
@@ -79,21 +89,43 @@ export async function signIn(config) {
  */
 export async function completeRedirect(config) {
   if (!config?.msClientId || !config?.msTenantId) return null;
+  // Solo hay algo que completar si esta carga trae la respuesta de Microsoft.
+  if (!VIENE_DE_MICROSOFT) return null;
   const app = await getInstance(config);
   const result = await app.handleRedirectPromise();
   return result?.idToken || null;
 }
 
-/** Limpia la caché de MSAL en este navegador. */
+/**
+ * Borra lo que MSAL guardó en este navegador.
+ *
+ * Hace falta al cerrar sesión: si la cuenta y los tokens siguen en la caché,
+ * el siguiente inicio de sesión no vuelve a preguntar nada y da la sensación
+ * de que cerrar sesión no funciona.
+ *
+ * No cierra la sesión del lado de Microsoft a propósito —eso sacaría a la
+ * persona de Outlook y del resto de aplicaciones de la firma—, solo la de
+ * esta aplicación.
+ */
 export async function signOut(config) {
+  const cfg = config?.msClientId ? config : configuracion;
   try {
-    if (!instance && !config?.msClientId) return;
-    const app = await getInstance(config);
-    const account = app.getAllAccounts()[0];
-    if (account) await app.clearCache({ account });
+    if (instance || cfg?.msClientId) {
+      const app = await getInstance(cfg);
+      await app.clearCache();
+    }
   } catch {
-    // Que no se pueda limpiar la caché de MSAL no debe impedir cerrar sesión.
+    // Que falle la limpieza no debe impedir cerrar sesión.
   }
+  // Red de seguridad: si MSAL no llegó a instanciarse, sus claves pueden
+  // haber quedado igualmente. Se retiran a mano.
+  try {
+    for (const k of Object.keys(window.localStorage)) {
+      if (k.startsWith('msal.') || k.includes('login.microsoftonline.com')) {
+        window.localStorage.removeItem(k);
+      }
+    }
+  } catch { /* almacenamiento bloqueado: nada que limpiar */ }
 }
 
 /**
