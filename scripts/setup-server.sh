@@ -10,6 +10,8 @@
 #  dentro de ese mismo sitio — la URL queda sin puerto:
 #      sudo BASE_PATH=/mesa PUBLIC_URL=https://host.ts.net/mesa bash setup-server.sh
 #
+#  ADMIN_EMAIL deja esa cuenta como coordinador desde el primer arranque.
+#
 #  Es idempotente: se puede volver a correr sobre un servidor ya instalado
 #  sin romper nada ni perder datos.
 #
@@ -41,6 +43,9 @@ ATTACH_SITE="${ATTACH_SITE:-}"
 # haya dominio. Con APP_DOMAIN definido, nginx responde solo a ese nombre.
 APP_DOMAIN="${APP_DOMAIN:-_}"
 AUTH_ALLOWED_DOMAIN="${AUTH_ALLOWED_DOMAIN:-rbcol.co}"
+# Correo del primer coordinador de la mesa. Sin esto, toda cuenta que entra por
+# primera vez queda como auditor solicitante y nadie podría promover a nadie.
+ADMIN_EMAIL="${ADMIN_EMAIL:-}"
 MS_CLIENT_ID="${MS_CLIENT_ID:-}"
 MS_TENANT_ID="${MS_TENANT_ID:-}"
 
@@ -208,6 +213,19 @@ say "Aplicando el esquema de la base"
 DB_URL=$(sed -n 's/^DATABASE_URL=//p' "$ENV_FILE")
 psql "$DB_URL" -q -f "$APP_DIR/autotrack-backend/db/schema.full.sql"
 ok "esquema al día"
+
+if [ -n "$ADMIN_EMAIL" ]; then
+  # Se deja la cuenta creada con rol de coordinador antes de que entre: al
+  # iniciar sesión con Microsoft se reconoce por el correo y conserva el rol.
+  # La contraseña es aleatoria y no se usa nunca — el acceso es solo por Entra.
+  INICIALES=$(echo "$ADMIN_EMAIL" | cut -d@ -f1 | tr -d '.' | cut -c1-2 | tr '[:lower:]' '[:upper:]')
+  psql "$DB_URL" -q <<SQLEOF
+INSERT INTO users (name, email, password, initials, color_index, role)
+VALUES ('Coordinador', '$ADMIN_EMAIL', 'entra-id-$(openssl rand -hex 12)', '$INICIALES', 0, 'admin')
+ON CONFLICT (email) DO UPDATE SET role = 'admin';
+SQLEOF
+  ok "«$ADMIN_EMAIL» queda como coordinador de la mesa"
+fi
 
 # ── Frontend ──────────────────────────────────────────────────────────────
 say "Compilando el frontend"

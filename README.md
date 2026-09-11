@@ -124,6 +124,17 @@ cd autotrack-frontend && npm install && npm run dev
 Un correo del dominio institucional que entra por primera vez se crea como
 **auditor solicitante**; el coordinador lo promueve desde *Usuarios*.
 
+El primer coordinador es la excepción: como nadie puede promoverlo todavía, se
+indica en la instalación con `ADMIN_EMAIL=…`. Si ya está la mesa montada y hace
+falta promover a alguien sin pasar por la interfaz:
+
+```bash
+sudo -u postgres psql -d mesa_servicio   -c "UPDATE users SET role='admin' WHERE email='persona@rbcol.co';"
+```
+
+El rol viaja dentro del token de sesión, así que esa persona tiene que cerrar
+sesión y volver a entrar para que le tome efecto.
+
 ---
 
 ## Acceso y correo (Microsoft 365)
