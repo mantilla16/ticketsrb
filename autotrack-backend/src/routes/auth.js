@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const auth = require('../middleware/auth');
+const entraId = require('../utils/entraId');
 
 // Red de seguridad por IP — amplia, solo frena ataques masivos desde una misma red
 const ipLimiter = rateLimit({
@@ -59,35 +60,37 @@ function fmtUser(row) {
 // GET /api/auth/me
 router.get('/me', auth, (req, res) => res.json(req.user));
 
-// GET /api/auth/config — expone el client ID de Google al frontend
+// GET /api/auth/config — lo que el frontend necesita para armar el inicio de
+// sesión. Todo es público: el id de cliente y el de inquilino no son secretos.
 router.get('/config', (_req, res) => {
   res.json({
-    googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+    msClientId: entraId.CLIENT_ID,
+    msTenantId: process.env.MS_TENANT_ID || null,
     devLogin: DEV_LOGIN_ENABLED, // el front solo muestra el atajo si el server lo tiene activo
-    allowedDomain: ALLOWED_DOMAIN.slice(1), // el front lo usa como `hd` de Google y para el texto de ayuda
+    allowedDomain: ALLOWED_DOMAIN.slice(1), // pista en pantalla y filtro de cuentas
   });
 });
 
-// POST /api/auth/google — login con Google (solo cuentas del dominio institucional)
-router.post('/google', ipLimiter, async (req, res) => {
-  const { credential } = req.body;
-  if (!credential) return res.status(400).json({ error: 'Credencial de Google requerida' });
-  if (!process.env.GOOGLE_CLIENT_ID) {
-    return res.status(503).json({ error: 'Login con Google no está configurado en el servidor' });
+// POST /api/auth/microsoft — inicio de sesión con la cuenta de Microsoft 365
+// de la firma. El frontend consigue el id_token con MSAL; aquí se verifica la
+// firma contra las claves del inquilino antes de creer nada de su contenido.
+router.post('/microsoft', ipLimiter, async (req, res) => {
+  const { idToken } = req.body;
+  if (!idToken) return res.status(400).json({ error: 'Token de Microsoft requerido' });
+  if (!entraId.isConfigured()) {
+    return res.status(503).json({ error: 'El inicio de sesión con Microsoft no está configurado en el servidor' });
   }
-  try {
-    // Google valida la firma del id_token en este endpoint
-    const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
-    if (!resp.ok) return res.status(401).json({ error: 'Token de Google inválido' });
-    const info = await resp.json();
 
-    if (info.aud !== process.env.GOOGLE_CLIENT_ID) {
-      return res.status(401).json({ error: 'Token de Google inválido' });
-    }
-    if (info.email_verified !== 'true' && info.email_verified !== true) {
-      return res.status(401).json({ error: 'El correo de Google no está verificado' });
-    }
-    const email = (info.email || '').toLowerCase();
+  let profile;
+  try {
+    profile = await entraId.verifyIdToken(idToken);
+  } catch (err) {
+    console.warn('Token de Microsoft rechazado:', err.message);
+    return res.status(401).json({ error: 'No se pudo validar tu sesión de Microsoft' });
+  }
+
+  try {
+    const { email, name } = profile;
     if (!email.endsWith(ALLOWED_DOMAIN)) {
       return res.status(403).json({ error: `Solo se permiten cuentas institucionales ${ALLOWED_DOMAIN}` });
     }
@@ -102,10 +105,10 @@ router.post('/google', ipLimiter, async (req, res) => {
     }
 
     if (!user) {
-      // Primera vez: se crea como Área Solicitante con contraseña aleatoria (solo entrará con Google)
-      const name = info.name || email.split('@')[0];
+      // Primera vez: entra como auditor solicitante. La contraseña es aleatoria
+      // y nunca se usa — el acceso es siempre por Microsoft.
       const count = await pool.query('SELECT COUNT(*) FROM users');
-      const colorIndex = parseInt(count.rows[0].count) % 5;
+      const colorIndex = parseInt(count.rows[0].count) % 8;
       const hash = await bcrypt.hash(require('crypto').randomBytes(24).toString('hex'), 12);
       user = (await pool.query(
         'INSERT INTO users (name, email, password, initials, color_index, role) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
@@ -122,19 +125,17 @@ router.post('/google', ipLimiter, async (req, res) => {
   }
 });
 
-// ───────────────────────────────────────────────────────────────────────────
-// Atajo de desarrollo local — NO existe en producción
-//
-// El login real es exclusivamente Google OAuth restringido al dominio institucional,
-// así que en localhost no se puede entrar sin registrar http://localhost:5173
-// como origen autorizado en Google Cloud Console. Estas dos rutas permiten
-// entrar como cualquier usuario ya existente en la base, sin Google ni clave.
+// ─────────────────────────── Atajo de desarrollo ───────────────────────────
+// El login real es exclusivamente Microsoft Entra ID restringido al dominio
+// institucional, así que en localhost no se puede entrar sin registrar
+// http://localhost:5173 como URI de redirección en el registro de la
+// aplicación. Estas dos rutas permiten entrar como cualquier usuario ya
+// existente en la base, sin Microsoft ni clave.
 //
 // Con NODE_ENV=production (el servidor) el bloque no se ejecuta y las rutas
 // caen en el 404 genérico de src/index.js.
 // ───────────────────────────────────────────────────────────────────────────
 if (DEV_LOGIN_ENABLED) {
-  console.warn('\x1b[33m⚠  /api/auth/dev-login ACTIVO — solo para desarrollo local\x1b[0m');
 
   // GET /api/auth/dev-users — poblar el selector de usuarios del login en dev
   router.get('/dev-users', async (_req, res) => {

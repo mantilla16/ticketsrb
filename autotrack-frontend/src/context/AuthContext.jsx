@@ -31,8 +31,8 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const loginGoogle = async (credential) => {
-    const { token, user } = await authAPI.google(credential);
+  const loginMicrosoft = async (idToken) => {
+    const { token, user } = await authAPI.microsoft(idToken);
     localStorage.setItem('at-token', token);
     localStorage.setItem('at-last-activity', String(Date.now()));
     setUser(user);
@@ -91,7 +91,7 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginGoogle, loginDev, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginMicrosoft, loginDev, logout }}>
       {children}
     </AuthContext.Provider>
   );

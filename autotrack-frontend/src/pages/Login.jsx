@@ -4,10 +4,11 @@
    derecha una sola acción. El dominio institucional lo dicta el servidor
    (`AUTH_ALLOWED_DOMAIN`), así que aquí no hay ningún dominio escrito a mano. */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import { ORG } from '../lib/tickets';
+import { signIn, describeError } from '../lib/msal';
 import Icon from '../components/ui/Icon';
 
 const PILLARS = [
@@ -17,12 +18,11 @@ const PILLARS = [
 ];
 
 export default function Login() {
-  const { loginGoogle, loginDev } = useAuth();
-  const [error,  setError]  = useState('');
-  const [locked, setLocked] = useState(false);
-  const [config, setConfig] = useState(null);
-  const [googleReady, setGoogleReady] = useState(false);
-  const gBtnRef = useRef(null);
+  const { loginMicrosoft, loginDev } = useAuth();
+  const [error,   setError]   = useState('');
+  const [locked,  setLocked]  = useState(false);
+  const [config,  setConfig]  = useState(null);
+  const [signing, setSigning] = useState(false);
 
   /* Atajo de desarrollo: doble condición — build de dev y backend con
      ALLOW_DEV_LOGIN=true. En el bundle de producción no existe. */
@@ -47,37 +47,21 @@ export default function Login() {
     }
   }, []);
 
-  const googleId = config?.googleClientId;
-  const domain   = config?.allowedDomain;
+  const msReady = Boolean(config?.msClientId && config?.msTenantId);
+  const domain  = config?.allowedDomain;
 
-  useEffect(() => {
-    if (!googleId || !gBtnRef.current) return;
-    const init = () => {
-      window.google.accounts.id.initialize({
-        client_id: googleId,
-        hd: domain,
-        callback: async (resp) => {
-          setError(''); setLocked(false);
-          try { await loginGoogle(resp.credential); }
-          catch (err) {
-            setError(err.error || 'No se pudo iniciar sesión con Google');
-            if (err.locked) setLocked(true);
-          }
-        },
-      });
-      window.google.accounts.id.renderButton(gBtnRef.current, {
-        theme: 'outline', size: 'large', width: 340, text: 'signin_with',
-        locale: 'es', shape: 'rectangular',
-      });
-      setGoogleReady(true);
-    };
-    if (window.google?.accounts?.id) { init(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://accounts.google.com/gsi/client';
-    s.async = true;
-    s.onload = init;
-    document.body.appendChild(s);
-  }, [googleId, domain, loginGoogle]);
+  const entrar = async () => {
+    setError(''); setLocked(false); setSigning(true);
+    try {
+      const idToken = await signIn(config);
+      await loginMicrosoft(idToken);
+    } catch (err) {
+      // Los errores del backend traen `error`; los de MSAL, un código propio.
+      setError(err?.error || describeError(err));
+      if (err?.locked) setLocked(true);
+      setSigning(false);
+    }
+  };
 
   return (
     <div className="lg-page">
@@ -133,15 +117,22 @@ export default function Login() {
 
           {config === null ? (
             <div className="rb-skeleton" style={{ height: 44 }} />
-          ) : googleId ? (
-            <>
-              <div ref={gBtnRef} className="lg-gbtn" />
-              {!googleReady && <div className="lg-note">Cargando inicio de sesión con Google…</div>}
-            </>
+          ) : msReady ? (
+            <button type="button" className="lg-ms-btn" onClick={entrar} disabled={signing}>
+              {signing
+                ? <span className="rb-spinner" />
+                : <svg width="18" height="18" viewBox="0 0 23 23" aria-hidden="true">
+                    <rect x="1"  y="1"  width="10" height="10" fill="#F25022" />
+                    <rect x="12" y="1"  width="10" height="10" fill="#7FBA00" />
+                    <rect x="1"  y="12" width="10" height="10" fill="#00A4EF" />
+                    <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
+                  </svg>}
+              {signing ? 'Conectando con Microsoft…' : 'Iniciar sesión con Microsoft'}
+            </button>
           ) : (
             <div className="rb-alert" data-tone="warning">
               <Icon name="alert" size={15} />
-              <div>El inicio de sesión con Google no está configurado en el servidor. Contacta al administrador de la mesa.</div>
+              <div>El inicio de sesión con Microsoft no está configurado en el servidor. Contacta al administrador de la mesa.</div>
             </div>
           )}
 
@@ -170,7 +161,7 @@ export default function Login() {
                       catch (err) { setError(err.error || 'No se pudo entrar con el atajo local'); }
                     }}
                   >
-                    Entrar sin Google
+                    Entrar sin Microsoft
                   </button>
                 </>
               )}

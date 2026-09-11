@@ -12,7 +12,7 @@ materializa, con su tablero, cronograma y bitácora de avance.
 
 - **Backend** — Node.js + Express + PostgreSQL
 - **Frontend** — React 18 + Vite (CSS propio, sin framework de UI)
-- **Acceso** — Google OAuth restringido al dominio institucional, sesión JWT
+- **Acceso** — Microsoft Entra ID (Microsoft 365) restringido al dominio institucional, sesión JWT
 
 ---
 
@@ -123,6 +123,43 @@ cd autotrack-frontend && npm install && npm run dev
 
 Un correo del dominio institucional que entra por primera vez se crea como
 **auditor solicitante**; el coordinador lo promueve desde *Usuarios*.
+
+---
+
+## Acceso y correo (Microsoft 365)
+
+No se usa Google en ninguna parte: la firma trabaja con Microsoft 365.
+
+**Inicio de sesión — Microsoft Entra ID.** Registra la aplicación en
+*portal.azure.com → Microsoft Entra ID → App registrations*:
+
+| Campo | Valor |
+|---|---|
+| Tipos de cuenta | Solo este directorio organizativo (inquilino único) |
+| Plataforma | **SPA** |
+| URI de redirección | `http://localhost:5173` y la URL de producción |
+| Permisos de API | `User.Read` (delegado, viene por defecto) |
+| Secreto de cliente | **Ninguno** — una SPA usa PKCE |
+
+De ahí salen `MS_CLIENT_ID` (Id. de aplicación) y `MS_TENANT_ID` (Id. de
+directorio). Ninguno es secreto; el backend los publica en `/api/auth/config`
+para que el frontend arme el inicio de sesión sin recompilarse.
+
+El backend **verifica la firma** del `id_token` contra las claves públicas del
+inquilino y comprueba emisor, audiencia, `tid` y dominio del correo. Un
+`id_token` sin verificar es texto que manda el navegador.
+
+**Correo saliente — SMTP.** `SMTP_USER` / `SMTP_PASS` de un buzón de la firma.
+Todos los avisos salen de ese buzón y el `Reply-To` apunta a quien hizo el
+cambio: Exchange solo permite enviar en nombre de otra persona si se concedió
+«Enviar como» explícitamente. Si el inquilino tiene SMTP AUTH deshabilitado,
+hay que habilitarlo para ese buzón en el centro de administración de Exchange.
+
+**Invitación a la reunión — archivo .ics.** En vez de Microsoft Graph, que
+exige permisos de aplicación y consentimiento del administrador, la
+convocatoria viaja adjunta al correo. Outlook la reconoce como invitación y
+ofrece aceptarla; el identificador se deriva del ticket, así que reagendar
+actualiza la cita en lugar de crear otra.
 
 ---
 

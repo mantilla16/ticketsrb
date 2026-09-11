@@ -16,7 +16,7 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  google: (credential) => api.post('/auth/google', { credential }),
+  microsoft: (idToken) => api.post('/auth/microsoft', { idToken }),
   config: () => api.get('/auth/config'),
   me: () => api.get('/auth/me'),
   // Solo responden si el backend corre con NODE_ENV!=production y ALLOW_DEV_LOGIN=true

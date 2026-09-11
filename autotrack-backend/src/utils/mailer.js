@@ -1,5 +1,4 @@
-const { JWT } = require('google-auth-library');
-const MailComposer = require('nodemailer/lib/mail-composer');
+const nodemailer = require('nodemailer');
 const escapeHtml = require('./escapeHtml');
 
 const APP_URL   = process.env.FRONTEND_URL_PUBLIC || process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -44,18 +43,28 @@ function badgeChip({ label, color, bg }) {
   return `<span style="display:inline-block;background:${bg};color:${color};font-size:11px;font-weight:700;letter-spacing:.3px;padding:4px 10px;border-radius:999px;margin:0 0 14px;">${label.toUpperCase()}</span>`;
 }
 
-const clients = new Map(); // un JWT client por buzón impersonado (el autor de cada cambio)
-function getClient(email) {
-  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !email) return null;
-  if (!clients.has(email)) {
-    clients.set(email, new JWT({
-      email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      scopes: ['https://www.googleapis.com/auth/gmail.send'],
-      subject: email, // impersona este buzón vía Domain-Wide Delegation
-    }));
+/**
+ * Transporte SMTP — Microsoft 365 por defecto.
+ *
+ * A diferencia de la versión anterior con Gmail, aquí todos los correos salen
+ * del mismo buzón: Exchange solo deja enviar en nombre de otra persona si se
+ * le concedió «Enviar como» explícitamente. Para que las respuestas lleguen a
+ * quien corresponde se usa Reply-To con el correo de quien hizo el cambio.
+ */
+let transport = null;
+function getTransport() {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
+  if (!transport) {
+    const port = Number(process.env.SMTP_PORT || 587);
+    transport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.office365.com',
+      port,
+      secure: port === 465,   // 587 negocia TLS con STARTTLS, no arranca cifrado
+      requireTLS: true,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
   }
-  return clients.get(email);
+  return transport;
 }
 
 function template({ message, actorName, type, projectId, meta = {} }) {
@@ -113,41 +122,36 @@ function template({ message, actorName, type, projectId, meta = {} }) {
   </div>`;
 }
 
-function buildRawMessage({ to, subject, html, fromEmail, fromName }) {
-  const from = fromName ? `"${fromName}" <${fromEmail}>` : fromEmail;
-  const mail = new MailComposer({ from, to, subject, html });
-  return new Promise((resolve, reject) => {
-    mail.compile().build((err, message) => {
-      if (err) return reject(err);
-      resolve(message.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''));
-    });
-  });
-}
 
 /**
- * Envía un correo de notificación vía Gmail API (cuenta de servicio + DWD).
- * Sale desde el buzón de quien hizo el cambio (actorEmail) — así las respuestas
- * le llegan directo a esa persona, no a una cuenta genérica. Nunca lanza.
+ * Envía un correo de notificación por SMTP. Nunca lanza: una notificación que
+ * falla no debe tumbar la operación que la originó.
+ *
+ * `attachments` permite adjuntar la convocatoria .ics de la reunión de
+ * levantamiento; Outlook la muestra como una invitación de calendario real.
  */
-async function sendNotificationEmail({ to, title, message, actorName, actorEmail, type, projectId, meta }) {
+async function sendNotificationEmail({
+  to, title, message, actorName, actorEmail, type, projectId, meta, attachments,
+}) {
   try {
-    const senderEmail = actorEmail || FALLBACK_SENDER;
-    const client = getClient(senderEmail);
-    if (!client || !to) return;
-    const { token } = await client.getAccessToken();
-    const raw = await buildRawMessage({
-      to, subject: title, html: template({ message, actorName, type, projectId, meta }),
-      fromEmail: senderEmail, fromName: actorName,
+    const tx = getTransport();
+    if (!tx || !to) return;
+
+    const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
+    await tx.sendMail({
+      from: { name: actorName ? `${actorName} · Mesa de Servicio` : 'Mesa de Servicio', address: fromEmail },
+      replyTo: actorEmail || FALLBACK_SENDER || undefined,
+      to,
+      subject: title,
+      html: template({ message, actorName, type, projectId, meta }),
+      attachments: attachments || undefined,
     });
-    const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ raw }),
-    });
-    if (!res.ok) console.error('Gmail API send failed:', res.status, await res.text());
   } catch (err) {
-    console.error('sendNotificationEmail failed:', err.message);
+    console.error('sendNotificationEmail falló:', err.message);
   }
 }
 
-module.exports = { sendNotificationEmail };
+/** ¿Hay correo saliente configurado? Lo usa /api/health. */
+const mailerReady = () => Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+
+module.exports = { sendNotificationEmail, mailerReady };

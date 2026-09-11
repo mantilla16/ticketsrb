@@ -67,7 +67,8 @@ app.get('/api/health', (_, res) => res.json({
     allowedDomain:  (process.env.AUTH_ALLOWED_DOMAIN || 'rbcol.co').replace(/^@/, ''),
     publicUrl:      process.env.FRONTEND_URL_PUBLIC || null,
     corsOrigins,
-    googleLogin:    Boolean(process.env.GOOGLE_CLIENT_ID),
+    microsoftLogin: Boolean(process.env.MS_CLIENT_ID && process.env.MS_TENANT_ID),
+    correoSaliente: require('./utils/mailer').mailerReady(),
     env:            process.env.NODE_ENV || 'development',
   },
 }));
@@ -84,6 +85,8 @@ app.listen(PORT, () => {
   console.log(`  dominio permitido : @${(process.env.AUTH_ALLOWED_DOMAIN || 'rbcol.co').replace(/^@/, '')}`);
   console.log(`  URL pública       : ${process.env.FRONTEND_URL_PUBLIC || '(sin definir — los correos enlazarán a ' + corsOrigins[0] + ')'}`);
   console.log(`  orígenes CORS     : ${corsOrigins.join(', ')}`);
+  console.log(`  login Microsoft   : ${process.env.MS_CLIENT_ID && process.env.MS_TENANT_ID ? 'configurado' : 'SIN CONFIGURAR — nadie podrá entrar'}`);
+  console.log(`  correo saliente   : ${process.env.SMTP_USER ? process.env.SMTP_HOST || 'smtp.office365.com' : 'sin configurar'}`);
   if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL_PUBLIC) {
     console.warn('  ⚠ Falta FRONTEND_URL_PUBLIC: los enlaces de los correos de notificación no apuntarán a la app.');
   }

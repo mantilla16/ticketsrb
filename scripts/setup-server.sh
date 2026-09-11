@@ -26,7 +26,8 @@ APP_PORT="${APP_PORT:-3001}"
 # haya dominio. Con APP_DOMAIN definido, nginx responde solo a ese nombre.
 APP_DOMAIN="${APP_DOMAIN:-_}"
 AUTH_ALLOWED_DOMAIN="${AUTH_ALLOWED_DOMAIN:-rbcol.co}"
-GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
+MS_CLIENT_ID="${MS_CLIENT_ID:-}"
+MS_TENANT_ID="${MS_TENANT_ID:-}"
 
 DB_NAME="${DB_NAME:-mesa_servicio}"
 DB_USER="${DB_USER:-mesa_servicio}"
@@ -98,12 +99,16 @@ AUTH_ALLOWED_DOMAIN=$AUTH_ALLOWED_DOMAIN
 FRONTEND_URL=$PUBLIC_URL
 FRONTEND_URL_PUBLIC=$PUBLIC_URL
 
-# Login con Google (pégalo cuando tengas el client ID del dominio)
-GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
+# Login con Microsoft 365 (Entra ID). Ninguno de los dos es secreto.
+MS_CLIENT_ID=$MS_CLIENT_ID
+MS_TENANT_ID=$MS_TENANT_ID
 
-# Notificaciones por correo — opcional, ver .env.example
-GOOGLE_SERVICE_ACCOUNT_EMAIL=
-GOOGLE_PRIVATE_KEY=
+# Correo saliente por SMTP de Microsoft 365 — opcional, ver .env.example
+SMTP_HOST=smtp.office365.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
 REPORT_FROM_EMAIL=
 ENVEOF
   chmod 600 "$ENV_FILE"
@@ -214,7 +219,7 @@ cat <<FIN
   Logs       journalctl -u $SERVICE -f
   Actualizar bash $APP_DIR/scripts/deploy.sh
 
-  Falta para poder entrar: pegar GOOGLE_CLIENT_ID en el .env
+  Falta para poder entrar: MS_CLIENT_ID y MS_TENANT_ID en el .env
   y reiniciar con  systemctl restart $SERVICE
 ╚════════════════════════════════════════════════════════════╝
 

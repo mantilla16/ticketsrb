@@ -72,7 +72,20 @@
 }
 .lg-card-sub strong { color: var(--rb-text-2); font-weight: 700; }
 
-.lg-gbtn { display: flex; justify-content: center; min-height: 44px; }
+/* Botón de Microsoft. Sigue las pautas de marca de Microsoft para el botón de
+   inicio de sesión: fondo blanco, borde gris y el logotipo a la izquierda. */
+.lg-ms-btn {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; height: 44px;
+  background: #FFFFFF; color: #5E5E5E;
+  border: 1px solid #8C8C8C; border-radius: var(--rb-r-md);
+  font-family: var(--rb-font); font-size: 15px; font-weight: 700;
+  cursor: pointer;
+  transition: background var(--rb-t-fast) var(--rb-ease), border-color var(--rb-t-fast) var(--rb-ease);
+}
+.lg-ms-btn:hover:not(:disabled) { background: #F3F3F3; border-color: #5E5E5E; }
+.lg-ms-btn:disabled { opacity: .65; cursor: progress; }
+.lg-ms-btn svg { flex: none; }
 .lg-note { text-align: center; font-size: var(--rb-fs-xs); color: var(--rb-text-4); padding-top: 10px; }
 
 .lg-dev {

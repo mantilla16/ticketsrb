@@ -7,7 +7,7 @@ const path   = require('path');
 const fs     = require('fs');
 const { notifyInApp } = require('../utils/notify');
 const { sendNotificationEmail } = require('../utils/mailer');
-const { createCalendarEvent } = require('../utils/calendar');
+const { meetingAttachment } = require('../utils/calendar');
 const escapeHtml = require('../utils/escapeHtml');
 
 const uploadDir = path.join(__dirname, '../../uploads/solicitudes');
@@ -209,34 +209,38 @@ router.put('/:id/status', auth, requireRole('admin', 'leader_analytics', 'member
       const actorName  = actor.rows[0]?.name  || null;
       const actorEmail = actor.rows[0]?.email || null;
 
-      if (sol.correo_solicitante) {
+      // El solicitante y los invitados adicionales reciben el mismo correo con
+      // la convocatoria adjunta, así que todos quedan en la misma invitación.
+      const attendees = [
+        ...(sol.correo_solicitante || '').split(','),
+        ...(invitados || '').split(','),
+      ].map(x => x.trim()).filter(Boolean);
+
+      if (attendees.length) {
+        const start = new Date(sol.fecha_reunion);
+        const end   = new Date(start.getTime() + 60 * 60000);
+
         sendNotificationEmail({
-          to: sol.correo_solicitante,
+          to: attendees.join(', '),
           title: `Reunión agendada — "${sol.title}"`,
-          message: `agendó una reunión de levantamiento para tu solicitud «${escapeHtml(sol.title)}»: el <b>${when}</b>.${notes ? `<br><br><b>Nota:</b> ${escapeHtml(notes)}` : ''}`,
+          message: `agendó una reunión de levantamiento para tu solicitud «${escapeHtml(sol.title)}»: el <b>${when}</b>.${notes ? `<br><br><b>Nota:</b> ${escapeHtml(notes)}` : ''}<br><br>La invitación va adjunta: ábrela para agregarla a tu calendario.`,
           actorName, actorEmail,
           type: 'solicitud',
           meta: { projectName: sol.title },
-        });
-      }
-
-      // Evento en el calendario del líder que acepta, con invitación a los contactos
-      if (actorEmail) {
-        const start = new Date(sol.fecha_reunion);
-        const end   = new Date(start.getTime() + 60 * 60000);
-        const attendees = [
-          ...(sol.correo_solicitante || '').split(','),
-          ...(invitados || '').split(','),
-        ].map(s => s.trim()).filter(Boolean);
-        createCalendarEvent({
-          organizerEmail: actorEmail,
-          summary: `Levantamiento de necesidad — ${sol.title}`,
-          description: [
-            sol.nombre_solicitante && `Solicitante: ${sol.nombre_solicitante}`,
-            sol.area && `Área: ${sol.area}`,
-            sol.description,
-          ].filter(Boolean).join('\n\n'),
-          start, end, attendees,
+          attachments: [meetingAttachment({
+            organizerEmail: actorEmail || process.env.SMTP_FROM || process.env.SMTP_USER,
+            organizerName:  actorName,
+            summary: `Levantamiento de necesidad — ${sol.title}`,
+            description: [
+              sol.nombre_solicitante && `Solicitante: ${sol.nombre_solicitante}`,
+              sol.area && `Línea de servicio: ${sol.area}`,
+              sol.description,
+            ].filter(Boolean).join('\n\n'),
+            start, end, attendees,
+            // El identificador se deriva del ticket: si la reunión se
+            // reagenda, Outlook actualiza la cita en vez de crear otra.
+            uid: `ticket-${sol.id}@mesa-servicio.rbcol.co`,
+          })],
         });
       }
     }
