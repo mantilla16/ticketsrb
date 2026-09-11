@@ -160,11 +160,34 @@ El backend **verifica la firma** del `id_token` contra las claves públicas del
 inquilino y comprueba emisor, audiencia, `tid` y dominio del correo. Un
 `id_token` sin verificar es texto que manda el navegador.
 
-**Correo saliente — SMTP.** `SMTP_USER` / `SMTP_PASS` de un buzón de la firma.
-Todos los avisos salen de ese buzón y el `Reply-To` apunta a quien hizo el
-cambio: Exchange solo permite enviar en nombre de otra persona si se concedió
-«Enviar como» explícitamente. Si el inquilino tiene SMTP AUTH deshabilitado,
-hay que habilitarlo para ese buzón en el centro de administración de Exchange.
+**Correo saliente — Microsoft Graph.** Con verificación en dos pasos activa,
+la contraseña del buzón no sirve para SMTP y las contraseñas de aplicación
+suelen estar deshabilitadas en el inquilino. Por eso el camino recomendado es
+Graph: la aplicación se autentica con su propio registro y en el servidor no
+queda ninguna credencial personal.
+
+En el registro de Entra: *Permisos de API* → Microsoft Graph → **Permisos de
+aplicación** → `Mail.Send`, y conceder el consentimiento del administrador.
+Después, *Certificados y secretos* → nuevo secreto de cliente. En el `.env`,
+`MS_CLIENT_SECRET` y `MAIL_FROM` (el buzón desde el que salen los avisos).
+
+Conviene acotar desde qué buzones puede enviar la aplicación; sin ello el
+permiso alcanza a todo el inquilino:
+
+```powershell
+New-ApplicationAccessPolicy -AppId <MS_CLIENT_ID> `
+  -PolicyScopeGroupId mesa@rbcol.co -AccessRight RestrictAccess
+```
+
+Queda **SMTP** como alternativa (`SMTP_USER` / `SMTP_PASS`) para buzones sin
+verificación en dos pasos. Sea cual sea el camino, los avisos salen de un solo
+buzón y el `Reply-To` apunta a quien hizo el cambio.
+
+Para comprobarlo sin mover un ticket:
+
+```bash
+cd autotrack-backend && node scripts/probar-correo.js alguien@rbcol.co
+```
 
 **Invitación a la reunión — archivo .ics.** En vez de Microsoft Graph, que
 exige permisos de aplicación y consentimiento del administrador, la

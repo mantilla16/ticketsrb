@@ -191,7 +191,10 @@ FRONTEND_URL_PUBLIC=$PUBLIC_URL
 MS_CLIENT_ID=$MS_CLIENT_ID
 MS_TENANT_ID=$MS_TENANT_ID
 
-# Correo saliente por SMTP de Microsoft 365 — opcional, ver .env.example
+# Correo saliente — ver .env.example. Con verificación en dos pasos hay que
+# usar Graph: permiso de aplicación Mail.Send y un secreto de cliente.
+MAIL_FROM=$ADMIN_EMAIL
+MS_CLIENT_SECRET=
 SMTP_HOST=smtp.office365.com
 SMTP_PORT=587
 SMTP_USER=

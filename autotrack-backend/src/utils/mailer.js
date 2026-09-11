@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const escapeHtml = require('./escapeHtml');
+const { enviarPorGraph, graphReady } = require('./graphMail');
 
 const APP_URL   = process.env.FRONTEND_URL_PUBLIC || process.env.FRONTEND_URL || 'http://localhost:5173';
 const FALLBACK_SENDER = process.env.REPORT_FROM_EMAIL;
@@ -124,26 +125,38 @@ function template({ message, actorName, type, projectId, meta = {} }) {
 
 
 /**
- * Envía un correo de notificación por SMTP. Nunca lanza: una notificación que
- * falla no debe tumbar la operación que la originó.
+ * Envía un correo de notificación. Nunca lanza: una notificación que falla no
+ * debe tumbar la operación que la originó.
  *
- * `attachments` permite adjuntar la convocatoria .ics de la reunión de
- * levantamiento; Outlook la muestra como una invitación de calendario real.
+ * Prefiere Microsoft Graph si está configurado —es lo que funciona cuando el
+ * inquilino tiene verificación en dos pasos, que deja inservible la
+ * contraseña del buzón— y cae a SMTP si no.
+ *
+ * `attachments` lleva la convocatoria .ics de la reunión de levantamiento;
+ * Outlook la muestra como una invitación de calendario real.
  */
 async function sendNotificationEmail({
   to, title, message, actorName, actorEmail, type, projectId, meta, attachments,
 }) {
-  try {
-    const tx = getTransport();
-    if (!tx || !to) return;
+  if (!to) return;
+  const html = template({ message, actorName, type, projectId, meta });
+  // El Reply-To apunta a quien hizo el cambio para que las respuestas le
+  // lleguen a esa persona, aunque el correo salga del buzón de la mesa.
+  const replyTo = actorEmail || FALLBACK_SENDER || undefined;
 
-    const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
+  try {
+    if (graphReady()) {
+      const from = process.env.MAIL_FROM || process.env.SMTP_FROM || process.env.SMTP_USER;
+      if (!from) return console.error('Falta MAIL_FROM: no hay buzón desde el que enviar.');
+      return await enviarPorGraph({ from, to, subject: title, html, replyTo, attachments });
+    }
+
+    const tx = getTransport();
+    if (!tx) return;
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
     await tx.sendMail({
-      from: { name: actorName ? `${actorName} · Mesa de Servicio` : 'Mesa de Servicio', address: fromEmail },
-      replyTo: actorEmail || FALLBACK_SENDER || undefined,
-      to,
-      subject: title,
-      html: template({ message, actorName, type, projectId, meta }),
+      from: { name: actorName ? `${actorName} · Mesa de Servicio` : 'Mesa de Servicio', address: from },
+      replyTo, to, subject: title, html,
       attachments: attachments || undefined,
     });
   } catch (err) {
@@ -152,6 +165,6 @@ async function sendNotificationEmail({
 }
 
 /** ¿Hay correo saliente configurado? Lo usa /api/health. */
-const mailerReady = () => Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+const mailerReady = () => graphReady() || Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
 
 module.exports = { sendNotificationEmail, mailerReady };
