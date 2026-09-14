@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { assignables } from '../lib/tickets';
 import { fmtDate, dateStatus, colorClass, fmtLogDate } from '../utils/helpers';
 
 const STATUS_CLS = {
@@ -45,13 +46,17 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   const [editAssignee, setEditAssignee]   = useState('');
 
   const tipo = project?.tipo || 'automatizacion';
-  // Una tarea se puede asignar a cualquiera del equipo correspondiente al proyecto —
-  // no solo a quien ya quedó como responsable general del proyecto.
+
+  /* Una tarea se puede asignar a cualquiera del equipo del proyecto, no solo a
+     quien figure como responsable general ni solo a quien tenga rol de
+     ejecutor: en equipos pequeños quien coordina también saca trabajo, y
+     filtrar por rol dejaba el selector sin nadie. */
+  const delEquipo = (equipo) => assignables(users, equipo);
   const taskAssigneePool = tipo === 'analitica'
-    ? users.filter(u => u.role === 'member_analytics')
+    ? delEquipo('analitica')
     : tipo === 'compartido'
-      ? users.filter(u => ['engineer', 'member_analytics'].includes(u.role))
-      : users.filter(u => u.role === 'engineer');
+      ? [...new Set([...delEquipo('automatizacion'), ...delEquipo('analitica')])]
+      : delEquipo('automatizacion');
 
   useEffect(() => {
     const self = taskAssigneePool.some(u => u.id === currentUser?.id);
@@ -67,10 +72,11 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   const peopleAll = project.assignees?.length ? project.assignees : (eng ? [eng] : []);
   const dSt  = dateStatus(project.dueDate);
   const pr   = project.priority || 'mid';
-  // En compartidos, "Resp. Automatización" debe mostrar solo ingenieros — filtra cualquier
-  // rastro de gente de otro equipo que haya quedado asignada antes de que esto se validara.
-  const engineerIds = new Set(users.filter(u => u.role === 'engineer').map(u => u.id));
-  const people = tipo === 'compartido' ? peopleAll.filter(p => engineerIds.has(p.id)) : peopleAll;
+  /* En compartidos, «Resp. Automatización» muestra solo a quien trabaja en ese
+     equipo: separa las dos columnas cuando alguien de analítica quedó asignado
+     por error. Quien trabaja en los dos equipos cuenta para ambas. */
+  const idsAutomatizacion = new Set(delEquipo('automatizacion').map(u => u.id));
+  const people = tipo === 'compartido' ? peopleAll.filter(p => idsAutomatizacion.has(p.id)) : peopleAll;
 
   const addLog = async () => {
     if (!logText.trim()) { setError('Escribe el avance de la reunión'); return; }

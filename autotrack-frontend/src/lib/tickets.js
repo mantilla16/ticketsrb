@@ -207,8 +207,18 @@ export const ejecuta = (user) => can(user, 'ejecuta');
 /** Quienes ejecutan en un equipo dado — las columnas del tablero de equipo. */
 export const executorsOf = (users, equipo) =>
   users.filter(u => can(u, 'ejecuta') && teamsOf(u).includes(equipo));
-/** Quienes pueden quedar como responsables de un trabajo. */
-export const assignables = (users) => users.filter(u => teamsOf(u).length > 0);
+/**
+ * ¿Puede esta persona quedar como responsable de un trabajo?
+ *
+ * Quien lo ejecuta o quien lo gestiona. Pertenecer a un equipo no basta:
+ * gerencia ve los dos equipos pero es solo lectura, y aparecía en los
+ * selectores como si pudiera hacerse cargo de algo.
+ */
+export const puedeSerResponsable = (u) => can(u, 'ejecuta') || can(u, 'gestionarProyectos');
+
+/** Responsables posibles, opcionalmente acotados a un equipo. */
+export const assignables = (users, equipo) =>
+  users.filter(u => puedeSerResponsable(u) && (!equipo || teamsOf(u).includes(equipo)));
 
 /** Equipos cuyos trabajos ve este rol. */
 export const teamsOf = (user) => roleOf(user?.role).equipos;

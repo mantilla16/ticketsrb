@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  STATUS_FLOW, statusOf, categoryOf, ticketRef, slaOf, isClosed, teamsOf,
+  STATUS_FLOW, statusOf, categoryOf, ticketRef, slaOf, isClosed, assignables,
   fmtDate, fmtDateTime, fmtMeeting, dateOnly, timeOnly, canTriage, canManage,
 } from '../../lib/tickets';
 import {
@@ -30,11 +30,7 @@ const TEAMS = [
 /* Quién puede quedar como responsable según el equipo que atiende: los que
    trabajan en ese equipo. Los compartidos admiten a cualquiera de los dos. */
 const responsablesPara = (users, equipo) =>
-  users.filter(u => {
-    const suyos = teamsOf(u);
-    if (!suyos.length) return false;
-    return equipo === 'compartido' ? true : suyos.includes(equipo);
-  });
+  equipo === 'compartido' ? assignables(users) : assignables(users, equipo);
 
 function Fact({ k, children }) {
   return (
@@ -76,7 +72,7 @@ export default function TicketDetail({
     setGuests(''); setExtra(''); setError(''); setBusy(false); setConfirmDelete(false);
   }, [ticket]);
 
-  const assignables = useMemo(() => responsablesPara(users, team), [users, team]);
+  const responsables = useMemo(() => responsablesPara(users, team), [users, team]);
 
   if (!ticket) return null;
 
@@ -263,7 +259,7 @@ export default function TicketDetail({
                 hint={ticket.project_created ? 'El ticket ya tiene proyecto abierto.' : 'Al ponerlo en ejecución se crea el proyecto con este responsable.'}>
                 <select className="rb-select" value={assignee} onChange={e => setAssignee(e.target.value)}>
                   <option value="">Sin asignar</option>
-                  {assignables.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  {responsables.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </Field>
             </div>

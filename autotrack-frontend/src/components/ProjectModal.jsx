@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { colorClass, fmtLogDate } from '../utils/helpers';
+import { assignables } from '../lib/tickets';
 
 const EMPTY = {
   name: '', description: '', client: '',
@@ -74,20 +75,23 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const [isBlock, setIsBlock]   = useState(false);
   const [logSaving, setLogSaving] = useState(false);
 
-  // Responsables seleccionables: solo ingenieros de Automatización o miembros de Analítica según el equipo —
-  // en "compartido" este selector es específicamente el de Automatización (el de Analítica es aparte, coAssigneeId).
-  const assignablePool = areaSel === 'analitica'
-    ? users.filter(u => u.role === 'member_analytics')
-    : users.filter(u => u.role === 'engineer');
+  /* Responsables seleccionables: cualquiera que trabaje en ese equipo, no solo
+     quien tiene rol de ejecutor. En equipos pequeños quien coordina también
+     saca trabajo, y filtrar por rol dejaba el selector vacío —sin nadie a quien
+     asignar— en cuanto no había un analista dado de alta.
+     En «compartido» este selector es el de Automatización; el de Analítica va
+     aparte, en coAssigneeId. */
+  const delEquipo = (equipo) => assignables(users, equipo);
 
-  const analiticaPool = users.filter(u => u.role === 'member_analytics');
+  const analiticaPool  = delEquipo('analitica');
+  const assignablePool = areaSel === 'analitica' ? analiticaPool : delEquipo('automatizacion');
 
-  // Una tarea se puede asignar a cualquiera del equipo correspondiente al proyecto —
-  // no solo a quien ya quedó como responsable general del proyecto.
+  // Una tarea se puede asignar a cualquiera del equipo correspondiente al
+  // proyecto, no solo a quien quedó como responsable general.
   const taskAssigneePool = areaSel === 'analitica'
     ? analiticaPool
     : areaSel === 'compartido'
-      ? [...users.filter(u => u.role === 'engineer'), ...analiticaPool]
+      ? [...new Set([...delEquipo('automatizacion'), ...analiticaPool])]
       : assignablePool;
 
   useEffect(() => {
