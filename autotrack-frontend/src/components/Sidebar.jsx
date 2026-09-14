@@ -24,8 +24,7 @@ import Icon from './ui/Icon';
 export const SECTIONS = [
   { group: 'Mesa de servicio' },
   { id: 'inbox',  label: 'Bandeja',     icon: 'inbox',  cap: 'bandeja', badge: 'unassigned' },
-  // Todos menos quien solo observa: gerencia no radica ni se le asigna nada.
-  { id: 'mine',   label: 'Mis tickets', icon: 'ticket', badge: 'mine', sinCap: 'soloLectura' },
+  { id: 'mine',   label: 'Mis tickets', icon: 'ticket', badge: 'mine' },   // todos: cualquiera puede radicar
   { id: 'board',  label: 'Flujo',       icon: 'board',  cap: 'bandeja' },
 
   { group: 'Ejecución' },

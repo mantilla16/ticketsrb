@@ -116,15 +116,9 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// POST /api/solicitudes — cualquiera salvo los roles de solo consulta.
-// Gerencia observa la mesa, no radica en ella; esconder el botón en la
-// interfaz no es un control de acceso.
-router.post('/', auth, (req, res, next) => {
-  if (puede(req.user?.role, 'soloLectura')) {
-    return res.status(403).json({ error: 'Tu rol es de consulta: no puede radicar tickets' });
-  }
-  next();
-}, uploadSingle, async (req, res) => {
+// POST /api/solicitudes — cualquier usuario autenticado. Gerencia también
+// radica: lo que no hace es ejecutar ni recibir asignaciones.
+router.post('/', auth, uploadSingle, async (req, res) => {
   const { title, description, type, priority, area, dueDate,
           frecuencia, herramientas, impacto, urgencia,
           nombreSolicitante, correoSolicitante } = req.body;

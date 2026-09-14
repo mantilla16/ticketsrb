@@ -15,7 +15,7 @@
 import { useMemo, useState } from 'react';
 import { useTickets } from '../../context/TicketsContext';
 import {
-  CATEGORIES, categoryOf, isOpen, isClosed, slaOf, ageInDays,
+  CATEGORIES, categoryOf, isOpen, isClosed, slaOf,
   PRIORITY_LIST, priorityOf, statusOf, fmtDate,
 } from '../../lib/tickets';
 import { Badge, EmptyState, Segmented, Stat } from '../ui';
@@ -133,74 +133,143 @@ const HORIZONTES = [
   { label: 'Más adelante',    min: 28, max: Infinity,        color: 'var(--rb-gray)' },
 ];
 
-export default function TicketReports() {
+/* Estados de un proyecto que siguen vivos. `done` y `cancelado` están cerrados. */
+const TRABAJO_ABIERTO = ['backlog', 'progress', 'standby', 'testing', 'soporte'];
+const PRIORIDAD_PROYECTO = { high: 'alta', mid: 'media', low: 'baja' };
+
+/**
+ * Tickets y proyectos son cosas distintas en la base, pero para dirección son
+ * lo mismo: trabajo que entra, espera y se entrega. Se normalizan a una forma
+ * común para poder contarlos juntos.
+ *
+ * Hace falta porque no todo el trabajo nace de un ticket: un proyecto se puede
+ * crear a mano, y si el panorama solo mirara la bandeja, ese trabajo sería
+ * invisible justo para quien necesita verlo todo.
+ */
+const desdeTicket = (t) => ({
+  id: `t-${t.id}`,
+  titulo: t.title,
+  origen: 'ticket',
+  abierto: isOpen(t),
+  creado: t.created_at,
+  cerrado: isClosed(t) ? t.updated_at : null,
+  fecha: t.due_date || null,
+  prioridad: t.urgencia || t.priority || 'media',
+  area: (t.area || '').trim(),
+  responsable: t.assignee_name || null,
+  estado: statusOf(t.status).label,
+  tono: statusOf(t.status).tone,
+});
+
+const desdeProyecto = (p) => {
+  const abierto = TRABAJO_ABIERTO.includes(p.status);
+  const responsables = p.assignees?.length ? p.assignees : (p.assignee ? [p.assignee] : []);
+  return {
+    id: `p-${p.id}`,
+    titulo: p.name,
+    origen: 'trabajo',
+    abierto,
+    creado: p.createdAt || p.created_at,
+    cerrado: abierto ? null : (p.updatedAt || p.updated_at),
+    fecha: p.dueDate || null,
+    prioridad: PRIORIDAD_PROYECTO[p.priority] || 'media',
+    area: (p.client || '').trim(),
+    responsable: responsables[0]?.name || null,
+    estado: p.status === 'progress' ? 'En curso' : p.status === 'standby' ? 'En standby'
+      : p.status === 'testing' ? 'En testing' : p.status === 'soporte' ? 'En soporte'
+      : p.status === 'done' ? 'Finalizado' : p.status === 'cancelado' ? 'Cancelado' : 'Por hacer',
+    tono: p.status === 'standby' ? 'warning' : p.status === 'done' ? 'success'
+      : p.status === 'cancelado' ? 'danger' : 'brand',
+  };
+};
+
+const diasDesde = (fecha) => fecha
+  ? Math.max(0, Math.floor((Date.now() - new Date(fecha)) / DIA)) : 0;
+
+export default function TicketReports({ projects = [] }) {
   const { tickets, loading } = useTickets();
   const [range, setRange] = useState('90');
 
-  const scope = useMemo(() => {
-    if (range === 'all') return tickets;
-    const desde = Date.now() - Number(range) * DIA;
-    return tickets.filter(t => new Date(t.created_at).getTime() >= desde);
-  }, [tickets, range]);
+  /* Todo el trabajo, venga de donde venga. */
+  const todo = useMemo(
+    () => [...tickets.map(desdeTicket), ...projects.map(desdeProyecto)],
+    [tickets, projects],
+  );
 
-  /* Lo pendiente se mira SIEMPRE completo, no filtrado por periodo: un ticket
-     de hace cinco meses que sigue abierto es justo el que hay que ver. */
-  const abiertos = useMemo(() => tickets.filter(isOpen), [tickets]);
+  const scope = useMemo(() => {
+    if (range === 'all') return todo;
+    const desde = Date.now() - Number(range) * DIA;
+    return todo.filter(x => new Date(x.creado).getTime() >= desde);
+  }, [todo, range]);
+
+  /* Lo pendiente se mira SIEMPRE completo, no filtrado por periodo: algo de
+     hace cinco meses que sigue abierto es justo lo que hay que ver. */
+  const abiertos = useMemo(() => todo.filter(x => x.abierto), [todo]);
+
+  /* El SLA es propio del ticket: un proyecto creado a mano no tiene
+     compromiso de respuesta que medir. */
+  const ticketsAbiertos = useMemo(() => tickets.filter(isOpen), [tickets]);
 
   const kpis = useMemo(() => {
-    const cerrados = scope.filter(isClosed);
-    const diasCierre = cerrados.map(ageInDays);
+    const cerrados = scope.filter(x => !x.abierto && x.cerrado);
+    const dias = cerrados.map(x => Math.max(0,
+      Math.round((new Date(x.cerrado) - new Date(x.creado)) / DIA)));
 
-    // Cumplimiento: de los cerrados, cuántos se atendieron dentro del plazo.
-    const aTiempo = cerrados.filter(t => {
+    const ticketsCerrados = scope.filter(x => x.origen === 'ticket' && !x.abierto);
+    const aTiempo = tickets.filter(isClosed).filter(t => {
       const pr = priorityOf(t.urgencia || t.priority);
       const limite = new Date(t.created_at);
       limite.setDate(limite.getDate() + pr.slaDays + 2); // margen por fines de semana
       return new Date(t.updated_at || t.created_at) <= limite;
     }).length;
+    const totalTicketsCerrados = tickets.filter(isClosed).length;
 
     return {
       pendiente: abiertos.length,
-      sinDuenno: abiertos.filter(t => !t.assignee_id).length,
-      vencidos: abiertos.filter(t => slaOf(t)?.state === 'breached').length,
-      enEjecucion: abiertos.filter(t => t.status === 'convertido').length,
+      deTickets: abiertos.filter(x => x.origen === 'ticket').length,
+      deTrabajos: abiertos.filter(x => x.origen === 'trabajo').length,
+      sinDuenno: abiertos.filter(x => !x.responsable).length,
+      vencidos: ticketsAbiertos.filter(t => slaOf(t)?.state === 'breached').length,
       cerrados: cerrados.length,
-      cumplimiento: cerrados.length ? Math.round((aTiempo / cerrados.length) * 100) : null,
-      medio: diasCierre.length ? Math.round(diasCierre.reduce((a, b) => a + b, 0) / diasCierre.length) : 0,
-      mediana: mediana(diasCierre),
+      ticketsCerrados: ticketsCerrados.length,
+      cumplimiento: totalTicketsCerrados ? Math.round((aTiempo / totalTicketsCerrados) * 100) : null,
+      medio: dias.length ? Math.round(dias.reduce((a, b) => a + b, 0) / dias.length) : 0,
+      mediana: mediana(dias),
     };
-  }, [scope, abiertos]);
+  }, [scope, abiertos, tickets, ticketsAbiertos]);
 
   /* 1. Antigüedad de lo pendiente */
   const antiguedad = useMemo(() => TRAMOS.map(tr => ({
     label: tr.label,
     color: tr.color,
-    value: abiertos.filter(t => {
-      const d = ageInDays(t);
+    value: abiertos.filter(x => {
+      const d = diasDesde(x.creado);
       return d >= tr.min && d < tr.max;
     }).length,
   })), [abiertos]);
 
-  /* 2. Ritmo: entradas frente a cierres, por mes */
+  /* 2. Ritmo: lo que entró frente a lo que se cerró, por mes */
   const ritmo = useMemo(() => {
     const meses = [];
     const hoy = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
       const fin = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      const dentro = (f) => f && new Date(f) >= d && new Date(f) < fin;
       meses.push({
         label: d.toLocaleDateString('es-CO', { month: 'short', year: '2-digit' }).replace('.', ''),
-        a: tickets.filter(t => { const c = new Date(t.created_at); return c >= d && c < fin; }).length,
-        b: tickets.filter(t => isClosed(t) && t.updated_at
-          && new Date(t.updated_at) >= d && new Date(t.updated_at) < fin).length,
+        a: todo.filter(x => dentro(x.creado)).length,
+        b: todo.filter(x => !x.abierto && dentro(x.cerrado)).length,
       });
     }
     return meses;
-  }, [tickets]);
+  }, [todo]);
 
   /* 3. Cuánto tardamos, por prioridad */
   const demoras = useMemo(() => PRIORITY_LIST.map(p => {
-    const dias = scope.filter(t => isClosed(t) && (t.urgencia || t.priority) === p.value).map(ageInDays);
+    const dias = scope
+      .filter(x => !x.abierto && x.cerrado && x.prioridad === p.value)
+      .map(x => Math.max(0, Math.round((new Date(x.cerrado) - new Date(x.creado)) / DIA)));
     return {
       label: `Prioridad ${p.label.toLowerCase()}`,
       value: dias.length ? Math.round(dias.reduce((a, b) => a + b, 0) / dias.length) : 0,
@@ -212,44 +281,44 @@ export default function TicketReports() {
   /* 4. Planificación: entregas comprometidas de lo que sigue abierto */
   const planificacion = useMemo(() => {
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    const conFecha = abiertos.filter(t => t.due_date);
+    const conFecha = abiertos.filter(x => x.fecha);
     return {
       sinFecha: abiertos.length - conFecha.length,
       tramos: HORIZONTES.map(h => ({
         label: h.label,
         color: h.color,
-        value: conFecha.filter(t => {
-          const d = Math.floor((new Date(t.due_date) - hoy) / DIA);
+        value: conFecha.filter(x => {
+          const d = Math.floor((new Date(x.fecha) - hoy) / DIA);
           return d >= h.min && d < h.max;
         }).length,
       })),
-      proximas: conFecha
-        .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
-        .slice(0, 6),
+      proximas: [...conFecha].sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 6),
     };
   }, [abiertos]);
 
   /* 5. Origen de la demanda y reparto de la carga */
-  const porLinea = useMemo(() => tally(scope, t => (t.area || '').trim() || 'Sin línea').slice(0, 8), [scope]);
+  const porLinea = useMemo(
+    () => tally(scope, x => x.area || 'Sin línea').slice(0, 8), [scope]);
   const porTipo = useMemo(() => {
     const orden = CATEGORIES.map(c => c.label);
-    return tally(scope, t => categoryOf(t.type).label)
+    return tally(scope.filter(x => x.origen === 'ticket'),
+      x => categoryOf(tickets.find(t => `t-${t.id}` === x.id)?.type).label)
       .sort((a, b) => orden.indexOf(a.label) - orden.indexOf(b.label));
-  }, [scope]);
+  }, [scope, tickets]);
   const porResponsable = useMemo(() => {
-    const filas = tally(abiertos, t => t.assignee_name);
-    const sin = abiertos.filter(t => !t.assignee_id).length;
+    const filas = tally(abiertos, x => x.responsable);
+    const sin = abiertos.filter(x => !x.responsable).length;
     return sin ? [...filas, { label: 'Sin asignar', value: sin, color: 'var(--rb-orange)' }] : filas;
   }, [abiertos]);
 
   if (loading) return <div className="rb-skeleton" style={{ height: 320 }} />;
 
-  if (!tickets.length) {
+  if (!todo.length) {
     return (
       <div className="rb-card">
         <EmptyState icon="chart" title="Todavía no hay datos">
-          El panorama se construye con los tickets radicados. En cuanto entren los primeros,
-          esta pantalla se llena sola.
+          El panorama se construye con los tickets radicados y los trabajos en curso.
+          En cuanto entre el primero, esta pantalla se llena sola.
         </EmptyState>
       </div>
     );
@@ -261,28 +330,30 @@ export default function TicketReports() {
         <Segmented value={range} onChange={setRange} options={RANGES} />
         <span style={{ flex: 1 }} />
         <span className="rb-hint">
-          {scope.length} tickets en el periodo · {abiertos.length} abiertos en total
+          {scope.length} en el periodo · {abiertos.length} abiertos en total
+          {kpis.deTrabajos > 0 && ` · incluye ${kpis.deTrabajos} trabajo${kpis.deTrabajos !== 1 ? 's' : ''} sin ticket`}
         </span>
       </div>
 
       {/* ── Lo esencial de un vistazo ── */}
       <div className="rb-stats">
         <Stat label="Pendiente ahora" tone="brand" icon="inbox"
-          value={kpis.pendiente} foot={`${kpis.enEjecucion} ya en ejecución`} />
+          value={kpis.pendiente}
+          foot={`${kpis.deTickets} tickets · ${kpis.deTrabajos} trabajos`} />
         <Stat label="Sin responsable" tone="warning" icon="user"
           value={kpis.sinDuenno} foot="Esperan triage" />
         <Stat label="Con SLA vencido" tone="danger" icon="alert"
-          value={kpis.vencidos} foot="Pasaron el compromiso de respuesta" />
+          value={kpis.vencidos} foot="Tickets que pasaron el compromiso" />
         <Stat label="Cumplimiento de SLA" tone="success" icon="target"
           value={kpis.cumplimiento == null ? '—' : `${kpis.cumplimiento}%`}
-          foot={kpis.cerrados ? `sobre ${kpis.cerrados} cerrados` : 'Sin cierres en el periodo'} />
+          foot={kpis.cumplimiento == null ? 'Sin tickets cerrados aún' : 'Sobre los tickets cerrados'} />
       </div>
 
       <div className="tk-report-grid">
         {/* 1 ── Qué tenemos pendiente */}
         <Panel
           title="Antigüedad de lo pendiente"
-          sub="Cuánto llevan esperando los tickets que siguen abiertos"
+          sub="Cuánto lleva esperando todo lo que sigue abierto"
           nota="Se mira sobre todo lo abierto, sin filtrar por periodo: un ticket viejo que sigue vivo es justo el que hay que ver."
         >
           <Bars rows={antiguedad} sufijo="" empty="No hay nada pendiente" />
@@ -291,7 +362,7 @@ export default function TicketReports() {
         {/* 2 ── Ganamos o perdemos terreno */}
         <Panel
           title="Ritmo de la mesa"
-          sub="Tickets que entraron frente a los que se cerraron, por mes"
+          sub="Lo que entró frente a lo que se cerró, por mes"
           nota="Si la barra oscura supera sistemáticamente a la clara, el pendiente crece."
         >
           <BarsDobles rows={ritmo} />
@@ -301,7 +372,7 @@ export default function TicketReports() {
         <Panel
           title="Cuánto tardamos"
           sub="Días desde que se radica hasta que se cierra"
-          nota="Medido de la radicación al cierre. No hay registro de cambios de estado, así que no es posible desglosar cuánto se va en cada etapa; para eso haría falta guardar las transiciones."
+          nota="Medido de la creación al cierre, sobre tickets y trabajos. No hay registro de cambios de estado, así que no es posible desglosar cuánto se va en cada etapa; para eso haría falta guardar las transiciones."
         >
           <div className="rb-row" style={{ gap: 28, marginBottom: 16 }}>
             <div>
@@ -327,22 +398,22 @@ export default function TicketReports() {
         {/* 4 ── Qué viene */}
         <Panel
           title="Entregas comprometidas"
-          sub="Fechas que los solicitantes esperan, de lo que sigue abierto"
+          sub="Fechas comprometidas de todo lo que sigue abierto"
           nota={planificacion.sinFecha
-            ? `${planificacion.sinFecha} ticket${planificacion.sinFecha !== 1 ? 's' : ''} abierto${planificacion.sinFecha !== 1 ? 's' : ''} sin fecha comprometida.`
+            ? `${planificacion.sinFecha} sin fecha comprometida.`
             : null}
         >
-          <Bars rows={planificacion.tramos} empty="Ningún ticket abierto tiene fecha" />
+          <Bars rows={planificacion.tramos} empty="Nada abierto tiene fecha comprometida" />
 
           {planificacion.proximas.length > 0 && (
             <>
               <div className="tk-section-title" style={{ marginTop: 20 }}>Lo más próximo</div>
               <div className="tk-review">
-                {planificacion.proximas.map(t => (
-                  <div className="tk-review-row" key={t.id} style={{ gridTemplateColumns: '92px minmax(0,1fr) auto' }}>
-                    <b>{fmtDate(t.due_date)}</b>
-                    <span className="rb-truncate">{t.title}</span>
-                    <Badge tone={statusOf(t.status).tone}>{statusOf(t.status).label}</Badge>
+                {planificacion.proximas.map(x => (
+                  <div className="tk-review-row" key={x.id} style={{ gridTemplateColumns: '92px minmax(0,1fr) auto' }}>
+                    <b>{fmtDate(x.fecha)}</b>
+                    <span className="rb-truncate">{x.titulo}</span>
+                    <Badge tone={x.tono}>{x.estado}</Badge>
                   </div>
                 ))}
               </div>
@@ -355,18 +426,19 @@ export default function TicketReports() {
           <Bars rows={porLinea} />
         </Panel>
 
-        <Panel title="Tipo de solicitud" sub="Qué nos piden">
-          <Bars rows={porTipo} />
+        <Panel title="Tipo de solicitud" sub="Qué nos piden"
+          nota="Solo cuenta lo que entró como ticket: un trabajo creado a mano no declara tipo.">
+          <Bars rows={porTipo} empty="Todavía no hay tickets en el periodo" />
         </Panel>
 
-        <Panel title="Carga abierta por responsable" sub="Tickets vivos a nombre de cada persona">
-          <Bars rows={porResponsable} empty="No hay tickets abiertos" />
+        <Panel title="Carga abierta por responsable" sub="Trabajo vivo a nombre de cada persona">
+          <Bars rows={porResponsable} empty="No hay nada abierto" />
         </Panel>
 
         <Panel title="Mezcla de prioridades" sub="Cómo llega clasificada la demanda">
           <Bars rows={PRIORITY_LIST.map(p => ({
             label: `Prioridad ${p.label.toLowerCase()}`,
-            value: scope.filter(t => (t.urgencia || t.priority) === p.value).length,
+            value: scope.filter(x => x.prioridad === p.value).length,
             color: { alta: 'var(--rb-alert)', media: 'var(--rb-orange)', baja: 'var(--rb-gray)' }[p.value],
           }))} />
         </Panel>

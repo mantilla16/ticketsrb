@@ -451,7 +451,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
           <main className="rb-page" key={sectionKey}>
             {isTicketView && (
               section === 'reports'
-                ? <TicketReports />
+                ? <TicketReports projects={visibleProjects} />
                 : <TicketsView
                     view={section} user={vistaUser} users={users} showToast={showToast}
                     onProjectCreated={(project) => setProjects(ps => [project, ...ps])}

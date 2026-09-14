@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { colorClass } from '../utils/helpers';
+import { assignables, teamsOf } from '../lib/tickets';
 
 /* ════════════════════════════════════════════════════════════════════════════
    Panel de ejecución — visión gerencial de los trabajos en curso
@@ -211,9 +212,10 @@ export default function DashboardView({ projects: allProjects, users, solicitude
     }
   };
 
-  /* ── Alcance por rol: cada equipo solo ve sus propios valores ── */
-  const teamScope = role === 'engineer' ? 'auto'
-    : ['member_analytics', 'leader_analytics'].includes(role) ? 'ana' : 'all';
+  /* ── Alcance por rol: quien trabaja en un solo equipo ve solo sus valores ── */
+  const misEquipos = teamsOf({ role });
+  const teamScope = misEquipos.length !== 1 ? 'all'
+    : misEquipos[0] === 'analitica' ? 'ana' : 'auto';
 
   /* ── Filtros ── */
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -241,10 +243,12 @@ export default function DashboardView({ projects: allProjects, users, solicitude
   projects.forEach(p => { if (cnt[p.status] !== undefined) cnt[p.status]++; });
   const total = projects.length;
 
-  const team = users
-    .filter(u => ['engineer', 'member_analytics'].includes(u.role))
+  /* La tabla de carga lista a quien puede tener trabajo a su nombre: quien
+     ejecuta y quien gestiona. Filtrar por rol de ejecutor dejaba la tabla
+     vacía en un equipo donde solo hay coordinación. */
+  const team = assignables(users)
     .filter(u => teamScope === 'all'
-      || (teamScope === 'auto' ? u.role === 'engineer' : ['member_analytics', 'leader_analytics'].includes(u.role)));
+      || teamsOf(u).includes(teamScope === 'auto' ? 'automatizacion' : 'analitica'));
 
   // Distribución por área (tipo de proyecto)
   const tipoCnt = { automatizacion: 0, analitica: 0, compartido: 0, asignacion_flash: 0 };
@@ -271,7 +275,9 @@ export default function DashboardView({ projects: allProjects, users, solicitude
     const tasksPending  = myTasks.filter(t => !t.done).length;
     const tasksAssigned = myTasks.filter(t => t.assigneeId === u.id).length;
     const urgencyLoad  = personUrgencyLoad(activeMine, u.id);
-    const equipo  = u.role === 'engineer' ? 'Automatización' : 'Analítica de Datos';
+    const suyos   = teamsOf(u);
+    const equipo  = suyos.length > 1 ? 'Ambos equipos'
+      : suyos[0] === 'analitica' ? 'Analítica de Datos' : 'Automatización';
     return { u, equipo, total: mine.length, tasksAssigned, tasksPending, tasksTotal, urgencyLoad, bloqueos, next };
   });
 

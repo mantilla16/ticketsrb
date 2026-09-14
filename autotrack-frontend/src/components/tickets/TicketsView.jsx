@@ -12,7 +12,7 @@ import { projectsAPI } from '../../services/api';
 import { useTickets } from '../../context/TicketsContext';
 import {
   statusOf, PRIORITY_LIST, SERVICE_LINES,
-  isOpen, isClosed, slaOf, byUrgency, searchBlob, isDesk, esSoloLectura,
+  isOpen, isClosed, slaOf, byUrgency, searchBlob, isDesk,
 } from '../../lib/tickets';
 import { Button, EmptyState, SearchInput, Segmented, Stat } from '../ui';
 import TicketRow from './TicketRow';
@@ -43,8 +43,7 @@ export default function TicketsView({ view = 'inbox', user, users = [], showToas
     create, updateStatus, updateInfo, markProjectCreated, remove,
   } = useTickets();
 
-  const desk       = isDesk(user);
-  const puedeAbrir = !esSoloLectura(user);   // gerencia observa, no radica
+  const desk = isDesk(user);
 
   const [selected,   setSelected]   = useState(null);
   const [composing,  setComposing]  = useState(false);
@@ -224,9 +223,7 @@ export default function TicketsView({ view = 'inbox', user, users = [], showToas
             Filtros{filtersActive ? ` (${filtersActive})` : ''}
           </Button>
         )}
-        {puedeAbrir && (
-          <Button variant="primary" icon="plus" onClick={() => setComposing(true)}>Nuevo ticket</Button>
-        )}
+        <Button variant="primary" icon="plus" onClick={() => setComposing(true)}>Nuevo ticket</Button>
       </div>
 
       {showFilters && desk && (
@@ -267,9 +264,7 @@ export default function TicketsView({ view = 'inbox', user, users = [], showToas
               title={search || filtersActive ? 'Ningún ticket coincide' : desk ? 'Bandeja al día' : 'Aún no has radicado tickets'}
               action={search || filtersActive
                 ? <Button variant="secondary" onClick={() => { setSearch(''); clearFilters(); }}>Quitar filtros</Button>
-                : puedeAbrir
-                  ? <Button variant="primary" icon="plus" onClick={() => setComposing(true)}>Radicar el primero</Button>
-                  : null}
+                : <Button variant="primary" icon="plus" onClick={() => setComposing(true)}>Radicar el primero</Button>}
             >
               {search || filtersActive
                 ? 'Prueba con otro término o amplía los filtros.'
