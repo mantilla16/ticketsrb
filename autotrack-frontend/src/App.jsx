@@ -30,7 +30,7 @@ const TITLES = {
   inbox:         { title: 'Bandeja de tickets', sub: 'Todo lo que llega a la mesa de servicio, priorizado por compromiso de atención' },
   mine:          { title: 'Mis tickets',        sub: 'Lo que está a tu nombre' },
   board:         { title: 'Flujo de trabajo',   sub: 'Los tickets abiertos por etapa del proceso' },
-  reports:       { title: 'Reportes',           sub: 'Cumplimiento, tiempos de atención y origen de la demanda' },
+  reports:       { title: 'Panorama',          sub: 'Qué hay pendiente, a qué ritmo avanzamos, cuánto tardamos y qué viene' },
   dashboard:     { title: 'Panel de ejecución', sub: 'Estado del portafolio de trabajos en curso' },
   'team-kanban': { title: 'Proyectos',          sub: 'Trabajos en ejecución del equipo de automatización' },
   analytics:     { title: 'Equipo Analítica',   sub: 'Trabajos en ejecución del equipo de analítica de datos' },
@@ -50,7 +50,9 @@ const STATUS_NAMES = {
  */
 function defaultSection(role) {
   const r = roleOf(role);
-  return r.bandeja && r.gestionarProyectos ? 'inbox' : 'mine';
+  if (!r.bandeja) return 'mine';        // auditor solicitante
+  if (r.ejecuta)  return 'mine';        // quien ejecuta, a lo suyo
+  return r.triage ? 'inbox' : 'reports';    // coordina → bandeja; gerencia → panorama
 }
 
 /* Payload completo para PUT /projects/:id — evita que updates parciales
@@ -213,7 +215,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
 
   let { title, sub } = TITLES[section] || TITLES.inbox;
   if (section === 'mine' && !desk) sub = 'Tus solicitudes a la mesa de servicio y en qué va cada una';
-  if (section === 'dashboard' && !can(user, 'gestionarProyectos')) {
+  if (section === 'dashboard' && can(user, 'ejecuta')) {
     title = 'Mi panel';
     sub   = 'Tus tareas pendientes y tus trabajos en curso';
   }
@@ -433,7 +435,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
             )}
 
             {section === 'dashboard' && (
-              !can(user, 'gestionarProyectos')
+              can(user, 'ejecuta')
                 ? <PersonalDashboardView projects={visibleProjects} users={users} currentUser={user}
                     onCardClick={openDetail} onNavigate={changeSection} />
                 : <DashboardView projects={visibleProjects} users={users} solicitudes={tickets}

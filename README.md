@@ -119,7 +119,7 @@ cd autotrack-frontend && npm install && npm run dev
 | `leader_analytics` | Líder de Analítica  | analítica | Coordina su equipo y elimina lo suyo |
 | `member_analytics` | Analista de Datos   | analítica | Ejecuta sus trabajos y hace triage de sus tickets |
 | `engineer`         | Analista            | automatización | Ejecuta los trabajos que tiene asignados |
-| `manager`          | Gerencia            | ambos   | Solo lectura: bandeja, reportes y cronograma |
+| `manager`          | Gerencia            | ambos   | Solo lectura. Entra al **Panorama**: pendiente, ritmo, tiempos y entregas comprometidas |
 | `user`             | Auditor solicitante | —       | Radica tickets y sigue los suyos |
 
 Los permisos no se comprueban por nombre de rol sino por **capacidad**
@@ -225,7 +225,26 @@ Recibido → En revisión → Reunión agendada → Aceptado → En ejecución
 
 Cada ticket nace con un **compromiso de atención** según su prioridad —alta 1
 día hábil, media 3, baja 5— que se muestra en la bandeja y alimenta el
-cumplimiento de SLA en Reportes.
+cumplimiento de SLA en el Panorama.
+
+---
+
+## Panorama (vista de dirección)
+
+Responde cuatro preguntas en una pantalla:
+
+| | Qué muestra |
+|---|---|
+| **Qué hay pendiente** | Antigüedad de lo abierto por tramos, sin filtrar por periodo: un ticket viejo que sigue vivo es el que hay que ver |
+| **A qué ritmo vamos** | Entradas frente a cierres por mes. Si las entradas superan a los cierres de forma sostenida, el pendiente crece |
+| **Cuánto tardamos** | Promedio y mediana de días hasta el cierre, desglosado por prioridad |
+| **Qué viene** | Entregas comprometidas por horizonte —vencidas, esta semana, próxima…— y las seis más cercanas |
+
+**Una limitación, declarada en la propia pantalla:** los tiempos se miden de la
+radicación al cierre. La tabla `solicitudes` no guarda las transiciones de
+estado, así que no es posible desglosar cuánto se va en triage, en espera de
+reunión o en ejecución. Para eso habría que registrar los cambios de estado en
+una tabla aparte.
 
 ---
 

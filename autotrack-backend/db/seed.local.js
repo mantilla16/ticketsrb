@@ -40,6 +40,8 @@ const USERS = [
   { email: 'miembro.analitica@autotrack.local',name: 'Mara Miembro Analítica', role: 'member_analytics' },
   { email: 'ingeniero@autotrack.local',        name: 'Iván Ingeniero',         role: 'engineer' },
   { email: 'ingeniera@autotrack.local',        name: 'Elena Ingeniera',        role: 'engineer' },
+  { email: 'coordinacion@autotrack.local',     name: 'Carla Coordinadora',     role: 'coordinator' },
+  { email: 'gerencia@autotrack.local',         name: 'Gloria Gerente',         role: 'manager' },
   { email: 'solicitante@autotrack.local',      name: 'Sara Solicitante',       role: 'user' },
 ];
 
