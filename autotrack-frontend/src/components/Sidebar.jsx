@@ -62,8 +62,14 @@ function buildMenu(user) {
   return kept.filter((s, i) => !s.group || (kept[i + 1] && !kept[i + 1].group));
 }
 
-export default function Sidebar({ section, onSection, user, onLogout, isOpen, badges = {} }) {
-  const role    = user?.role || 'user';
+/**
+ * `user` es siempre la persona real. `viewRole`, si viene, es el rol que se
+ * está previsualizando: manda para decidir el menú, pero no para el pie —quién
+ * eres no cambia porque estés mirando la aplicación con otros ojos—.
+ */
+export default function Sidebar({ section, onSection, user, viewRole, onLogout, isOpen, badges = {} }) {
+  const rolReal = user?.role || 'user';
+  const role    = viewRole || rolReal;
   const visible = buildMenu({ role });
 
   return (
@@ -110,7 +116,10 @@ export default function Sidebar({ section, onSection, user, onLogout, isOpen, ba
           <span className="rb-avatar" data-c={(user?.colorIndex ?? 0) % 8}>{user?.initials}</span>
           <span style={{ flex: 1, minWidth: 0 }}>
             <span className="rb-userchip-name rb-truncate" style={{ display: 'block' }}>{user?.name}</span>
-            <span className="rb-userchip-role">{roleOf(role).label}</span>
+            <span className="rb-userchip-role">
+              {roleOf(rolReal).label}
+              {viewRole && <> · viendo como {roleOf(viewRole).label}</>}
+            </span>
           </span>
           <Icon name="logout" size={14} />
         </button>

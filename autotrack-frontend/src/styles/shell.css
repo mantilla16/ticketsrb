@@ -185,3 +185,35 @@ button.rb-stat.is-active { border-color: var(--rb-navy-soft); box-shadow: var(--
   .rb-shell { display: block; }
   .rb-page { padding: 0; max-width: none; }
 }
+
+/* ─────────────────── Vista previa de rol (solo administración) ─────────── */
+.vp-selector { display: inline-flex; align-items: center; gap: 6px; color: var(--rb-text-3); }
+.vp-selector .rb-select {
+  height: 32px; width: auto; min-width: 150px;
+  font-size: var(--rb-fs-sm); padding-right: 30px;
+}
+
+/* El aviso es deliberadamente difícil de ignorar: alguien que olvide que está
+   en vista previa sacaría conclusiones equivocadas de lo que ve. */
+.vp-aviso {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px var(--rb-gutter);
+  background: var(--rb-warning-bg);
+  border-bottom: 1px solid var(--rb-warning-bd);
+  color: #7A4512;
+  font-size: var(--rb-fs-sm);
+}
+.vp-aviso svg { flex: none; color: var(--rb-warning); }
+.vp-aviso strong { font-weight: 700; }
+.vp-salir {
+  margin-left: auto;
+  height: 28px; padding: 0 12px;
+  border: 1px solid var(--rb-warning-bd); border-radius: var(--rb-r-sm);
+  background: var(--rb-surface); color: var(--rb-warning);
+  font-size: var(--rb-fs-sm); font-weight: 700;
+}
+.vp-salir:hover { background: var(--rb-warning); color: #fff; border-color: var(--rb-warning); }
+
+@media (max-width: 720px) {
+  .vp-selector { display: none; }   /* cabe mal y no es una acción de campo */
+}

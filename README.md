@@ -122,6 +122,19 @@ cd autotrack-frontend && npm install && npm run dev
 | `manager`          | Gerencia            | ambos   | Solo lectura. Entra al **Panorama**: pendiente, ritmo, tiempos y entregas comprometidas |
 | `user`             | Auditor solicitante | —       | Radica tickets y sigue los suyos |
 
+### Ver la aplicación como otro rol
+
+El acceso es solo con Microsoft, así que no hay forma de «entrar como gerente»
+sin una cuenta real de esa persona. Para comprobar qué encuentra cada quien al
+entrar, un administrador tiene en la barra superior un selector **«Ver como…»**.
+
+Cambia el menú, la pantalla de inicio y lo que se muestra, con un aviso
+permanente mientras está activo. **Solo afecta a la interfaz**: el token de
+sesión sigue siendo el real, de modo que el servidor sigue aplicando los
+permisos de quien mira. No sirve para verificar que un rol esté bien
+restringido —para eso está la comprobación del servidor—, sino para ver la
+aplicación con los ojos de otro.
+
 Los permisos no se comprueban por nombre de rol sino por **capacidad**
 (`triage`, `eliminarTickets`, `gestionarUsuarios`…). La tabla vive en
 `autotrack-backend/src/config/roles.js`, y el frontend tiene su espejo en

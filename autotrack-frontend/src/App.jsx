@@ -8,6 +8,7 @@ import { asset } from './lib/assets';
 import Login from './pages/Login';
 import Sidebar, { sectionsFor } from './components/Sidebar';
 import { Button, Icon } from './components/ui';
+import { SelectorVistaPrevia, AvisoVistaPrevia } from './components/VistaPreviaRol';
 import { TicketsView, TicketReports } from './components/tickets';
 
 import DashboardView from './components/DashboardView';
@@ -120,7 +121,15 @@ export default function App() {
 function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToast }) {
   const { tickets } = useTickets();
 
-  const [section, setSection]         = useState(() => defaultSection(user.role));
+  /* Vista previa de rol: cambia lo que se muestra, nunca los permisos reales.
+     Se guarda en la pestaña para que sobreviva a una recarga, pero no al
+     navegador: no debe quedarse puesta sin que nadie se acuerde. */
+  const [previewRole, setPreviewRole] = useState(
+    () => sessionStorage.getItem('rb-ver-como') || null,
+  );
+  const vistaUser = previewRole ? { ...user, role: previewRole } : user;
+
+  const [section, setSection]         = useState(() => defaultSection(vistaUser.role));
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sectionKey, setSectionKey]   = useState(0);
   const [projects, setProjects]       = useState([]);
@@ -151,9 +160,9 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
   /* La sección activa siempre tiene que existir para el rol: si alguien cambia
      de rol o llega con un estado viejo, se cae a la sección por defecto. */
   useEffect(() => {
-    const allowed = sectionsFor(user.role).map(s => s.id);
-    if (!allowed.includes(section)) setSection(defaultSection(user.role));
-  }, [user.role, section]);
+    const allowed = sectionsFor(vistaUser.role).map(s => s.id);
+    if (!allowed.includes(section)) setSection(defaultSection(vistaUser.role));
+  }, [vistaUser.role, section]);
 
   /* Enlace directo desde un correo de notificación (?project=<id>). */
   useEffect(() => {
@@ -173,7 +182,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
      lo suyo, lo compartido y las asignaciones flash que sean realmente de
      alguien de su equipo: una flash puede ser de cualquiera de los dos, así
      que se valida por responsable y no por el tipo. */
-  const equipos = teamsOf(user);
+  const equipos = teamsOf(vistaUser);
   const soloUnEquipo = equipos.length === 1 ? equipos[0] : null;
 
   const idsDelEquipo = new Set(
@@ -192,9 +201,9 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
     ? visibleProjects.find(p => p.id === detailModal.projectId)
     : null;
 
-  const isLeader     = can(user, 'gestionarProyectos');
-  const canManage    = can(user, 'crearProyectos');
-  const desk         = isDesk(user);
+  const isLeader     = can(vistaUser, 'gestionarProyectos');
+  const canManage    = can(vistaUser, 'crearProyectos');
+  const desk         = isDesk(vistaUser);
   const isTicketView = ['inbox', 'mine', 'board', 'reports'].includes(section);
 
   /* Contadores del menú — dicen dónde hay trabajo esperando. */
@@ -215,10 +224,19 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
 
   let { title, sub } = TITLES[section] || TITLES.inbox;
   if (section === 'mine' && !desk) sub = 'Tus solicitudes a la mesa de servicio y en qué va cada una';
-  if (section === 'dashboard' && can(user, 'ejecuta')) {
+  if (section === 'dashboard' && can(vistaUser, 'ejecuta')) {
     title = 'Mi panel';
     sub   = 'Tus tareas pendientes y tus trabajos en curso';
   }
+
+  const verComo = (rol) => {
+    setPreviewRole(rol);
+    if (rol) sessionStorage.setItem('rb-ver-como', rol);
+    else sessionStorage.removeItem('rb-ver-como');
+    // La sección actual puede no existir para ese rol: se entra por su inicio.
+    setSection(defaultSection(rol || user.role));
+    setSectionKey(k => k + 1);
+  };
 
   const changeSection = (id) => {
     setSection(id);
@@ -399,7 +417,8 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
       <div className="rb-shell">
         {sidebarOpen && <div className="rb-scrim" onClick={() => setSidebarOpen(false)} />}
         <Sidebar
-          section={section} onSection={changeSection} user={user}
+          section={section} onSection={changeSection}
+          user={user} viewRole={previewRole}
           onLogout={logout} isOpen={sidebarOpen} badges={badges}
         />
 
@@ -416,6 +435,9 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
             <div className="rb-topbar-actions">
               {desk && !isTicketView && <ProjectSearch projects={visibleProjects} onSelect={openDetail} />}
               {desk && <NotificationBell onOpenProject={openDetail} />}
+              {can(user, 'gestionarUsuarios') && (
+                <SelectorVistaPrevia valor={previewRole} onChange={verComo} />
+              )}
               {showNewProject && (
                 <Button variant="primary" icon="plus" onClick={() => openNewProject('backlog')}>
                   Nuevo proyecto
@@ -424,18 +446,20 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
             </div>
           </header>
 
+          <AvisoVistaPrevia rol={previewRole} onSalir={() => verComo(null)} />
+
           <main className="rb-page" key={sectionKey}>
             {isTicketView && (
               section === 'reports'
                 ? <TicketReports />
                 : <TicketsView
-                    view={section} user={user} users={users} showToast={showToast}
+                    view={section} user={vistaUser} users={users} showToast={showToast}
                     onProjectCreated={(project) => setProjects(ps => [project, ...ps])}
                   />
             )}
 
             {section === 'dashboard' && (
-              can(user, 'ejecuta')
+              can(vistaUser, 'ejecuta')
                 ? <PersonalDashboardView projects={visibleProjects} users={users} currentUser={user}
                     onCardClick={openDetail} onNavigate={changeSection} />
                 : <DashboardView projects={visibleProjects} users={users} solicitudes={tickets}
