@@ -119,7 +119,7 @@ cd autotrack-frontend && npm install && npm run dev
 | `leader_analytics` | Líder de Analítica  | analítica | Coordina su equipo y elimina lo suyo |
 | `member_analytics` | Analista de Datos   | analítica | Ejecuta sus trabajos y hace triage de sus tickets |
 | `engineer`         | Analista            | automatización | Ejecuta los trabajos que tiene asignados |
-| `manager`          | Gerencia            | ambos   | Solo lectura. Entra al **Panorama**: pendiente, ritmo, tiempos y entregas comprometidas |
+| `manager`          | Gerencia            | ambos   | **Solo consulta**: ve todo y no interviene. Ni radica, ni se le asigna nada, ni aparece como responsable. Entra al **Panorama** |
 | `user`             | Auditor solicitante | —       | Radica tickets y sigue los suyos |
 
 ### Ver la aplicación como otro rol

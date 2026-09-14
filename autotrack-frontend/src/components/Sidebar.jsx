@@ -17,13 +17,15 @@ import Icon from './ui/Icon';
  * menú se recalcula solo y no queda ninguna lista que olvidar actualizar.
  *
  *   cap    — capacidad necesaria (ver ROLE en lib/tickets.js)
+ *   sinCap — capacidad que la descarta
  *   equipo — además, que el rol trabaje con ese equipo
  *   badge  — métrica que muestra la entrada; App la calcula
  */
 export const SECTIONS = [
   { group: 'Mesa de servicio' },
   { id: 'inbox',  label: 'Bandeja',     icon: 'inbox',  cap: 'bandeja', badge: 'unassigned' },
-  { id: 'mine',   label: 'Mis tickets', icon: 'ticket', badge: 'mine' },   // todos, incluido el auditor
+  // Todos menos quien solo observa: gerencia no radica ni se le asigna nada.
+  { id: 'mine',   label: 'Mis tickets', icon: 'ticket', badge: 'mine', sinCap: 'soloLectura' },
   { id: 'board',  label: 'Flujo',       icon: 'board',  cap: 'bandeja' },
 
   { group: 'Ejecución' },
@@ -43,6 +45,7 @@ export const SECTIONS = [
 /** ¿Este rol puede abrir esta sección? */
 function habilitada(seccion, user) {
   if (seccion.cap && !can(user, seccion.cap)) return false;
+  if (seccion.sinCap && can(user, seccion.sinCap)) return false;
   if (seccion.equipo && !teamsOf(user).includes(seccion.equipo)) return false;
   return true;
 }

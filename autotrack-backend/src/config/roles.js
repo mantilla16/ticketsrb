@@ -27,6 +27,7 @@ const ROLES = {
     editarProyectosPropios: false,   // …así que no necesita este permiso menor
     eliminarProyectos: true,
     gestionarUsuarios: true,
+    soloLectura: false,
     equipos: [AUTO, ANA],
   },
 
@@ -43,6 +44,7 @@ const ROLES = {
     gestionarUsuarios: false,
     gestionarProyectos: true,
     editarProyectosPropios: false,
+    soloLectura: false,
     equipos: [AUTO, ANA],
   },
 
@@ -56,6 +58,7 @@ const ROLES = {
     gestionarUsuarios: false,
     gestionarProyectos: true,
     editarProyectosPropios: false,
+    soloLectura: false,
     equipos: [ANA],
   },
 
@@ -69,6 +72,7 @@ const ROLES = {
     gestionarUsuarios: false,
     gestionarProyectos: false,
     editarProyectosPropios: true,
+    soloLectura: false,
     equipos: [ANA],
   },
 
@@ -82,9 +86,13 @@ const ROLES = {
     gestionarUsuarios: false,
     gestionarProyectos: false,
     editarProyectosPropios: true,
+    soloLectura: false,
     equipos: [AUTO],
   },
 
+  /* Puramente consultivo: ve todo lo que pasa pero no radica, no se le asigna
+     nada y no interviene. Por eso `soloLectura`, que además lo saca de los
+     selectores de responsable y le ahorra el menú de trabajo propio. */
   manager: {
     etiqueta: 'Gerencia',
     bandeja: true,
@@ -95,6 +103,7 @@ const ROLES = {
     gestionarUsuarios: false,
     gestionarProyectos: false,
     editarProyectosPropios: false,
+    soloLectura: true,
     equipos: [AUTO, ANA],
   },
 
@@ -108,6 +117,7 @@ const ROLES = {
     gestionarUsuarios: false,
     gestionarProyectos: false,
     editarProyectosPropios: false,
+    soloLectura: false,
     equipos: [],
   },
 };

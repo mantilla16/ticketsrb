@@ -141,6 +141,7 @@ export const ROLE = {
     bandeja: true, triage: true, eliminarTickets: true,
     gestionarProyectos: true, crearProyectos: true, gestionarUsuarios: true,
     ejecuta: false,
+    soloLectura: false,
     equipos: ['automatizacion', 'analitica'],
   },
   /* Coordina la mesa completa sin poderes de administración: no gestiona
@@ -151,6 +152,7 @@ export const ROLE = {
     bandeja: true, triage: true, eliminarTickets: false,
     gestionarProyectos: true, crearProyectos: true, gestionarUsuarios: false,
     ejecuta: false,
+    soloLectura: false,
     equipos: ['automatizacion', 'analitica'],
   },
   leader_analytics: {
@@ -158,6 +160,7 @@ export const ROLE = {
     bandeja: true, triage: true, eliminarTickets: true,
     gestionarProyectos: true, crearProyectos: true, gestionarUsuarios: false,
     ejecuta: false,
+    soloLectura: false,
     equipos: ['analitica'],
   },
   member_analytics: {
@@ -165,6 +168,7 @@ export const ROLE = {
     bandeja: true, triage: true, eliminarTickets: false,
     gestionarProyectos: false, crearProyectos: true, gestionarUsuarios: false,
     ejecuta: true,
+    soloLectura: false,
     equipos: ['analitica'],
   },
   engineer: {
@@ -172,13 +176,16 @@ export const ROLE = {
     bandeja: true, triage: false, eliminarTickets: false,
     gestionarProyectos: false, crearProyectos: false, gestionarUsuarios: false,
     ejecuta: true,
+    soloLectura: false,
     equipos: ['automatizacion'],
   },
+  /* Puramente consultivo: ve todo pero no radica ni se le asigna nada. */
   manager: {
     label: 'Gerencia',
     bandeja: true, triage: false, eliminarTickets: false,
     gestionarProyectos: false, crearProyectos: false, gestionarUsuarios: false,
     ejecuta: false,
+    soloLectura: true,
     equipos: ['automatizacion', 'analitica'],
   },
   user: {
@@ -186,6 +193,7 @@ export const ROLE = {
     bandeja: false, triage: false, eliminarTickets: false,
     gestionarProyectos: false, crearProyectos: false, gestionarUsuarios: false,
     ejecuta: false,
+    soloLectura: false,
     equipos: [],
   },
 };
@@ -202,6 +210,9 @@ export const isDesk = (user) => can(user, 'bandeja');
 export const canTriage = (user) => can(user, 'triage');
 /** ¿Puede eliminar tickets? */
 export const canManage = (user) => can(user, 'eliminarTickets');
+/** ¿Solo observa? No radica, no se le asigna nada y no interviene. */
+export const esSoloLectura = (user) => can(user, 'soloLectura');
+
 /** ¿Ejecuta trabajos, o solo los coordina? Decide quién sale en los tableros. */
 export const ejecuta = (user) => can(user, 'ejecuta');
 /** Quienes ejecutan en un equipo dado — las columnas del tablero de equipo. */
