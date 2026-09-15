@@ -2,29 +2,25 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './context/AuthContext';
 import { TicketsProvider, useTickets } from './context/TicketsContext';
 import { projectsAPI, usersAPI } from './services/api';
-import { ORG, isDesk, isOpen, slaOf, can, teamsOf, roleOf, executorsOf, assignables } from './lib/tickets';
+import { ORG, isDesk, isOpen, slaOf, can, teamsOf, roleOf, assignables } from './lib/tickets';
 import { asset } from './lib/assets';
 
 import Login from './pages/Login';
 import Sidebar, { sectionsFor } from './components/Sidebar';
 import { Button, Icon } from './components/ui';
 import { SelectorVistaPrevia, AvisoVistaPrevia } from './components/VistaPreviaRol';
-import { TicketsView, TicketReports } from './components/tickets';
+import { TicketsView } from './components/tickets';
 
-import DashboardView from './components/DashboardView';
-import PersonalDashboardView from './components/PersonalDashboardView';
 import GanttView from './components/GanttView';
-import AnalyticsTeamView from './components/AnalyticsTeamView';
+import ProjectBoard from './components/ProjectBoard';
+import ProjectDetailPanel from './components/ProjectDetailPanel';
 import AnalyticsReportView from './components/AnalyticsReportView';
-import PortfolioAnalitica from './components/PortfolioAnalitica';
 import HistorialView from './components/HistorialView';
 import UsersView from './components/UsersView';
 import UserModal from './components/UserModal';
 import ProjectSearch from './components/ProjectSearch';
 import NotificationBell from './components/NotificationBell';
-import ReportPrint from './components/ReportPrint';
 import ProjectModal from './components/ProjectModal';
-import DetailModal from './components/DetailModal';
 import Toast, { useToast } from './components/Toast';
 
 /* Encabezado de cada sección. El subtítulo dice para qué sirve la pantalla,
@@ -34,11 +30,8 @@ const TITLES = {
   mine:          { title: 'Mis tickets',        sub: 'Lo que está a tu nombre' },
   board:         { title: 'Flujo de trabajo',   sub: 'Los tickets abiertos por etapa del proceso' },
   reports:       { title: 'Panorama',          sub: 'Qué hay pendiente, a qué ritmo avanzamos, cuánto tardamos y qué viene' },
-  dashboard:     { title: 'Panel de ejecución', sub: 'Estado del portafolio de trabajos en curso' },
+  projects:      { title: 'Proyectos',         sub: 'Tablero de todos los trabajos en curso por estado' },
   'analytics-report': { title: 'Reporte Analítica', sub: 'Seguimiento por cliente del equipo de analítica de datos' },
-  'portfolio-analitica': { title: 'Portafolio Analítica', sub: 'Qué se está haciendo por cliente y qué falta por hacer' },
-  'team-kanban': { title: 'Proyectos',          sub: 'Trabajos en ejecución del equipo de automatización' },
-  analytics:     { title: 'Equipo Analítica',   sub: 'Trabajos en ejecución del equipo de analítica de datos' },
   gantt:         { title: 'Cronograma',         sub: 'Línea de tiempo y avance de los trabajos en curso' },
   historial:     { title: 'Historial',          sub: 'Trabajos finalizados y cerrados' },
   users:         { title: 'Usuarios',           sub: 'Equipo, roles y accesos' },
@@ -138,7 +131,6 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sectionKey, setSectionKey]   = useState(0);
   const [projects, setProjects]       = useState([]);
-  const [dashPeriod, setDashPeriod]   = useState('all');
 
   const [projModal, setProjModal]     = useState({ open: false, project: null, defStatus: null, defAssigneeId: null, defClientIds: [], defArea: null });
   const [detailModal, setDetailModal] = useState({ open: false, projectId: null });
@@ -209,7 +201,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
   const isLeader     = can(vistaUser, 'gestionarProyectos');
   const canManage    = can(vistaUser, 'crearProyectos');
   const desk         = isDesk(vistaUser);
-  const isTicketView = ['inbox', 'mine', 'board', 'reports'].includes(section);
+  const isTicketView = ['inbox', 'mine', 'board'].includes(section);
 
   /* Contadores del menú — dicen dónde hay trabajo esperando. */
   const openTickets = tickets.filter(isOpen);
@@ -229,10 +221,6 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
 
   let { title, sub } = TITLES[section] || TITLES.inbox;
   if (section === 'mine' && !desk) sub = 'Tus solicitudes a la mesa de servicio y en qué va cada una';
-  if (section === 'dashboard' && can(vistaUser, 'ejecuta')) {
-    title = 'Mi panel';
-    sub   = 'Tus tareas pendientes y tus trabajos en curso';
-  }
 
   const verComo = (rol) => {
     setPreviewRole(rol);
@@ -338,19 +326,6 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
   const handleDeleteTask = (id, taskId)       => taskOp('remove')(id, taskId);
   const handleUpdateTask = (id, taskId, data) => taskOp('update')(id, taskId, data);
 
-  const handleCloseSupport = async (id) => {
-    const p = projects.find(x => x.id === id);
-    if (!p) return;
-    try {
-      const updated = await projectsAPI.update(id, projectPayload(p, { status: 'done', supportClosed: true }));
-      setProjects(ps => ps.map(x => (x.id === updated.id ? updated : x)));
-      setDetailModal({ open: false, projectId: null });
-      showToast(`Soporte de «${p.name}» cerrado`, 'success');
-    } catch {
-      showToast('Error al cerrar el soporte', 'error');
-    }
-  };
-
   /* Flujo permitido a quien ejecuta: En proceso → Testing → Finalizado/Soporte. */
   const ENGINEER_FLOW = { progress: ['testing'], testing: ['done', 'soporte'] };
 
@@ -413,7 +388,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
     }
   };
 
-  const showNewProject = canManage && ['team-kanban', 'analytics', 'portfolio-analitica'].includes(section);
+  const showNewProject = canManage && section === 'projects';
 
   /* ── Render ────────────────────────────────────────────────────────────── */
 
@@ -455,51 +430,23 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
 
           <main className="rb-page" key={sectionKey}>
             {isTicketView && (
-              section === 'reports'
-                ? <TicketReports projects={visibleProjects} />
-                : <TicketsView
-                    view={section} user={vistaUser} users={users} showToast={showToast}
-                    onProjectCreated={(project) => setProjects(ps => [project, ...ps])}
-                  />
-            )}
-
-            {section === 'dashboard' && (
-              can(vistaUser, 'ejecuta')
-                ? <PersonalDashboardView projects={visibleProjects} users={users} currentUser={user}
-                    onCardClick={openDetail} onNavigate={changeSection} />
-                : <DashboardView projects={visibleProjects} users={users} solicitudes={tickets}
-                    onCardClick={openDetail} onNavigate={changeSection} role={user.role}
-                    period={dashPeriod} onPeriodChange={setDashPeriod} />
-            )}
-
-            {section === 'team-kanban' && (
-              <AnalyticsTeamView
-                variant="auto" projects={visibleProjects}
-                users={executorsOf(users, 'automatizacion')} allUsers={users}
-                onCardClick={openDetail} onNavigate={changeSection}
+              <TicketsView
+                view={section} user={vistaUser} users={users} showToast={showToast}
+                onProjectCreated={(project) => setProjects(ps => [project, ...ps])}
               />
             )}
 
-            {section === 'analytics' && (
-              <AnalyticsTeamView
-                projects={projects}
-                users={executorsOf(users, 'analitica')} allUsers={users}
-                onCardClick={openDetail} onNavigate={changeSection}
+            {section === 'projects' && (
+              <ProjectBoard
+                projects={visibleProjects}
+                users={users} allUsers={users}
+                onCardClick={openDetail}
+                onNewProject={() => openNewProject('backlog')}
               />
             )}
 
             {section === 'analytics-report' && can(vistaUser, 'verReporteAnalitica') && (
               <AnalyticsReportView users={users} />
-            )}
-
-            {section === 'portfolio-analitica' && can(vistaUser, 'verReporteAnalitica') && (
-              <PortfolioAnalitica
-                projects={projects}
-                users={executorsOf(users, 'analitica')} allUsers={users}
-                currentUser={user}
-                onCardClick={openDetail}
-                onNewProject={(defClientIds) => openNewProject('backlog', null, defClientIds, 'analitica')}
-              />
             )}
 
             {section === 'gantt' && (
@@ -534,14 +481,14 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
           onClose={() => setProjModal(m => ({ ...m, open: false }))}
         />
 
-        <DetailModal
+        <ProjectDetailPanel
           open={detailModal.open} project={detailProject} currentUser={user} users={users}
           onClose={() => setDetailModal({ open: false, projectId: null })}
           onEdit={(id) => {
             setDetailModal({ open: false, projectId: null });
             setTimeout(() => openEditProject(id), 100);
           }}
-          onAddLog={handleAddLog} onCloseSupport={handleCloseSupport}
+          onAddLog={handleAddLog}
           onAddTask={handleAddTask} onToggleTask={handleToggleTask}
           onDeleteTask={handleDeleteTask} onUpdateTask={handleUpdateTask}
         />
@@ -553,20 +500,6 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
 
         <Toast toasts={toasts} onRemove={removeToast} />
       </div>
-
-      {/* Informe PDF — solo se materializa al imprimir desde el panel */}
-      {section === 'dashboard' && (
-        <ReportPrint
-          projects={dashPeriod === 'month'
-            ? projects.filter(p => {
-                const ms = new Date(); ms.setDate(1); ms.setHours(0, 0, 0, 0);
-                return p.createdAt && new Date(p.createdAt) >= ms;
-              })
-            : projects}
-          users={users} solicitudes={tickets}
-          periodLabel={dashPeriod === 'month' ? 'Este mes' : 'Todo el portafolio'}
-        />
-      )}
     </>
   );
 }

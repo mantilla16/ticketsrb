@@ -24,20 +24,16 @@ import Icon from './ui/Icon';
 export const SECTIONS = [
   { group: 'Mesa de servicio' },
   { id: 'inbox',  label: 'Bandeja',     icon: 'inbox',  cap: 'bandeja', badge: 'unassigned' },
-  { id: 'mine',   label: 'Mis tickets', icon: 'ticket', badge: 'mine' },   // todos: cualquiera puede radicar
+  { id: 'mine',   label: 'Mis tickets', icon: 'ticket', badge: 'mine' },
   { id: 'board',  label: 'Flujo',       icon: 'board',  cap: 'bandeja' },
 
-  { group: 'Ejecución' },
-  { id: 'team-kanban', label: 'Proyectos',        icon: 'users',    cap: 'bandeja', equipo: 'automatizacion' },
-  { id: 'analytics',   label: 'Equipo Analítica', icon: 'trend',    cap: 'bandeja', equipo: 'analitica' },
-  { id: 'gantt',       label: 'Cronograma',       icon: 'calendar', cap: 'bandeja' },
+  { group: 'Proyectos' },
+  { id: 'projects', label: 'Tablero',    icon: 'board',    cap: 'bandeja' },
+  { id: 'gantt',    label: 'Cronograma', icon: 'calendar', cap: 'bandeja' },
 
   { group: 'Análisis' },
-  { id: 'reports',             label: 'Panorama',           icon: 'chart', cap: 'bandeja' },
-  { id: 'portfolio-analitica', label: 'Portafolio Analítica', icon: 'building', cap: 'verReporteAnalitica' },
-  { id: 'analytics-report',    label: 'Reporte Analítica',   icon: 'chart', cap: 'verReporteAnalitica' },
-  { id: 'dashboard',           label: 'Panel',              icon: 'target', cap: 'bandeja' },
-  { id: 'historial',           label: 'Historial',          icon: 'archive', cap: 'bandeja' },
+  { id: 'analytics-report', label: 'Reporte Analítica', icon: 'chart', cap: 'verReporteAnalitica' },
+  { id: 'historial',        label: 'Historial',         icon: 'archive', cap: 'bandeja' },
 
   { group: 'Administración' },
   { id: 'users', label: 'Usuarios', icon: 'user', cap: 'gestionarUsuarios' },
