@@ -15,6 +15,7 @@ import DashboardView from './components/DashboardView';
 import PersonalDashboardView from './components/PersonalDashboardView';
 import GanttView from './components/GanttView';
 import AnalyticsTeamView from './components/AnalyticsTeamView';
+import AnalyticsReportView from './components/AnalyticsReportView';
 import HistorialView from './components/HistorialView';
 import UsersView from './components/UsersView';
 import UserModal from './components/UserModal';
@@ -33,6 +34,7 @@ const TITLES = {
   board:         { title: 'Flujo de trabajo',   sub: 'Los tickets abiertos por etapa del proceso' },
   reports:       { title: 'Panorama',          sub: 'Qué hay pendiente, a qué ritmo avanzamos, cuánto tardamos y qué viene' },
   dashboard:     { title: 'Panel de ejecución', sub: 'Estado del portafolio de trabajos en curso' },
+  'analytics-report': { title: 'Reporte Analítica', sub: 'Seguimiento por cliente del equipo de analítica de datos' },
   'team-kanban': { title: 'Proyectos',          sub: 'Trabajos en ejecución del equipo de automatización' },
   analytics:     { title: 'Equipo Analítica',   sub: 'Trabajos en ejecución del equipo de analítica de datos' },
   gantt:         { title: 'Cronograma',         sub: 'Línea de tiempo y avance de los trabajos en curso' },
@@ -481,6 +483,10 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
                 users={executorsOf(users, 'analitica')} allUsers={users}
                 onCardClick={openDetail} onNavigate={changeSection}
               />
+            )}
+
+            {section === 'analytics-report' && can(vistaUser, 'verReporteAnalitica') && (
+              <AnalyticsReportView users={users} />
             )}
 
             {section === 'gantt' && (

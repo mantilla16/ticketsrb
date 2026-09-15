@@ -60,6 +60,7 @@ app.use('/api/uploads', authDownload, express.static(path.join(__dirname, '../up
 
 app.use('/api/auth',         require('./routes/auth'));
 app.use('/api/projects',     require('./routes/projects'));
+app.use('/api/analytics-report', require('./routes/analyticsReport'));
 app.use('/api/users',        require('./routes/users'));
 app.use('/api/solicitudes',  require('./routes/solicitudes'));
 app.use('/api/notifications', require('./routes/notifications'));

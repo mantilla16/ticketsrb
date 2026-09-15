@@ -27,6 +27,7 @@ const ROLES = {
     editarProyectosPropios: false,   // …así que no necesita este permiso menor
     eliminarProyectos: true,
     gestionarUsuarios: true,
+    verReporteAnalitica: true,
     equipos: [AUTO, ANA],
   },
 
@@ -43,6 +44,7 @@ const ROLES = {
     gestionarUsuarios: false,
     gestionarProyectos: true,
     editarProyectosPropios: false,
+    verReporteAnalitica: true,
     equipos: [AUTO, ANA],
   },
 
@@ -97,6 +99,7 @@ const ROLES = {
     gestionarUsuarios: false,
     gestionarProyectos: false,
     editarProyectosPropios: false,
+    verReporteAnalitica: true,
     equipos: [AUTO, ANA],
   },
 

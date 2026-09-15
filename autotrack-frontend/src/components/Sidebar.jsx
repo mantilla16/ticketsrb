@@ -33,9 +33,10 @@ export const SECTIONS = [
   { id: 'gantt',       label: 'Cronograma',       icon: 'calendar', cap: 'bandeja' },
 
   { group: 'Análisis' },
-  { id: 'reports',   label: 'Panorama',  icon: 'chart',   cap: 'bandeja' },
-  { id: 'dashboard', label: 'Panel',     icon: 'target',  cap: 'bandeja' },
-  { id: 'historial', label: 'Historial', icon: 'archive', cap: 'bandeja' },
+  { id: 'reports',          label: 'Panorama',        icon: 'chart', cap: 'bandeja' },
+  { id: 'analytics-report', label: 'Reporte Analítica', icon: 'building', cap: 'verReporteAnalitica' },
+  { id: 'dashboard',        label: 'Panel',           icon: 'target', cap: 'bandeja' },
+  { id: 'historial',        label: 'Historial',       icon: 'archive', cap: 'bandeja' },
 
   { group: 'Administración' },
   { id: 'users', label: 'Usuarios', icon: 'user', cap: 'gestionarUsuarios' },

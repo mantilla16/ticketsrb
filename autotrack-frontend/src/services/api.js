@@ -57,4 +57,10 @@ export const solicitudesAPI = {
   remove:             (id)        => api.delete(`/solicitudes/${id}`),
 };
 
+export const analyticsReportAPI = {
+  getReport:        ()       => api.get('/analytics-report'),
+  getHistory:       ()       => api.get('/analytics-report/history'),
+  takeSnapshot:     ()       => api.post('/analytics-report/snapshot'),
+};
+
 export default api;

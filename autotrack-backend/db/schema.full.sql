@@ -167,3 +167,23 @@ CREATE INDEX IF NOT EXISTS idx_notif_user_unread   ON notifications(user_id, is_
 CREATE INDEX IF NOT EXISTS idx_solicitudes_user    ON solicitudes(user_id);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_status  ON solicitudes(status);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_equipo  ON solicitudes(equipo);
+
+-- ──────────────────── analytics_client_snapshots ─────────────────────────
+-- Snapshots del estado consolidado de proyectos de analítica por cliente.
+-- Permiten ver tendencias de avance sin depender de que se registren avances.
+CREATE TABLE IF NOT EXISTS analytics_client_snapshots (
+  id                 SERIAL PRIMARY KEY,
+  snapshot_date      DATE NOT NULL DEFAULT CURRENT_DATE,
+  client_name        VARCHAR(100) NOT NULL,
+  total_projects     INTEGER DEFAULT 0,
+  active_projects    INTEGER DEFAULT 0,
+  completed_projects INTEGER DEFAULT 0,
+  standby_projects   INTEGER DEFAULT 0,
+  testing_projects   INTEGER DEFAULT 0,
+  avg_progress       INTEGER DEFAULT 0,
+  recorded_by        INTEGER REFERENCES users(id),
+  created_at         TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_client_date
+  ON analytics_client_snapshots(client_name, snapshot_date DESC);
