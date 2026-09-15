@@ -1,10 +1,10 @@
 /* ProjectDetailPanel — panel lateral de detalle estilo Notion/Linear.
-   Se desliza desde la derecha mostrando: nombre editable, estado, prioridad,
-   descripción, tareas con check/inline edit, clientes, seguimiento. */
+   Tareas agrupadas por cliente/sección. Cada sección colapsable con sus
+   propias tareas y botón "+" que auto-asigna el clientId. */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { assignables } from '../lib/tickets';
-import { fmtDate, colorClass, fmtLogDate } from '../utils/helpers';
+import { fmtDate, fmtLogDate } from '../utils/helpers';
 import { analyticsReportAPI } from '../services/api';
 
 const STATUS_L = {
@@ -33,7 +33,8 @@ const isOverdue = (d) => {
   return new Date(d + 'T00:00:00') < new Date(new Date().toDateString());
 };
 
-function Section({ title, count, children, defaultOpen = true }) {
+/* Sección colapsable genérica */
+function Section({ title, count, children, defaultOpen = true, accent }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="dp-section">
@@ -42,6 +43,7 @@ function Section({ title, count, children, defaultOpen = true }) {
           style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>
           <polyline points="9 18 15 12 9 6"/>
         </svg>
+        {accent && <span className="dp-section-dot" style={{ background: accent }} />}
         {title}
         {count != null && <span className="dp-section-count">{count}</span>}
       </button>
@@ -50,12 +52,129 @@ function Section({ title, count, children, defaultOpen = true }) {
   );
 }
 
+/* Renderiza una lista de tareas (usada tanto para General como por cliente) */
+function TaskList({ tasks, canEdit, busyTaskIds, taskAssigneePool, analyticsClients, project, tipo,
+                    onToggle, onDelete, onEdit, editingTaskId, setEditingTaskId,
+                    editPriority, setEditPriority, editClientId, setEditClientId,
+                    editAssignee, setEditAssignee, saveEditTask }) {
+  return (
+    <div className="dp-tasks">
+      {tasks.map(t => {
+        const owner = t.assigneeId ? taskAssigneePool.find(u => u.id === t.assigneeId) : null;
+        return (
+          <div key={t.id} className="dp-task">
+            <button className={`task-check${t.done ? ' task-check--done' : ''}`}
+              disabled={!canEdit || busyTaskIds.has(t.id)}
+              onClick={() => canEdit && onToggle(t.id)}>
+              {t.done && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+            </button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
+              {t.dueDate && (
+                <span className="dp-task-date" style={isOverdue(t.dueDate) ? { color: 'var(--rb-danger)' } : undefined}>
+                  {fmtShort(t.dueDate)}
+                </span>
+              )}
+            </div>
+            {t.priority && (
+              <span className="pill-mini" style={{ background: PR_BG[t.priority], color: PR_C[t.priority], fontSize: 10.5 }}>
+                {PR_L[t.priority]}
+              </span>
+            )}
+            {owner && <span className={`rb-avatar rb-avatar--sm`} data-c={(owner.colorIndex ?? 0) % 8} title={owner.name}>{owner.initials}</span>}
+            {canEdit && (
+              <button className="task-del" style={{ opacity: 1 }} onClick={() => {
+                setEditingTaskId(editingTaskId === t.id ? null : t.id);
+                setEditPriority(t.priority || 'mid');
+                setEditClientId(t.clientId ? String(t.clientId) : '');
+                setEditAssignee(t.assigneeId ? String(t.assigneeId) : '');
+              }} title="Editar tarea">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              </button>
+            )}
+            {canEdit && (
+              <button className="task-del" disabled={busyTaskIds.has(t.id)}
+                onClick={() => onDelete(t.id)} title="Eliminar">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            )}
+            {editingTaskId === t.id && (
+              <div className="dp-task-edit">
+                <select className="rb-select" style={{ width: 90, height: 30, fontSize: 12 }}
+                  value={editPriority} onChange={e => setEditPriority(e.target.value)}>
+                  <option value="high">Alta</option>
+                  <option value="mid">Media</option>
+                  <option value="low">Baja</option>
+                </select>
+                {tipo === 'analitica' && (
+                  <select className="rb-select" style={{ width: 120, height: 30, fontSize: 12 }}
+                    value={editClientId} onChange={e => setEditClientId(e.target.value)}>
+                    <option value="">General</option>
+                    {analyticsClients.filter(c => c.active && (project.clients || []).some(pc => pc.id === c.id)).map(c =>
+                      <option key={c.id} value={String(c.id)}>{c.name}</option>
+                    )}
+                  </select>
+                )}
+                <select className="rb-select" style={{ flex: 1, height: 30, fontSize: 12 }}
+                  value={editAssignee} onChange={e => setEditAssignee(e.target.value)}>
+                  <option value="">Sin asignar</option>
+                  {taskAssigneePool.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
+                </select>
+                <button className="rb-btn rb-btn--primary rb-btn--sm" style={{ height: 30 }}
+                  disabled={busyTaskIds.has(t.id)} onClick={() => saveEditTask(t.id)}>Guardar</button>
+                <button className="rb-btn rb-btn--ghost rb-btn--sm" style={{ height: 30 }}
+                  onClick={() => setEditingTaskId(null)}>Cancelar</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Formulario inline para agregar tarea dentro de una sección de cliente */
+function AddTaskInline({ clientId, canEdit, taskSaving, onAdd, taskAssigneePool, tipo, analyticsClients, project }) {
+  const [text, setText] = useState('');
+  const [date, setDate] = useState('');
+  const [priority, setPriority] = useState('mid');
+  const [assignee, setAssignee] = useState('');
+
+  const add = () => {
+    if (!text.trim()) return;
+    onAdd({ text: text.trim(), clientId: clientId || null, date: date || null, priority, assigneeId: assignee ? Number(assignee) : null });
+    setText(''); setDate(''); setPriority('mid');
+  };
+
+  return (
+    <div className="dp-add-task">
+      <input className="rb-input" style={{ flex: 1, minWidth: 120, height: 30, fontSize: 12 }}
+        placeholder="Nueva tarea…" value={text} onChange={e => setText(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && add()} />
+      <select className="rb-select" style={{ width: 80, height: 30, fontSize: 12 }}
+        value={priority} onChange={e => setPriority(e.target.value)}>
+        <option value="high">Alta</option>
+        <option value="mid">Media</option>
+        <option value="low">Baja</option>
+      </select>
+      <input className="rb-input" type="date" style={{ width: 110, height: 30, fontSize: 12 }}
+        value={date} onChange={e => setDate(e.target.value)} />
+      {taskAssigneePool.length > 0 && (
+        <select className="rb-select" style={{ width: 110, height: 30, fontSize: 12 }}
+          value={assignee} onChange={e => setAssignee(e.target.value)}>
+          <option value="" disabled>Asignar a…</option>
+          {taskAssigneePool.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
+        </select>
+      )}
+      <button className="rb-btn rb-btn--primary rb-btn--sm" style={{ height: 30 }}
+        onClick={add} disabled={taskSaving || !text.trim()}>
+        {taskSaving ? '...' : 'Agregar'}
+      </button>
+    </div>
+  );
+}
+
 export default function ProjectDetailPanel({ open, project, onClose, onEdit, onAddLog, onAddTask, onToggleTask, onDeleteTask, onUpdateTask, currentUser, users = [] }) {
-  const [taskText, setTaskText]       = useState('');
-  const [taskDate, setTaskDate]       = useState('');
-  const [taskPriority, setTaskPriority] = useState('mid');
-  const [taskClientId, setTaskClientId] = useState('');
-  const [taskAssignee, setTaskAssignee] = useState('');
   const [taskSaving, setTaskSaving]   = useState(false);
   const [busyTaskIds, setBusyTaskIds] = useState(new Set());
   const [analyticsClients, setAnalyticsClients] = useState([]);
@@ -90,40 +209,46 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
 
   useEffect(() => {
     if (open) {
-      setTaskText(''); setTaskDate(''); setTaskPriority('mid'); setTaskClientId('');
       setEditingTaskId(null); setLogText(''); setIsBlock(false); setError('');
-      const self = taskAssigneePool.some(u => u.id === currentUser?.id);
-      setTaskAssignee(self ? String(currentUser.id) : '');
     }
   }, [project?.id, open]);
 
   if (!open || !project) return null;
 
-  const tasks     = project.tasks || [];
-  const tasksDone = tasks.filter(t => t.done).length;
+  const allTasks  = project.tasks || [];
+  const tasksDone = allTasks.filter(t => t.done).length;
   const pct       = project.progress || 0;
   const st        = STATUS_L[project.status] || project.status;
   const people    = project.assignees?.length ? project.assignees : (project.assignee ? [project.assignee] : []);
+  const clients   = project.clients || [];
 
-  const addTask = async () => {
-    if (!taskText.trim() || taskSaving) return;
-    setTaskSaving(true);
-    try {
-      await onAddTask(project.id, taskText.trim(), {
-        weight: 2, priority: taskPriority,
-        clientId: taskClientId ? Number(taskClientId) : null,
-        assigneeId: taskAssignee ? Number(taskAssignee) : null,
-        dueDate: taskDate || null,
-      });
-      setTaskText(''); setTaskDate(''); setTaskPriority('mid'); setTaskClientId('');
-    } finally { setTaskSaving(false); }
-  };
+  /* Agrupar tareas por cliente */
+  const tasksByClient = useMemo(() => {
+    const grouped = {};
+    const clientIds = new Set(clients.map(c => c.id));
+
+    allTasks.forEach(t => {
+      const cid = t.clientId;
+      if (cid && clientIds.has(cid)) {
+        if (!grouped[cid]) grouped[cid] = [];
+        grouped[cid].push(t);
+      } else {
+        if (!grouped['_general']) grouped['_general'] = [];
+        grouped['_general'].push(t);
+      }
+    });
+
+    return grouped;
+  }, [allTasks, clients]);
 
   const withTaskBusy = async (taskId, fn) => {
     if (busyTaskIds.has(taskId)) return;
     setBusyTaskIds(s => new Set(s).add(taskId));
     try { await fn(); } finally { setBusyTaskIds(s => { const n = new Set(s); n.delete(taskId); return n; }); }
   };
+
+  const handleToggle = (taskId) => withTaskBusy(taskId, () => onToggleTask(project.id, taskId, !allTasks.find(t => t.id === taskId)?.done));
+  const handleDelete = (taskId) => withTaskBusy(taskId, () => onDeleteTask(project.id, taskId));
 
   const saveEditTask = async (taskId) => {
     await withTaskBusy(taskId, () => onUpdateTask(project.id, taskId, {
@@ -132,6 +257,16 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
       clientId: editClientId ? Number(editClientId) : null,
     }));
     setEditingTaskId(null);
+  };
+
+  const handleAddTaskInSection = (clientId) => async ({ text, date, priority, assigneeId }) => {
+    setTaskSaving(true);
+    try {
+      await onAddTask(project.id, text, {
+        weight: 2, priority, clientId: clientId || null,
+        assigneeId: assigneeId || null, dueDate: date || null,
+      });
+    } finally { setTaskSaving(false); }
   };
 
   const addLog = async () => {
@@ -143,6 +278,8 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
     } catch (err) { setError(err.error || 'Error al guardar'); }
     finally { setLogSaving(false); }
   };
+
+  const showSections = clients.length > 0;
 
   return (
     <div className="rb-drawer-backdrop" onClick={onClose}>
@@ -216,134 +353,73 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
             </Section>
           )}
 
-          {/* Tareas */}
-          <Section title="Tareas" count={`${tasksDone}/${tasks.length}`}>
-            {tasks.length > 0 && (
-              <div className="dp-tasks">
-                {tasks.map(t => {
-                  const owner = t.assigneeId ? taskAssigneePool.find(u => u.id === t.assigneeId) : null;
-                  const cl = t.clientId ? analyticsClients.find(c => c.id === t.clientId) : null;
-                  return (
-                    <div key={t.id} className="dp-task">
-                      <button className={`task-check${t.done ? ' task-check--done' : ''}`}
-                        disabled={!canEdit || busyTaskIds.has(t.id)}
-                        onClick={() => canEdit && withTaskBusy(t.id, () => onToggleTask(project.id, t.id, !t.done))}>
-                        {t.done && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                      </button>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
-                        {t.dueDate && (
-                          <span className="dp-task-date" style={isOverdue(t.dueDate) ? { color: 'var(--rb-danger)' } : undefined}>
-                            {fmtShort(t.dueDate)}
-                          </span>
-                        )}
-                      </div>
-                      {t.priority && (
-                        <span className="pill-mini" style={{ background: PR_BG[t.priority], color: PR_C[t.priority], fontSize: 10.5 }}>
-                          {PR_L[t.priority]}
-                        </span>
-                      )}
-                      {cl && <span className="pill-mini" style={{ background: 'var(--rb-magenta-tint)', color: 'var(--rb-magenta-ink)', fontSize: 10.5 }}>{cl.name}</span>}
-                      {owner && <span className={`rb-avatar rb-avatar--sm`} data-c={(owner.colorIndex ?? 0) % 8} title={owner.name}>{owner.initials}</span>}
-                      {canEdit && (
-                        <button className="task-del" style={{ opacity: 1 }} onClick={() => {
-                          setEditingTaskId(editingTaskId === t.id ? null : t.id);
-                          setEditPriority(t.priority || 'mid');
-                          setEditClientId(t.clientId ? String(t.clientId) : '');
-                          setEditAssignee(t.assigneeId ? String(t.assigneeId) : '');
-                        }} title="Editar tarea">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                        </button>
-                      )}
-                      {canEdit && (
-                        <button className="task-del" disabled={busyTaskIds.has(t.id)}
-                          onClick={() => withTaskBusy(t.id, () => onDeleteTask(project.id, t.id))} title="Eliminar">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
-                      )}
-                      {editingTaskId === t.id && (
-                        <div className="dp-task-edit">
-                          <select className="rb-select" style={{ width: 90, height: 30, fontSize: 12 }}
-                            value={editPriority} onChange={e => setEditPriority(e.target.value)}>
-                            <option value="high">Alta</option>
-                            <option value="mid">Media</option>
-                            <option value="low">Baja</option>
-                          </select>
-                          {tipo === 'analitica' && (
-                            <select className="rb-select" style={{ width: 120, height: 30, fontSize: 12 }}
-                              value={editClientId} onChange={e => setEditClientId(e.target.value)}>
-                              <option value="">General</option>
-                              {analyticsClients.filter(c => c.active && (project.clients || []).some(pc => pc.id === c.id)).map(c =>
-                                <option key={c.id} value={String(c.id)}>{c.name}</option>
-                              )}
-                            </select>
-                          )}
-                          <select className="rb-select" style={{ flex: 1, height: 30, fontSize: 12 }}
-                            value={editAssignee} onChange={e => setEditAssignee(e.target.value)}>
-                            <option value="">Sin asignar</option>
-                            {taskAssigneePool.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
-                          </select>
-                          <button className="rb-btn rb-btn--primary rb-btn--sm" style={{ height: 30 }}
-                            disabled={busyTaskIds.has(t.id)} onClick={() => saveEditTask(t.id)}>Guardar</button>
-                          <button className="rb-btn rb-btn--ghost rb-btn--sm" style={{ height: 30 }}
-                            onClick={() => setEditingTaskId(null)}>Cancelar</button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Agregar tarea */}
-            {canEdit && editingTaskId == null && (
-              <div className="dp-add-task">
-                <input className="rb-input" style={{ flex: 1, minWidth: 140, height: 32, fontSize: 12 }}
-                  placeholder="Nueva tarea…" value={taskText}
-                  onChange={e => setTaskText(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addTask()} />
-                <select className="rb-select" style={{ width: 90, height: 32, fontSize: 12 }}
-                  value={taskPriority} onChange={e => setTaskPriority(e.target.value)}>
-                  <option value="high">Alta</option>
-                  <option value="mid">Media</option>
-                  <option value="low">Baja</option>
-                </select>
-                <input className="rb-input" type="date" style={{ width: 120, height: 32, fontSize: 12 }}
-                  value={taskDate} onChange={e => setTaskDate(e.target.value)} />
-                {tipo === 'analitica' && (
-                  <select className="rb-select" style={{ width: 120, height: 32, fontSize: 12 }}
-                    value={taskClientId} onChange={e => setTaskClientId(e.target.value)}>
-                    <option value="">General</option>
-                    {analyticsClients.filter(c => c.active && (project.clients || []).some(pc => pc.id === c.id)).map(c =>
-                      <option key={c.id} value={String(c.id)}>{c.name}</option>
+          {/* Tareas agrupadas por cliente */}
+          {showSections ? (
+            <>
+              {clients.map(c => {
+                const clientTasks = tasksByClient[c.id] || [];
+                const clientDone  = clientTasks.filter(t => t.done).length;
+                const sectionTitle = c.sectionTitle || c.name;
+                return (
+                  <Section key={c.id} title={sectionTitle} count={`${clientDone}/${clientTasks.length}`}
+                    accent="var(--rb-magenta)">
+                    <TaskList tasks={clientTasks} canEdit={canEdit} busyTaskIds={busyTaskIds}
+                      taskAssigneePool={taskAssigneePool} analyticsClients={analyticsClients}
+                      project={project} tipo={tipo}
+                      onToggle={handleToggle} onDelete={handleDelete}
+                      editingTaskId={editingTaskId} setEditingTaskId={setEditingTaskId}
+                      editPriority={editPriority} setEditPriority={setEditPriority}
+                      editClientId={editClientId} setEditClientId={setEditClientId}
+                      editAssignee={editAssignee} setEditAssignee={setEditAssignee}
+                      saveEditTask={saveEditTask} />
+                    {canEdit && editingTaskId == null && (
+                      <AddTaskInline clientId={c.id} canEdit={canEdit} taskSaving={taskSaving}
+                        onAdd={handleAddTaskInSection(c.id)} taskAssigneePool={taskAssigneePool}
+                        tipo={tipo} analyticsClients={analyticsClients} project={project} />
                     )}
-                  </select>
-                )}
-                {taskAssigneePool.length > 0 && (
-                  <select className="rb-select" style={{ width: 120, height: 32, fontSize: 12 }}
-                    value={taskAssignee} onChange={e => setTaskAssignee(e.target.value)}>
-                    <option value="" disabled>Asignar a…</option>
-                    {taskAssigneePool.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
-                  </select>
-                )}
-                <button className="rb-btn rb-btn--primary rb-btn--sm" style={{ height: 32 }}
-                  onClick={addTask} disabled={taskSaving || !taskText.trim()}>
-                  {taskSaving ? '...' : 'Agregar'}
-                </button>
-              </div>
-            )}
-          </Section>
+                  </Section>
+                );
+              })}
 
-          {/* Clientes (solo analítica) */}
-          {tipo === 'analitica' && project.clients?.length > 0 && (
-            <Section title="Clientes" count={project.clients.length}>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {project.clients.map(c => (
-                  <span key={c.id} className="pill-mini" style={{ background: 'var(--rb-magenta-tint)', color: 'var(--rb-magenta-ink)', fontSize: 12, padding: '4px 10px' }}>
-                    {c.name}
-                  </span>
-                ))}
-              </div>
+              {(tasksByClient['_general'] || []).length > 0 && (
+                <Section title="General" count={`${(tasksByClient['_general'] || []).filter(t => t.done).length}/${(tasksByClient['_general'] || []).length}`}>
+                  <TaskList tasks={tasksByClient['_general']} canEdit={canEdit} busyTaskIds={busyTaskIds}
+                    taskAssigneePool={taskAssigneePool} analyticsClients={analyticsClients}
+                    project={project} tipo={tipo}
+                    onToggle={handleToggle} onDelete={handleDelete}
+                    editingTaskId={editingTaskId} setEditingTaskId={setEditingTaskId}
+                    editPriority={editPriority} setEditPriority={setEditPriority}
+                    editClientId={editClientId} setEditClientId={setEditClientId}
+                    editAssignee={editAssignee} setEditAssignee={setEditAssignee}
+                    saveEditTask={saveEditTask} />
+                </Section>
+              )}
+
+              {canEdit && editingTaskId == null && (tasksByClient['_general'] || []).length === 0 && (
+                <Section title="General" count="0" defaultOpen={false}>
+                  <AddTaskInline clientId={null} canEdit={canEdit} taskSaving={taskSaving}
+                    onAdd={handleAddTaskInSection(null)} taskAssigneePool={taskAssigneePool}
+                    tipo={tipo} analyticsClients={analyticsClients} project={project} />
+                </Section>
+              )}
+            </>
+          ) : (
+            /* Sin clientes: vista plana (fallback) */
+            <Section title="Tareas" count={`${tasksDone}/${allTasks.length}`}>
+              <TaskList tasks={allTasks} canEdit={canEdit} busyTaskIds={busyTaskIds}
+                taskAssigneePool={taskAssigneePool} analyticsClients={analyticsClients}
+                project={project} tipo={tipo}
+                onToggle={handleToggle} onDelete={handleDelete}
+                editingTaskId={editingTaskId} setEditingTaskId={setEditingTaskId}
+                editPriority={editPriority} setEditPriority={setEditPriority}
+                editClientId={editClientId} setEditClientId={setEditClientId}
+                editAssignee={editAssignee} setEditAssignee={setEditAssignee}
+                saveEditTask={saveEditTask} />
+              {canEdit && editingTaskId == null && (
+                <AddTaskInline clientId={null} canEdit={canEdit} taskSaving={taskSaving}
+                  onAdd={handleAddTaskInSection(null)} taskAssigneePool={taskAssigneePool}
+                  tipo={tipo} analyticsClients={analyticsClients} project={project} />
+              )}
             </Section>
           )}
 

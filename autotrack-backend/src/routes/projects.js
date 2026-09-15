@@ -84,35 +84,40 @@ function ensureProjectClientsTable() {
       CREATE TABLE IF NOT EXISTS project_clients (
         project_id VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
         client_id  INTEGER     NOT NULL REFERENCES analytics_clients(id) ON DELETE CASCADE,
+        section_title VARCHAR(200),
         PRIMARY KEY (project_id, client_id)
       )
+    `)).then(() => pool.query(`
+      ALTER TABLE project_clients ADD COLUMN IF NOT EXISTS section_title VARCHAR(200)
     `)).catch(err => { projectClientsReady = null; throw err; });
   }
   return projectClientsReady;
 }
 
 // Reemplaza el conjunto completo de clientes de un proyecto de analítica
-async function syncProjectClients(projectId, clientIds) {
+async function syncProjectClients(projectId, clientIds, sectionTitles = {}) {
   await ensureProjectClientsTable();
   await pool.query('DELETE FROM project_clients WHERE project_id=$1', [projectId]);
   const ids = [...new Set((clientIds || []).filter(Boolean).map(Number))];
   if (!ids.length) return;
-  const values = ids.map((_, i) => `($1,$${i + 2})`).join(',');
-  await pool.query(
-    `INSERT INTO project_clients (project_id, client_id) VALUES ${values} ON CONFLICT DO NOTHING`,
-    [projectId, ...ids],
-  );
+  for (const id of ids) {
+    const title = sectionTitles[id] || null;
+    await pool.query(
+      'INSERT INTO project_clients (project_id, client_id, section_title) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+      [projectId, id, title],
+    );
+  }
 }
 
 async function projectClientsOf(projectId) {
   await ensureProjectClientsTable();
   const { rows } = await pool.query(`
-    SELECT ac.id, ac.name, ac.active
+    SELECT ac.id, ac.name, ac.active, pc.section_title
     FROM project_clients pc
     JOIN analytics_clients ac ON ac.id = pc.client_id
     WHERE pc.project_id = $1
   `, [projectId]);
-  return rows;
+  return rows.map(r => ({ id: r.id, name: r.name, active: r.active, sectionTitle: r.section_title || null }));
 }
 
 // Responsables actuales de un proyecto (para notificaciones)
@@ -361,7 +366,7 @@ router.post('/', auth, requierePermiso('crearProyectos'), validators, async (req
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, description, client, clientIds, status, priority, assigneeId, assigneeIds, startDate, dueDate, progress, tipo, docUrl,
+  const { name, description, client, clientIds, sectionTitles, status, priority, assigneeId, assigneeIds, startDate, dueDate, progress, tipo, docUrl,
           coAssigneeId, generalAssigneeId, participationAuto, participationAnalitica, progressAuto, progressAnalitica } = req.body;
   const ids = Array.isArray(assigneeIds) && assigneeIds.length
     ? [...new Set(assigneeIds.filter(Boolean).map(Number))]
@@ -381,7 +386,7 @@ router.post('/', auth, requierePermiso('crearProyectos'), validators, async (req
         progressAuto || 0, progressAnalitica || 0, req.user.id, status === 'soporte']);
 
     await syncAssignees(id, ids);
-    await syncProjectClients(id, clientIds);
+    await syncProjectClients(id, clientIds, sectionTitles);
 
     notify([...ids, coAssigneeId, generalAssigneeId], req.user.id, id,
       'assign', `te asignó el proyecto «${escapeHtml(name)}»`,
@@ -400,7 +405,7 @@ router.put('/:id', auth, validators, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, description, client, clientIds, status, priority, assigneeId, assigneeIds, startDate, dueDate, progress, tipo, docUrl,
+  const { name, description, client, clientIds, sectionTitles, status, priority, assigneeId, assigneeIds, startDate, dueDate, progress, tipo, docUrl,
           coAssigneeId, generalAssigneeId, participationAuto, participationAnalitica, progressAuto, progressAnalitica,
           supportClosed } = req.body;
   const ids = Array.isArray(assigneeIds) && assigneeIds.length
@@ -433,7 +438,7 @@ router.put('/:id', auth, validators, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
     await recalcProgress(req.params.id);
     await syncAssignees(req.params.id, ids);
-    await syncProjectClients(req.params.id, clientIds);
+    await syncProjectClients(req.params.id, clientIds, sectionTitles);
 
     if (before) {
       const oldIds = before.ids.filter(Boolean).map(Number);

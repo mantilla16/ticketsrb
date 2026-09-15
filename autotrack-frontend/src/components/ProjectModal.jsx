@@ -74,6 +74,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   // Clientes (analítica): selector múltiple + alta rápida
   const [clientOpen, setClientOpen] = useState(false);
   const [newClientText, setNewClientText] = useState('');
+  const [sectionTitles, setSectionTitles] = useState({});
   const clientRef = useRef(null);
   useEffect(() => {
     if (!clientOpen) return;
@@ -170,6 +171,9 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         });
         setTasks((project.tasks || []).map(t => ({ ...t })));
         setLogs(project.logs || []);
+        const st = {};
+        (project.clients || []).forEach(c => { if (c.sectionTitle) st[String(c.id)] = c.sectionTitle; });
+        setSectionTitles(st);
       } else {
         setAreaSel(defArea || defaultArea);
         setTypeSel('proyecto');
@@ -258,6 +262,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         description:           form.description.trim() || null,
         client:                form.client.trim() || null,
         clientIds:             form.clientIds.map(Number),
+        sectionTitles:         Object.fromEntries(Object.entries(sectionTitles).map(([k, v]) => [Number(k), v])),
         status:                form.status,
         priority:              form.priority,
         assigneeIds:           form.assigneeIds.map(Number),
@@ -423,7 +428,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                               placeholder="Nuevo cliente…" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); quickAddClient(); } }} />
                             <button type="button" className="pm-cluser-add" onClick={quickAddClient} disabled={!newClientText.trim()}>Agregar</button>
                           </div>
-                          <div className="pm-cluser-hint">El catálogo se administra en Portafolio Analítica → «Clientes».</div>
+                          <div className="pm-cluser-hint">El catálogo de clientes se administra desde Reporte Analítica.</div>
                         </div>
                       )}
                     </div>
@@ -433,6 +438,34 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                     placeholder="Ej. Admisiones" disabled={lockCore} autoComplete="off" />
                 )}
               </div>
+              {areaSel === 'analitica' && form.clientIds.length > 0 && (
+                <div className="pm-field" style={{ gridColumn: '1 / -1' }}>
+                  <label className="pm-field-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Títulos de sección por cliente
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {form.clientIds.map(cid => {
+                      const cl = analyticsClients.find(c => String(c.id) === cid);
+                      if (!cl) return null;
+                      return (
+                        <div key={cid} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span className="pill-mini" style={{ background: 'var(--rb-magenta-tint)', color: 'var(--rb-magenta-ink)', fontSize: 11, minWidth: 100, justifyContent: 'center' }}>
+                            {cl.name}
+                          </span>
+                          <input className="pm-input" style={{ flex: 1 }}
+                            placeholder={`Título de la sección (ej: ${cl.name})`}
+                            value={sectionTitles[cid] || ''}
+                            onChange={e => setSectionTitles(st => ({ ...st, [cid]: e.target.value }))} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+                    Opcional: personaliza el nombre de la sección de tareas para cada cliente.
+                  </div>
+                </div>
+              )}
               <div className="pm-field">
                 <label className="pm-field-label">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>

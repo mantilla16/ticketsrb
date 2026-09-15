@@ -1987,6 +1987,9 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
   background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-pill);
   padding: 1px 7px; font-family: var(--mono);
 }
+.dp-section-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
 .dp-section-body { padding: 0 14px 14px; }
 
 .dp-tasks { display: flex; flex-direction: column; gap: 4px; }

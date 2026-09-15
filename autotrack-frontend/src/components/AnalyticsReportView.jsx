@@ -1,7 +1,7 @@
 /* Reporte Especial de Analítica — seguimiento por cliente del equipo de
    analítica de datos. Visible solo para gerencia y coordinación. */
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { analyticsReportAPI } from '../services/api';
 import { colorClass } from '../utils/helpers';
 import { Button } from './ui';
@@ -95,7 +95,7 @@ function StatusStrip({ client }) {
 }
 
 /* Filas resumen del estado de un cliente */
-function ClientCard({ client, users, index }) {
+function ClientCard({ client, users, index, allClients }) {
   const [expanded, setExpanded] = useState(false);
   const dm = fmtDM(client.nextDelivery);
   const overdue = client.nextDelivery && new Date(client.nextDelivery + 'T00:00:00') < new Date(new Date().toDateString());
@@ -208,45 +208,75 @@ function ClientCard({ client, users, index }) {
                   p.coAssignee ? userName(p.coAssignee.id) : null,
                   ...(p.extraAssignees || []).map(a => userName(a.id)),
                 ].filter(Boolean);
+                const projectTasks = p.tasks || [];
+                const tasksByClient = {};
+                projectTasks.forEach(t => {
+                  const key = t.clientId || '_general';
+                  if (!tasksByClient[key]) tasksByClient[key] = [];
+                  tasksByClient[key].push(t);
+                });
                 return (
-                  <tr key={p.id} style={{ borderTop: '1px solid var(--rb-line-soft)' }}>
-                    <td style={{ padding: '10px 16px', fontSize: 13, color: 'var(--rb-text)' }}>
-                      {p.name}
-                      {p.participationAnalitica && (
-                        <div style={{ fontSize: 11, color: 'var(--rb-text-4)', marginTop: 2 }}>{p.participationAnalitica}</div>
-                      )}
-                    </td>
-                    <td style={{ padding: '10px 8px' }}>
-                      <span className="pill-mini" style={{ background: st.bg, color: st.c }}>{st.l}</span>
-                    </td>
-                    <td style={{ padding: '10px 8px' }}>
-                      <span className="pill-mini" style={{ background: pr.bg, color: pr.c }}>{pr.l}</span>
-                    </td>
-                    <td style={{ padding: '10px 8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span className="at-card-bar" style={{ width: 56 }}>
-                          <span style={{ width: `${p.progress}%`, background: p.progress >= 80 ? 'var(--rb-success)' : 'var(--rb-navy)' }} />
-                        </span>
-                        <span style={{ fontSize: 12, color: 'var(--rb-text-3)' }}>{p.progress}%</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)' }}>
-                      {pend.length > 0 ? (
-                        <span style={{ color: 'var(--rb-warning)', fontWeight: 700 }}>{pend.length} tarea{pend.length !== 1 ? 's' : ''}</span>
-                      ) : (
-                        <span style={{ color: 'var(--rb-text-4)' }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '10px 16px', fontSize: 12 }}>
-                      {next ? (
-                        <span style={{ color: dueOverdue ? 'var(--rb-danger)' : 'var(--rb-text-2)', fontWeight: dueOverdue ? 700 : 400 }}>
-                          {fmtShort(next.due)}
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--rb-text-4)' }}>—</span>
-                      )}
-                    </td>
-                  </tr>
+                  <React.Fragment key={p.id}>
+                    <tr style={{ borderTop: '1px solid var(--rb-line-soft)' }}>
+                      <td style={{ padding: '10px 16px', fontSize: 13, color: 'var(--rb-text)' }}>
+                        {p.name}
+                        {p.participationAnalitica && (
+                          <div style={{ fontSize: 11, color: 'var(--rb-text-4)', marginTop: 2 }}>{p.participationAnalitica}</div>
+                        )}
+                      </td>
+                      <td style={{ padding: '10px 8px' }}>
+                        <span className="pill-mini" style={{ background: st.bg, color: st.c }}>{st.l}</span>
+                      </td>
+                      <td style={{ padding: '10px 8px' }}>
+                        <span className="pill-mini" style={{ background: pr.bg, color: pr.c }}>{pr.l}</span>
+                      </td>
+                      <td style={{ padding: '10px 8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span className="at-card-bar" style={{ width: 56 }}>
+                            <span style={{ width: `${p.progress}%`, background: p.progress >= 80 ? 'var(--rb-success)' : 'var(--rb-navy)' }} />
+                          </span>
+                          <span style={{ fontSize: 12, color: 'var(--rb-text-3)' }}>{p.progress}%</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)' }}>
+                        {pend.length > 0 ? (
+                          <span style={{ color: 'var(--rb-warning)', fontWeight: 700 }}>{pend.length} tarea{pend.length !== 1 ? 's' : ''}</span>
+                        ) : (
+                          <span style={{ color: 'var(--rb-text-4)' }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: 12 }}>
+                        {next ? (
+                          <span style={{ color: dueOverdue ? 'var(--rb-danger)' : 'var(--rb-text-2)', fontWeight: dueOverdue ? 700 : 400 }}>
+                            {fmtShort(next.due)}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--rb-text-4)' }}>—</span>
+                        )}
+                      </td>
+                    </tr>
+                    {projectTasks.length > 0 && (
+                      <tr>
+                        <td colSpan={6} style={{ padding: '0 16px 8px' }}>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {Object.entries(tasksByClient).map(([cid, ts]) => {
+                              const done = ts.filter(t => t.done).length;
+                              const clName = cid === '_general' ? 'General' : (allClients?.find(c => String(c.id) === cid)?.name || `Cliente #${cid}`);
+                              return (
+                                <span key={cid} className="pill-mini" style={{
+                                  background: done === ts.length ? 'var(--rb-success-bg)' : 'var(--rb-n-100)',
+                                  color: done === ts.length ? 'var(--rb-success)' : 'var(--rb-text-3)',
+                                  fontSize: 11, gap: 4,
+                                }}>
+                                  {clName}: {done}/{ts.length}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -442,7 +472,7 @@ export default function AnalyticsReportView({ users }) {
       </div>
       <div className="ar-clients" style={{ display: 'grid', gap: 10 }}>
         {activeClients.map((c, i) => (
-          <ClientCard key={c.name} client={c} users={users} index={i} />
+          <ClientCard key={c.name} client={c} users={users} index={i} allClients={clients} />
         ))}
       </div>
 
@@ -457,7 +487,7 @@ export default function AnalyticsReportView({ users }) {
           </div>
           <div className="ar-clients" style={{ display: 'grid', gap: 10, opacity: 0.82 }}>
             {inactiveClients.map((c, i) => (
-              <ClientCard key={c.name} client={c} users={users} index={i} />
+              <ClientCard key={c.name} client={c} users={users} index={i} allClients={clients} />
             ))}
           </div>
         </>
