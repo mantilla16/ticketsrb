@@ -237,7 +237,13 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
         `, [projectIds]);
         rows.forEach(r => {
           if (!clientsByProject[r.project_id]) clientsByProject[r.project_id] = [];
-          clientsByProject[r.project_id].push({ id: r.id, name: r.name, active: r.active });
+          const mapped = clientMap[r.name] || {
+            id: r.id, name: r.name, active: r.active,
+            projects: [], totalProjects: 0, activeProjects: 0, completedProjects: 0,
+            standbyProjects: 0, testingProjects: 0, backlogProjects: 0,
+            avgProgress: 0, nextDelivery: null, teamMembers: new Set(),
+          };
+          clientsByProject[r.project_id].push(mapped);
         });
       } catch (err) {
         console.warn('analytics-report: project_clients no disponible', err.message);
