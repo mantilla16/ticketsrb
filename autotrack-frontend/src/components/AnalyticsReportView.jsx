@@ -48,7 +48,7 @@ function ProgressBar({ value, color }) {
   );
 }
 
-function ProjectRow({ project, users, onClickProject }) {
+function ProjectRow({ project, users, allClients }) {
   const [expanded, setExpanded] = useState(false);
   const st = STATUS_DEF[project.status] || STATUS_DEF.backlog;
   const pr = PR_BADGE[project.priority] || PR_BADGE.mid;
@@ -112,6 +112,7 @@ function ProjectRow({ project, users, onClickProject }) {
             <thead>
               <tr>
                 <th>Tarea</th>
+                <th>Cliente</th>
                 <th>Responsable</th>
                 <th>Prioridad</th>
                 <th>Vence</th>
@@ -128,6 +129,11 @@ function ProjectRow({ project, users, onClickProject }) {
                   <tr key={t.id} className={t.done ? 'ar-task-row--done' : ''}>
                     <td>
                       <span className={`ar-task-title${t.done ? ' ar-task-title--done' : ''}`}>{t.title}</span>
+                    </td>
+                    <td>
+                      {t.clientId ? (
+                        <span className="ar-task-client">{allClients?.find(c => String(c.id) === String(t.clientId))?.name || `#${t.clientId}`}</span>
+                      ) : <span className="ar-task-none">General</span>}
                     </td>
                     <td>
                       {assignee ? (
@@ -273,7 +279,7 @@ export default function AnalyticsReportView({ users }) {
           <div className="ar-empty">No hay proyectos registrados</div>
         ) : (
           projects.map(p => (
-            <ProjectRow key={p.id} project={p} users={users} />
+            <ProjectRow key={p.id} project={p} users={users} allClients={clients} />
           ))
         )}
       </div>
