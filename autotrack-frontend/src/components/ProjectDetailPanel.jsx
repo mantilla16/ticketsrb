@@ -213,16 +213,10 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
     }
   }, [project?.id, open]);
 
-  if (!open || !project) return null;
+  const allTasks  = project?.tasks || [];
+  const clients   = project?.clients || [];
 
-  const allTasks  = project.tasks || [];
-  const tasksDone = allTasks.filter(t => t.done).length;
-  const pct       = project.progress || 0;
-  const st        = STATUS_L[project.status] || project.status;
-  const people    = project.assignees?.length ? project.assignees : (project.assignee ? [project.assignee] : []);
-  const clients   = project.clients || [];
-
-  /* Agrupar tareas por cliente */
+  /* Agrupar tareas por cliente — hooks deben estar antes del early return */
   const tasksByClient = useMemo(() => {
     const grouped = {};
     const clientIds = new Set(clients.map(c => c.id));
@@ -240,6 +234,13 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
 
     return grouped;
   }, [allTasks, clients]);
+
+  if (!open || !project) return null;
+
+  const tasksDone = allTasks.filter(t => t.done).length;
+  const pct       = project.progress || 0;
+  const st        = STATUS_L[project.status] || project.status;
+  const people    = project.assignees?.length ? project.assignees : (project.assignee ? [project.assignee] : []);
 
   const withTaskBusy = async (taskId, fn) => {
     if (busyTaskIds.has(taskId)) return;

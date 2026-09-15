@@ -28,6 +28,7 @@ const STATUS_C = {
 const COLUMNS = [
   { key: 'backlog',  label: 'Por hacer' },
   { key: 'progress', label: 'En proceso' },
+  { key: 'soporte',  label: 'Soporte' },
   { key: 'testing',  label: 'Testing' },
   { key: 'done',     label: 'Finalizado' },
 ];
