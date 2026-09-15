@@ -58,9 +58,13 @@ export const solicitudesAPI = {
 };
 
 export const analyticsReportAPI = {
-  getReport:        ()       => api.get('/analytics-report'),
-  getHistory:       ()       => api.get('/analytics-report/history'),
-  takeSnapshot:     ()       => api.post('/analytics-report/snapshot'),
+  getReport:        ()              => api.get('/analytics-report'),
+  getHistory:       ()              => api.get('/analytics-report/history'),
+  takeSnapshot:     ()              => api.post('/analytics-report/snapshot'),
+  getClients:       ()              => api.get('/analytics-report/clients'),
+  createClient:     (data)          => api.post('/analytics-report/clients', data),
+  updateClient:     (id, data)      => api.put(`/analytics-report/clients/${id}`, data),
+  deleteClient:     (id)            => api.delete(`/analytics-report/clients/${id}`),
 };
 
 export default api;

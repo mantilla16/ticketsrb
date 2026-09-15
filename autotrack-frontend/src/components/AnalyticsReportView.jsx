@@ -272,6 +272,14 @@ export default function AnalyticsReportView({ users }) {
   const [error, setError] = useState(null);
   const [snapshotting, setSnapshotting] = useState(false);
   const [snapshotMsg, setSnapshotMsg] = useState('');
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [clientList, setClientList] = useState([]);
+  const [clientLoading, setClientLoading] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [editingClient, setEditingClient] = useState(null);
+  const [editClientName, setEditClientName] = useState('');
+  const [editClientActive, setEditClientActive] = useState(true);
+  const [clientError, setClientError] = useState('');
 
   const loadData = useCallback(async () => {
     try {
@@ -317,6 +325,72 @@ export default function AnalyticsReportView({ users }) {
       setSnapshotMsg(e.error || 'Error al tomar el snapshot');
     } finally {
       setSnapshotting(false);
+    }
+  };
+
+  const loadClientList = async () => {
+    try {
+      setClientLoading(true);
+      setClientError('');
+      const clients = await analyticsReportAPI.getClients();
+      setClientList(clients);
+    } catch (e) {
+      setClientError(e.error || 'Error al cargar clientes');
+    } finally {
+      setClientLoading(false);
+    }
+  };
+
+  const addClient = async () => {
+    const name = newClientName.trim();
+    if (!name) return;
+    setClientError('');
+    try {
+      const created = await analyticsReportAPI.createClient({ name, active: true });
+      setClientList(prev => [...prev, created].sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0) || a.name.localeCompare(b.name)));
+      setNewClientName('');
+      await loadData();
+    } catch (e) {
+      setClientError(e.error || 'Error al crear cliente');
+    }
+  };
+
+  const saveClient = async (id) => {
+    const name = editClientName.trim();
+    if (!name) return;
+    setClientError('');
+    try {
+      const updated = await analyticsReportAPI.updateClient(id, { name, active: editClientActive });
+      setClientList(prev => prev.map(c => c.id === id ? updated : c).sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0) || a.name.localeCompare(b.name)));
+      setEditingClient(null);
+      await loadData();
+    } catch (e) {
+      setClientError(e.error || 'Error al actualizar cliente');
+    }
+  };
+
+  const removeClient = async (id) => {
+    setClientError('');
+    try {
+      await analyticsReportAPI.deleteClient(id);
+      setClientList(prev => prev.filter(c => c.id !== id));
+      setEditingClient(null);
+      await loadData();
+    } catch (e) {
+      setClientError(e.error || 'Error al eliminar cliente');
+    }
+  };
+
+  const toggleClientActive = async (id, currentActive) => {
+    const client = clientList.find(c => c.id === id);
+    if (!client) return;
+    setClientError('');
+    try {
+      const updated = await analyticsReportAPI.updateClient(id, { name: client.name, active: !currentActive });
+      setClientList(prev => prev.map(c => c.id === id ? updated : c).sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0) || a.name.localeCompare(b.name)));
+      await loadData();
+    } catch (e) {
+      setClientError(e.error || 'Error al cambiar estado');
     }
   };
 
@@ -382,6 +456,9 @@ export default function AnalyticsReportView({ users }) {
           )}
           <Button variant="primary" icon="clock" onClick={handleSnapshot} disabled={snapshotting}>
             {snapshotting ? 'Guardando…' : 'Tomar snapshot'}
+          </Button>
+          <Button variant="ghost" icon="users" onClick={() => { setShowClientModal(true); loadClientList(); }}>
+            Gestionar clientes
           </Button>
         </div>
       </div>
@@ -466,6 +543,118 @@ export default function AnalyticsReportView({ users }) {
               Promedio de progreso de todos los clientes por snapshot
             </div>
             <_GlobalTrend history={history} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de gestión de clientes ── */}
+      {showClientModal && (
+        <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && setShowClientModal(false)}>
+          <div className="modal" style={{ maxWidth: 540 }}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">Gestionar clientes</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 2 }}>
+                  Agrega, renombra o desactiva los clientes del proyecto de analítica
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => { setShowClientModal(false); setEditingClient(null); }}>×</button>
+            </div>
+            <div className="modal-body">
+              {clientError && (
+                <div className="login-error" style={{ marginBottom: 12 }}>{clientError}</div>
+              )}
+
+              {/* Agregar nuevo cliente */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                <input
+                  className="pm-input"
+                  style={{ flex: 1 }}
+                  placeholder="Nombre del nuevo cliente…"
+                  value={newClientName}
+                  onChange={e => setNewClientName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addClient()}
+                />
+                <button className="btn btn-primary btn-sm" onClick={addClient} disabled={!newClientName.trim()}>
+                  Agregar
+                </button>
+              </div>
+
+              {/* Lista de clientes */}
+              {clientLoading ? (
+                <div style={{ fontSize: 13, color: 'var(--text3)', padding: '12px 0' }}>Cargando…</div>
+              ) : clientList.length === 0 ? (
+                <div style={{ fontSize: 13, color: 'var(--text3)', padding: '12px 0' }}>No hay clientes registrados</div>
+              ) : (
+                <div style={{ display: 'grid', gap: 6 }}>
+                  {clientList.map(c => (
+                    <div key={c.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 12px', borderRadius: 'var(--rb-r-md)',
+                      background: 'var(--rb-surface-2)',
+                      border: '1px solid var(--rb-line-soft)',
+                      opacity: c.active ? 1 : 0.55,
+                    }}>
+                      {editingClient === c.id ? (
+                        <>
+                          <input
+                            className="pm-input"
+                            style={{ flex: 1, fontSize: 13 }}
+                            value={editClientName}
+                            onChange={e => setEditClientName(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && saveClient(c.id)}
+                            autoFocus
+                          />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 12, color: 'var(--text3)', whiteSpace: 'nowrap' }}>
+                            <input
+                              type="checkbox"
+                              checked={editClientActive}
+                              onChange={e => setEditClientActive(e.target.checked)}
+                              style={{ accentColor: 'var(--accent)', width: 13, height: 13 }}
+                            />
+                            Activo
+                          </label>
+                          <button className="btn btn-primary btn-sm" style={{ fontSize: 12 }} onClick={() => saveClient(c.id)} disabled={!editClientName.trim()}>Guardar</button>
+                          <button className="btn btn-ghost btn-sm" style={{ fontSize: 12 }} onClick={() => setEditingClient(null)}>Cancelar</button>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{c.name}</span>
+                          {!c.active && (
+                            <span className="pill-mini" style={{ background: 'var(--rb-neutral-bg)', color: 'var(--rb-neutral)', fontSize: 11 }}>No activo</span>
+                          )}
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: 11, padding: '3px 8px' }}
+                            onClick={() => toggleClientActive(c.id, c.active)}
+                            title={c.active ? 'Desactivar' : 'Activar'}
+                          >
+                            {c.active ? 'Desactivar' : 'Activar'}
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: 11, padding: '3px 8px' }}
+                            onClick={() => { setEditingClient(c.id); setEditClientName(c.name); setEditClientActive(c.active); }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            style={{ fontSize: 11, padding: '3px 8px' }}
+                            onClick={() => { if (window.confirm(`¿Eliminar "${c.name}"?`)) removeClient(c.id); }}
+                          >
+                            ×
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost btn-sm" onClick={() => { setShowClientModal(false); setEditingClient(null); }}>Cerrar</button>
+            </div>
           </div>
         </div>
       )}

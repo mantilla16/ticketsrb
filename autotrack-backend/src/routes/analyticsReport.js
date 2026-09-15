@@ -3,8 +3,8 @@ const pool = require('../config/database');
 const auth = require('../middleware/auth');
 const { requierePermiso } = require('../config/roles');
 
-// Clientes configurados del proyecto de analítica
-const ANALYTICS_CLIENTS = [
+// ── Clientes semilla (insertados solo si la tabla queda vacía) ─────────
+const SEED_CLIENTS = [
   { name: 'Centro Empresarial Buenavista', active: true },
   { name: 'Centro Comercial Buenavista Monteria', active: true },
   { name: 'Camacol Atlántico', active: true },
@@ -29,15 +29,46 @@ const ANALYTICS_CLIENTS = [
   { name: 'Ground Investment', active: true },
 ];
 
-// La tabla project_assignees la crea en caliente projects.js; acá se replica
-// el ensure por si una base vieja aún no la tiene.
+// ── Inicialización de la tabla analytics_clients ───────────────────────
+let clientsReady = null;
+function ensureClientsTable() {
+  if (!clientsReady) {
+    clientsReady = pool.query(`
+      CREATE TABLE IF NOT EXISTS analytics_clients (
+        id         SERIAL PRIMARY KEY,
+        name       VARCHAR(150) NOT NULL UNIQUE,
+        active     BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `).then(async () => {
+      const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM analytics_clients');
+      if (rows[0].n === 0) {
+        for (const c of SEED_CLIENTS) {
+          await pool.query(
+            'INSERT INTO analytics_clients (name, active) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [c.name, c.active],
+          );
+        }
+      }
+    }).catch(err => { clientsReady = null; throw err; });
+  }
+  return clientsReady;
+}
+
+async function getClientsFromDB() {
+  await ensureClientsTable();
+  const { rows } = await pool.query('SELECT id, name, active FROM analytics_clients ORDER BY active DESC, name');
+  return rows;
+}
+
+// ── project_assignees (tolerante a base vieja) ────────────────────────
 let assigneesReady = null;
 function ensureAssigneesTable() {
   if (!assigneesReady) {
     assigneesReady = pool.query(`
       CREATE TABLE IF NOT EXISTS project_assignees (
         project_id VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id    INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         PRIMARY KEY (project_id, user_id)
       )
     `).then(() => pool.query(`
@@ -53,17 +84,88 @@ function fmtDate(d) {
   return d ? d.toISOString().slice(0, 10) : null;
 }
 
+// ───────────────────────── CRUD de clientes ────────────────────────────
+
+// GET /api/analytics-report/clients — Lista de clientes
+router.get('/clients', auth, requierePermiso('verReporteAnalitica'), async (_req, res) => {
+  try {
+    const clients = await getClientsFromDB();
+    res.json(clients);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// POST /api/analytics-report/clients — Crear cliente
+router.post('/clients', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
+  try {
+    const name = (req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
+    const active = req.body.active !== false;
+    const { rows } = await pool.query(
+      'INSERT INTO analytics_clients (name, active) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET active = EXCLUDED.active RETURNING id, name, active',
+      [name, active],
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear el cliente' });
+  }
+});
+
+// PUT /api/analytics-report/clients/:id — Actualizar cliente (nombre y/o active)
+router.put('/clients/:id', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const name   = (req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
+    const active = req.body.active ?? true;
+    const { rows } = await pool.query(
+      'UPDATE analytics_clients SET name = $1, active = $2 WHERE id = $3 RETURNING id, name, active',
+      [name, active, id],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Cliente no encontrado' });
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Ya existe un cliente con ese nombre' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar el cliente' });
+  }
+});
+
+// DELETE /api/analytics-report/clients/:id — Eliminar cliente
+router.delete('/clients/:id', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
+  try {
+    const { rowCount } = await pool.query('DELETE FROM analytics_clients WHERE id = $1', [req.params.id]);
+    if (!rowCount) return res.status(404).json({ error: 'Cliente no encontrado' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al eliminar el cliente' });
+  }
+});
+
+// ─────────────────── Reporte principal ─────────────────────────────────
+
 // GET /api/analytics-report — Resumen ejecutivo por cliente
 router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
   try {
-    // Obtener todos los proyectos de analítica
+    // 1. Cargar clientes desde la BD
+    const dbClients = await getClientsFromDB();
+    const dbClientMap = {};
+    dbClients.forEach(c => { dbClientMap[c.name] = c; });
+
+    // 2. Obtener todos los proyectos de analítica
     const { rows: projects } = await pool.query(`
       SELECT p.*,
-        u.name  AS assignee_name,
-        u.initials AS assignee_initials,
+        u.name       AS assignee_name,
+        u.initials   AS assignee_initials,
         u.color_index AS assignee_color,
-        u2.name AS co_assignee_name,
-        u2.initials AS co_assignee_initials,
+        u2.name      AS co_assignee_name,
+        u2.initials  AS co_assignee_initials,
         u2.color_index AS co_assignee_color
       FROM projects p
       LEFT JOIN users u  ON p.assignee_id = u.id
@@ -72,18 +174,23 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       ORDER BY p.created_at DESC
     `);
 
-    // Obtener tareas para cada proyecto
+    // 3. Tareas por proyecto
     const projectIds = projects.map(p => p.id);
     let tasksByProject = {};
     if (projectIds.length) {
       const { rows: tasks } = await pool.query(
-        'SELECT project_id, COUNT(*)::int AS total, COUNT(*) FILTER (WHERE done)::int AS done FROM project_tasks WHERE project_id = ANY($1) GROUP BY project_id',
-        [projectIds]
+        `SELECT project_id,
+                COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE done)::int AS done
+         FROM project_tasks
+         WHERE project_id = ANY($1)
+         GROUP BY project_id`,
+        [projectIds],
       );
       tasks.forEach(t => { tasksByProject[t.project_id] = t; });
     }
 
-    // Obtener responsables extras
+    // 4. Responsables múltiples
     let assigneesByProject = {};
     if (projectIds.length) {
       try {
@@ -99,15 +206,15 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
           assigneesByProject[a.project_id].push({ id: a.id, name: a.name, initials: a.initials });
         });
       } catch (err) {
-        // La tabla de responsables múltiples es opcional; el reporte funciona sin ella.
         console.warn('analytics-report: project_assignees no disponible', err.message);
       }
     }
 
-    // Agrupar proyectos por cliente
+    // 5. Agrupar por cliente — empezando desde la BD
     const clientMap = {};
-    ANALYTICS_CLIENTS.forEach(c => {
+    dbClients.forEach(c => {
       clientMap[c.name] = {
+        id: c.id,
         name: c.name,
         active: c.active,
         projects: [],
@@ -123,11 +230,12 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       };
     });
 
-    // También crear entradas para clientes que no están en la lista
+    // Agregar clientes huérfanos (de proyectos, no en la tabla)
     projects.forEach(p => {
       const clientName = (p.client || '').trim();
       if (clientName && !clientMap[clientName]) {
         clientMap[clientName] = {
+          id: null,
           name: clientName,
           active: true,
           projects: [],
@@ -144,7 +252,7 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       }
     });
 
-    // Llenar datos de proyectos
+    // 6. Llenar datos de proyectos
     projects.forEach(p => {
       const clientName = (p.client || '').trim();
       if (!clientName || !clientMap[clientName]) return;
@@ -153,7 +261,7 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       const tasks = tasksByProject[p.id] || { total: 0, done: 0 };
       const extra = assigneesByProject[p.id] || [];
 
-      const projectData = {
+      client.projects.push({
         id: p.id,
         name: p.name,
         status: p.status,
@@ -168,11 +276,9 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
         extraAssignees: extra,
         tasksTotal: tasks.total,
         tasksDone: tasks.done,
-      };
+      });
 
-      client.projects.push(projectData);
       client.totalProjects++;
-
       if (p.status === 'progress') client.activeProjects++;
       else if (p.status === 'done') client.completedProjects++;
       else if (p.status === 'standby') client.standbyProjects++;
@@ -182,7 +288,6 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       if (p.assignee_id) client.teamMembers.add(p.assignee_id);
       extra.forEach(a => client.teamMembers.add(a.id));
 
-      // Próxima entrega
       if (p.due_date && p.status !== 'done' && p.status !== 'cancelado') {
         const due = new Date(p.due_date);
         if (!client.nextDelivery || due < new Date(client.nextDelivery)) {
@@ -191,34 +296,32 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       }
     });
 
-    // Calcular promedios y convertir sets a arrays
-    const result = Object.values(clientMap).map(c => {
-      const avg = c.totalProjects
-        ? Math.round(c.projects.reduce((sum, p) => sum + p.progress, 0) / c.totalProjects)
-        : 0;
-      return {
-        ...c,
-        avgProgress: avg,
-        teamMembers: [...c.teamMembers],
-        projects: c.projects.sort((a, b) => {
-          const statusOrder = { progress: 0, testing: 1, standby: 2, backlog: 3, done: 4, cancelado: 5, soporte: 6 };
-          return (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9);
-        }),
-      };
-    });
+    // 7. Promedios + convertir Sets a arrays
+    const result = Object.values(clientMap).map(c => ({
+      ...c,
+      avgProgress: c.totalProjects
+        ? Math.round(c.projects.reduce((s, p) => s + p.progress, 0) / c.totalProjects)
+        : 0,
+      teamMembers: [...c.teamMembers],
+      projects: c.projects.sort((a, b) => {
+        const order = { progress: 0, testing: 1, standby: 2, backlog: 3, done: 4, cancelado: 5, soporte: 6 };
+        return (order[a.status] ?? 9) - (order[b.status] ?? 9);
+      }),
+    }));
 
-    // Ordenar: activos primero, luego por cantidad de proyectos
     result.sort((a, b) => {
       if (a.active !== b.active) return a.active ? -1 : 1;
       return b.totalProjects - a.totalProjects;
     });
 
-    res.json({ clients: result, config: ANALYTICS_CLIENTS });
+    res.json({ clients: result, config: dbClients });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
+
+// ─────────────────── Histórico y snapshots ─────────────────────────────
 
 // GET /api/analytics-report/history — Histórico de snapshots
 router.get('/history', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
@@ -238,7 +341,6 @@ router.get('/history', auth, requierePermiso('verReporteAnalitica'), async (req,
 // POST /api/analytics-report/snapshot — Tomar snapshot del estado actual
 router.post('/snapshot', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
   try {
-    // Obtener todos los proyectos de analítica agrupados por cliente
     const { rows: projects } = await pool.query(`
       SELECT client, status, progress
       FROM projects
@@ -248,9 +350,7 @@ router.post('/snapshot', auth, requierePermiso('verReporteAnalitica'), async (re
     const clientData = {};
     projects.forEach(p => {
       const name = p.client.trim();
-      if (!clientData[name]) {
-        clientData[name] = { total: 0, active: 0, completed: 0, standby: 0, testing: 0, progressSum: 0 };
-      }
+      if (!clientData[name]) clientData[name] = { total: 0, active: 0, completed: 0, standby: 0, testing: 0, progressSum: 0 };
       const c = clientData[name];
       c.total++;
       if (p.status === 'progress') c.active++;
@@ -260,8 +360,9 @@ router.post('/snapshot', auth, requierePermiso('verReporteAnalitica'), async (re
       c.progressSum += p.progress || 0;
     });
 
-    // Insertar snapshots
     const today = new Date().toISOString().slice(0, 10);
+
+    // Insertar snapshots de clientes con proyectos
     for (const [clientName, data] of Object.entries(clientData)) {
       await pool.query(`
         INSERT INTO analytics_client_snapshots
@@ -276,8 +377,9 @@ router.post('/snapshot', auth, requierePermiso('verReporteAnalitica'), async (re
       ]);
     }
 
-    // También agregar clientes configurados sin proyectos
-    for (const client of ANALYTICS_CLIENTS) {
+    // Insertar snapshots de clientes configurados sin proyectos
+    const dbClients = await getClientsFromDB();
+    for (const client of dbClients) {
       if (!clientData[client.name]) {
         await pool.query(`
           INSERT INTO analytics_client_snapshots

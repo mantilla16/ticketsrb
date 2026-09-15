@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { colorClass, fmtLogDate } from '../utils/helpers';
 import { assignables } from '../lib/tickets';
+import { analyticsReportAPI } from '../services/api';
 
 const EMPTY = {
   name: '', description: '', client: '',
@@ -74,6 +75,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const [logText, setLogText]   = useState('');
   const [isBlock, setIsBlock]   = useState(false);
   const [logSaving, setLogSaving] = useState(false);
+  const [analyticsClients, setAnalyticsClients] = useState([]);
 
   /* Responsables seleccionables: cualquiera que trabaje en ese equipo, no solo
      quien tiene rol de ejecutor. En equipos pequeños quien coordina también
@@ -100,6 +102,12 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
     setTaskAssignee(self ? String(currentUser.id) : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [areaSel]);
+
+  useEffect(() => {
+    if (open && areaSel === 'analitica') {
+      analyticsReportAPI.getClients().then(setAnalyticsClients).catch(() => {});
+    }
+  }, [open, areaSel]);
 
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const assigneeRef = useRef(null);
@@ -347,7 +355,18 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                   Área / cliente
                 </label>
-                <input className="pm-input" value={form.client} onChange={set('client')} placeholder="Ej. Admisiones" disabled={lockCore} />
+                <input className="pm-input" value={form.client} onChange={set('client')}
+                  placeholder={areaSel === 'analitica' ? 'Selecciona o escribe el cliente…' : 'Ej. Admisiones'}
+                  list={areaSel === 'analitica' && analyticsClients.length > 0 ? 'analytics-clients-list' : undefined}
+                  disabled={lockCore} autoComplete="off" />
+                <datalist id="analytics-clients-list">
+                  {analyticsClients.filter(c => c.active).map(c => <option key={c.id} value={c.name} />)}
+                </datalist>
+                {areaSel === 'analitica' && (
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+                    Los clientes se administran desde el Reporte Analítica → «Gestionar clientes».
+                  </div>
+                )}
               </div>
               <div className="pm-field">
                 <label className="pm-field-label">

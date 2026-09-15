@@ -187,3 +187,13 @@ CREATE TABLE IF NOT EXISTS analytics_client_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_snapshots_client_date
   ON analytics_client_snapshots(client_name, snapshot_date DESC);
+
+-- ──────────────────── analytics_clients ────────────────────────────────
+-- Catálogo de clientes del proyecto de analítica.
+-- Permite crear, renombrar, activar/desactivar y borrar desde la UI.
+CREATE TABLE IF NOT EXISTS analytics_clients (
+  id         SERIAL PRIMARY KEY,
+  name       VARCHAR(150) NOT NULL UNIQUE,
+  active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
