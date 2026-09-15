@@ -106,7 +106,7 @@ function TaskList({ tasks, canEdit, busyTaskIds, taskAssigneePool, analyticsClie
                   <option value="mid">Media</option>
                   <option value="low">Baja</option>
                 </select>
-                {tipo === 'analitica' && (
+                {analyticsClients.filter(c => c.active && (project.clients || []).some(pc => pc.id === c.id)).length > 0 && (
                   <select className="rb-select" style={{ width: 120, height: 30, fontSize: 12 }}
                     value={editClientId} onChange={e => setEditClientId(e.target.value)}>
                     <option value="">General</option>
@@ -202,10 +202,10 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
       : delEquipo('automatizacion');
 
   useEffect(() => {
-    if (open && tipo === 'analitica') {
+    if (open) {
       analyticsReportAPI.getClients().then(setAnalyticsClients).catch(() => {});
     }
-  }, [open, tipo]);
+  }, [open]);
 
   useEffect(() => {
     if (open) {

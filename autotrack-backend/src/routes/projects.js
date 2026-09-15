@@ -94,18 +94,22 @@ function ensureProjectClientsTable() {
   return projectClientsReady;
 }
 
-// Reemplaza el conjunto completo de clientes de un proyecto de analítica
+// Reemplaza el conjunto completo de clientes de un proyecto
 async function syncProjectClients(projectId, clientIds, sectionTitles = {}) {
-  await ensureProjectClientsTable();
-  await pool.query('DELETE FROM project_clients WHERE project_id=$1', [projectId]);
-  const ids = [...new Set((clientIds || []).filter(Boolean).map(Number))];
-  if (!ids.length) return;
-  for (const id of ids) {
-    const title = sectionTitles[id] || null;
-    await pool.query(
-      'INSERT INTO project_clients (project_id, client_id, section_title) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-      [projectId, id, title],
-    );
+  try {
+    await ensureProjectClientsTable();
+    await pool.query('DELETE FROM project_clients WHERE project_id=$1', [projectId]);
+    const ids = [...new Set((clientIds || []).filter(Boolean).map(Number))];
+    if (!ids.length) return;
+    for (const id of ids) {
+      const title = sectionTitles[id] || null;
+      await pool.query(
+        'INSERT INTO project_clients (project_id, client_id, section_title) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+        [projectId, id, title],
+      );
+    }
+  } catch (err) {
+    console.warn('syncProjectClients: no se pudieron guardar los clientes del proyecto', err.message);
   }
 }
 
@@ -342,7 +346,7 @@ router.get('/', auth, async (req, res) => {
 
     await ensureProjectClientsTable();
     const clientsRes = await pool.query(`
-      SELECT pc.project_id, ac.id, ac.name, ac.active
+      SELECT pc.project_id, ac.id, ac.name, ac.active, pc.section_title
       FROM project_clients pc
       JOIN analytics_clients ac ON ac.id = pc.client_id
       WHERE pc.project_id = ANY($1)
@@ -350,7 +354,7 @@ router.get('/', auth, async (req, res) => {
     const clientsByProject = {};
     clientsRes.rows.forEach(c => {
       if (!clientsByProject[c.project_id]) clientsByProject[c.project_id] = [];
-      clientsByProject[c.project_id].push({ id: c.id, name: c.name, active: c.active });
+      clientsByProject[c.project_id].push({ id: c.id, name: c.name, active: c.active, sectionTitle: c.section_title || null });
     });
 
     res.json(rows.map(p => fmtProject(p, byProject[p.id] || [], tasksByProject[p.id] || [],

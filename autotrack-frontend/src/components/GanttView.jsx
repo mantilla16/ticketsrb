@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { colorClass } from '../utils/helpers';
 
 const STATUS_CLS = {
@@ -31,7 +31,7 @@ export default function GanttView({ projects, users = [], onRowClick }) {
   const monthEnd   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
   const activeAll = projects.filter(p => !['done', 'cancelado'].includes(p.status));
-  const areas = [...new Set(activeAll.map(p => (p.client || '').trim()).filter(Boolean))].sort();
+  const areas = [...new Set(activeAll.flatMap(p => (p.clients || []).map(c => c.name)))].sort();
 
   /* Los proyectos ya no tienen fechas propias: el cronograma se deriva de las
      tareas. Inicio ≈ creación más temprana; entrega ≈ vencimiento más lejano
@@ -48,7 +48,7 @@ export default function GanttView({ projects, users = [], onRowClick }) {
   };
 
   const active = activeAll.filter(p =>
-    (fArea === 'all' || (p.client || '').trim() === fArea) &&
+    (fArea === 'all' || (p.clients || []).some(c => c.name === fArea)) &&
     (fResp === 'all' || (p.assigneeIds || [p.assigneeId]).map(String).includes(fResp)) &&
     (fStat === 'all' || p.status === fStat) &&
     (fPer === 'all' || (effOf(p).due && new Date(effOf(p).due) >= monthStart && new Date(effOf(p).due) <= monthEnd))
@@ -174,7 +174,7 @@ export default function GanttView({ projects, users = [], onRowClick }) {
                   const isFirstNoDates = !hasDates && withDates.length > 0 && i === withDates.length;
 
                   return (
-                    <>
+                    <React.Fragment key={p.id}>
                       {isFirstNoDates && (
                         <tr key={`divider-${p.id}`}>
                           <td colSpan={7} style={{ padding: '6px 14px 4px', fontSize: 11, fontWeight: 700, letterSpacing: '.5px', textTransform: 'uppercase', color: 'var(--text3)', background: 'var(--bg)', borderTop: '1px solid var(--border)' }}>
@@ -239,7 +239,7 @@ export default function GanttView({ projects, users = [], onRowClick }) {
                           )}
                         </td>
                       </tr>
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>

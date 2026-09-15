@@ -118,10 +118,10 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   }, [areaSel]);
 
   useEffect(() => {
-    if (open && areaSel === 'analitica') {
+    if (open) {
       analyticsReportAPI.getClients().then(setAnalyticsClients).catch(() => {});
     }
-  }, [open, areaSel]);
+  }, [open]);
 
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const assigneeRef = useRef(null);
@@ -398,47 +398,40 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
               <div className="pm-field">
                 <label className="pm-field-label">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                  {areaSel === 'analitica' ? 'Clientes' : 'Área / cliente'}
+                  Clientes / Áreas
                 </label>
-                {areaSel === 'analitica' ? (
-                  <>
-                    <div className="pm-cluser" ref={clientRef}>
-                      <div className={`pm-input pm-cluser-trigger${clientOpen ? ' pm-cluser-trigger--open' : ''}`} onClick={() => !lockCore && setClientOpen(o => !o)}>
-                        {form.clientIds.length === 0
-                          ? <span className="pm-cluser-placeholder">Selecciona uno o más clientes…</span>
-                          : (analyticsClients.filter(c => form.clientIds.includes(String(c.id))).map(c => c.name).join(', ') || 'Selecciona…')}
-                        <span className="pm-cluser-caret">▾</span>
-                      </div>
-                      {clientOpen && !lockCore && (
-                        <div className="pm-cluser-panel">
-                          {analyticsClients.filter(c => c.active).map(c => {
-                            const active = form.clientIds.includes(String(c.id));
-                            return (
-                              <label key={c.id} className={`pm-cluser-item${active ? ' pm-cluser-item--active' : ''}`}>
-                                <input type="checkbox" checked={active} onChange={() => toggleClient(c.id)} />
-                                <span>{c.name}</span>
-                              </label>
-                            );
-                          })}
-                          {analyticsClients.filter(c => c.active).length === 0 && (
-                            <div className="pm-cluser-empty">No hay clientes aún. Créalo abajo.</div>
-                          )}
-                          <div className="pm-cluser-quick">
-                            <input className="pm-input" value={newClientText} onChange={e => setNewClientText(e.target.value)}
-                              placeholder="Nuevo cliente…" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); quickAddClient(); } }} />
-                            <button type="button" className="pm-cluser-add" onClick={quickAddClient} disabled={!newClientText.trim()}>Agregar</button>
-                          </div>
-                          <div className="pm-cluser-hint">El catálogo de clientes se administra desde Reporte Analítica.</div>
-                        </div>
+                <div className="pm-cluser" ref={clientRef}>
+                  <div className={`pm-input pm-cluser-trigger${clientOpen ? ' pm-cluser-trigger--open' : ''}`} onClick={() => !lockCore && setClientOpen(o => !o)}>
+                    {form.clientIds.length === 0
+                      ? <span className="pm-cluser-placeholder">Selecciona uno o más clientes…</span>
+                      : (analyticsClients.filter(c => form.clientIds.includes(String(c.id))).map(c => c.name).join(', ') || 'Selecciona…')}
+                    <span className="pm-cluser-caret">▾</span>
+                  </div>
+                  {clientOpen && !lockCore && (
+                    <div className="pm-cluser-panel">
+                      {analyticsClients.filter(c => c.active).map(c => {
+                        const active = form.clientIds.includes(String(c.id));
+                        return (
+                          <label key={c.id} className={`pm-cluser-item${active ? ' pm-cluser-item--active' : ''}`}>
+                            <input type="checkbox" checked={active} onChange={() => toggleClient(c.id)} />
+                            <span>{c.name}</span>
+                          </label>
+                        );
+                      })}
+                      {analyticsClients.filter(c => c.active).length === 0 && (
+                        <div className="pm-cluser-empty">No hay clientes aún. Créalo abajo.</div>
                       )}
+                      <div className="pm-cluser-quick">
+                        <input className="pm-input" value={newClientText} onChange={e => setNewClientText(e.target.value)}
+                          placeholder="Nuevo cliente…" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); quickAddClient(); } }} />
+                        <button type="button" className="pm-cluser-add" onClick={quickAddClient} disabled={!newClientText.trim()}>Agregar</button>
+                      </div>
+                      <div className="pm-cluser-hint">Selecciona los clientes o áreas que aplican a este proyecto.</div>
                     </div>
-                  </>
-                ) : (
-                  <input className="pm-input" value={form.client} onChange={set('client')}
-                    placeholder="Ej. Admisiones" disabled={lockCore} autoComplete="off" />
-                )}
+                  )}
+                </div>
               </div>
-              {areaSel === 'analitica' && form.clientIds.length > 0 && (
+              {form.clientIds.length > 0 && (
                 <div className="pm-field" style={{ gridColumn: '1 / -1' }}>
                   <label className="pm-field-label">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -633,11 +626,11 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   <option value="mid">Media</option>
                   <option value="low">Baja</option>
                 </select>
-                {areaSel === 'analitica' && (
+                {form.clientIds.length > 0 && (
                   <select className="pm-input" style={{ width: 150 }} value={taskClientId}
                     onChange={e => setTaskClientId(e.target.value)} title="Cliente (si es específico de este cliente)">
                     <option value="">General (proyecto)</option>
-                    {analyticsClients.filter(c => c.active && (form.clientIds.includes(String(c.id)) || c.name === form.client)).map(c =>
+                    {analyticsClients.filter(c => c.active && form.clientIds.includes(String(c.id))).map(c =>
                       <option key={c.id} value={String(c.id)}>{c.name}</option>
                     )}
                   </select>

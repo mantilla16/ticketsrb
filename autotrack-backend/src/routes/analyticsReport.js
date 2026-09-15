@@ -209,7 +209,7 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       };
     });
 
-    // 2. Proyectos de analítica
+    // 2. Todos los proyectos (no solo analítica)
     const { rows: projects } = await pool.query(`
       SELECT p.*,
         u.name  AS assignee_name,
@@ -221,7 +221,6 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       FROM projects p
       LEFT JOIN users u  ON p.assignee_id = u.id
       LEFT JOIN users u2 ON p.co_assignee_id = u2.id
-      WHERE p.tipo = 'analitica'
       ORDER BY p.created_at DESC
     `);
 
@@ -416,7 +415,6 @@ router.post('/snapshot', auth, requierePermiso('verReporteAnalitica'), async (re
     const { rows: projects } = await pool.query(`
       SELECT id, client, status, progress
       FROM projects
-      WHERE tipo = 'analitica'
     `);
 
     // Clientes de cada proyecto (N a M), con fallback al texto `client`
