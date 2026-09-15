@@ -140,7 +140,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
   const [projects, setProjects]       = useState([]);
   const [dashPeriod, setDashPeriod]   = useState('all');
 
-  const [projModal, setProjModal]     = useState({ open: false, project: null, defStatus: null, defAssigneeId: null, defClientIds: [] });
+  const [projModal, setProjModal]     = useState({ open: false, project: null, defStatus: null, defAssigneeId: null, defClientIds: [], defArea: null });
   const [detailModal, setDetailModal] = useState({ open: false, projectId: null });
   const [userModal, setUserModal]     = useState({ open: false, user: null });
 
@@ -251,12 +251,12 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
 
   /* ── Proyectos ─────────────────────────────────────────────────────────── */
 
-  const openNewProject = (defStatus, defAssigneeId = null, defClientIds = []) =>
-    setProjModal({ open: true, project: null, defStatus, defAssigneeId, defClientIds });
+  const openNewProject = (defStatus, defAssigneeId = null, defClientIds = [], defArea = null) =>
+    setProjModal({ open: true, project: null, defStatus, defAssigneeId, defClientIds, defArea });
 
   const openEditProject = (id) => {
     const p = projects.find(x => x.id === id);
-    if (p) setProjModal({ open: true, project: p, defStatus: null, defAssigneeId: null, defClientIds: [] });
+    if (p) setProjModal({ open: true, project: p, defStatus: null, defAssigneeId: null, defClientIds: [], defArea: null });
   };
 
   const openDetail = (id) => setDetailModal({ open: true, projectId: id });
@@ -498,7 +498,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
                 users={executorsOf(users, 'analitica')} allUsers={users}
                 currentUser={user}
                 onCardClick={openDetail}
-                onNewProject={(defClientIds) => openNewProject('backlog', null, defClientIds)}
+                onNewProject={(defClientIds) => openNewProject('backlog', null, defClientIds, 'analitica')}
               />
             )}
 
@@ -528,7 +528,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
 
         <ProjectModal
           open={projModal.open} project={projModal.project}
-          defStatus={projModal.defStatus} defAssigneeId={projModal.defAssigneeId} defClientIds={projModal.defClientIds}
+          defStatus={projModal.defStatus} defAssigneeId={projModal.defAssigneeId} defClientIds={projModal.defClientIds} defArea={projModal.defArea}
           currentUser={user} users={users}
           onSave={handleSaveProject} onDelete={handleDeleteProject} onAddLog={handleAddLog}
           onClose={() => setProjModal(m => ({ ...m, open: false }))}

@@ -37,7 +37,7 @@ const STATUS_OPTS = [
   ['cancelado', 'Cancelado'],
 ];
 
-export default function ProjectModal({ open, project, defStatus, defAssigneeId, defClientIds, users, onSave, onDelete, onClose, onAddLog, currentUser }) {
+export default function ProjectModal({ open, project, defStatus, defAssigneeId, defClientIds, defArea, users, onSave, onDelete, onClose, onAddLog, currentUser }) {
   const isLeader  = LEADER_ROLES.includes(currentUser?.role);
   const canDelete = isLeader;
   const isEdit    = Boolean(project);
@@ -171,7 +171,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         setTasks((project.tasks || []).map(t => ({ ...t })));
         setLogs(project.logs || []);
       } else {
-        setAreaSel(defaultArea);
+        setAreaSel(defArea || defaultArea);
         setTypeSel('proyecto');
         setShowDoc(false);
         setForm({

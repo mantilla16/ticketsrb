@@ -409,7 +409,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
             {tasks.length === 0 && !canEdit && (
               <div style={{ fontSize: 12, color: 'var(--text3)' }}>Sin tareas registradas</div>
             )}
-            {canEdit && (
+            {canEdit && editingTaskId == null && (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <input
                   className="form-input"
