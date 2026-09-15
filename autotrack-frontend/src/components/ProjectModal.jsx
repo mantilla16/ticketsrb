@@ -4,7 +4,7 @@ import { assignables } from '../lib/tickets';
 import { analyticsReportAPI } from '../services/api';
 
 const EMPTY = {
-  name: '', description: '', client: '',
+  name: '', description: '', client: '', clientIds: [],
   status: 'backlog', priority: 'mid', assigneeIds: [],
   startDate: '', dueDate: '', progress: 0,
   docUrl: '',
@@ -37,7 +37,7 @@ const STATUS_OPTS = [
   ['cancelado', 'Cancelado'],
 ];
 
-export default function ProjectModal({ open, project, defStatus, defAssigneeId, users, onSave, onDelete, onClose, onAddLog, currentUser }) {
+export default function ProjectModal({ open, project, defStatus, defAssigneeId, defClientIds, users, onSave, onDelete, onClose, onAddLog, currentUser }) {
   const isLeader  = LEADER_ROLES.includes(currentUser?.role);
   const canDelete = isLeader;
   const isEdit    = Boolean(project);
@@ -65,9 +65,22 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDate, setTaskDate]   = useState('');
   const [taskWeight, setTaskWeight] = useState(2);
+  const [taskPriority, setTaskPriority] = useState('mid');
+  const [taskClientId, setTaskClientId] = useState('');
   const [taskAssignee, setTaskAssignee] = useState('');
   const [removedTasks, setRemovedTasks] = useState([]);
   const [editingTaskId, setEditingTaskId] = useState(null);
+
+  // Clientes (analítica): selector múltiple + alta rápida
+  const [clientOpen, setClientOpen] = useState(false);
+  const [newClientText, setNewClientText] = useState('');
+  const clientRef = useRef(null);
+  useEffect(() => {
+    if (!clientOpen) return;
+    const onDown = (e) => { if (clientRef.current && !clientRef.current.contains(e.target)) setClientOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [clientOpen]);
 
   // Seguimiento (solo edición)
   const [logs, setLogs]         = useState([]);
@@ -140,6 +153,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
           name:                  project.name,
           description:           project.description || '',
           client:                project.client || '',
+          clientIds:             (project.clients || []).map(c => String(c.id)),
           status:                project.status,
           priority:              project.priority || 'mid',
           assigneeIds:           (project.assigneeIds || (project.assigneeId != null ? [project.assigneeId] : [])).map(String),
@@ -160,12 +174,17 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         setAreaSel(defaultArea);
         setTypeSel('proyecto');
         setShowDoc(false);
-        setForm({ ...EMPTY, status: defStatus || 'backlog', assigneeIds: defAssigneeId != null ? [String(defAssigneeId)] : [] });
+        setForm({
+          ...EMPTY,
+          status: defStatus || 'backlog',
+          assigneeIds: defAssigneeId != null ? [String(defAssigneeId)] : [],
+          clientIds: (defClientIds || []).map(String),
+        });
         setTasks([]);
         setLogs([]);
       }
     }
-  }, [open, project, defStatus, defAssigneeId]);
+  }, [open, project, defStatus, defAssigneeId, defClientIds]);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
   const tipoFinal = typeSel === 'flash' ? 'asignacion_flash' : areaSel;
@@ -178,13 +197,33 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
     }));
   };
 
+  const toggleClient = (id) => {
+    const key = String(id);
+    setForm(f => ({
+      ...f,
+      clientIds: f.clientIds.includes(key) ? f.clientIds.filter(x => x !== key) : [...f.clientIds, key],
+    }));
+  };
+
+  const quickAddClient = async () => {
+    const name = newClientText.trim();
+    if (!name) return;
+    try {
+      const created = await analyticsReportAPI.createClient({ name, active: true });
+      setAnalyticsClients(prev => (prev.some(c => c.id === created.id) ? prev : [...prev, created]));
+      setForm(f => ({ ...f, clientIds: f.clientIds.includes(String(created.id)) ? f.clientIds : [...f.clientIds, String(created.id)] }));
+      setNewClientText('');
+    } catch { /* error silencioso */ }
+  };
+
   const addLocalTask = () => {
     if (!taskTitle.trim()) return;
     setTasks(ts => [...ts, {
       _localId: Date.now(), title: taskTitle.trim(), dueDate: taskDate || null, done: false, _new: true,
-      weight: taskWeight, assigneeId: taskAssignee ? Number(taskAssignee) : null,
+      weight: taskWeight, priority: taskPriority, clientId: taskClientId ? Number(taskClientId) : null,
+      assigneeId: taskAssignee ? Number(taskAssignee) : null,
     }]);
-    setTaskTitle(''); setTaskDate(''); setTaskWeight(2);
+    setTaskTitle(''); setTaskDate(''); setTaskWeight(2); setTaskPriority('mid'); setTaskClientId('');
   };
 
   const toggleLocalTask = (t) => {
@@ -209,7 +248,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
     setSaving(true); setError('');
     try {
       const tasksDelta = {
-        added:   tasks.filter(t => t._new).map(t => ({ title: t.title, dueDate: t.dueDate, done: t.done, weight: t.weight, assigneeId: t.assigneeId })),
+        added:   tasks.filter(t => t._new).map(t => ({ title: t.title, dueDate: t.dueDate, done: t.done, weight: t.weight, priority: t.priority, clientId: t.clientId, assigneeId: t.assigneeId })),
         removed: removedTasks,
         toggled: tasks.filter(t => t._toggled && t.id).map(t => ({ id: t.id, done: t.done })),
         reassigned: tasks.filter(t => t._reassigned && t.id).map(t => ({ id: t.id, assigneeId: t.assigneeId })),
@@ -218,6 +257,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         name:                  form.name.trim(),
         description:           form.description.trim() || null,
         client:                form.client.trim() || null,
+        clientIds:             form.clientIds.map(Number),
         status:                form.status,
         priority:              form.priority,
         assigneeIds:           form.assigneeIds.map(Number),
@@ -353,34 +393,45 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
               <div className="pm-field">
                 <label className="pm-field-label">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                  Área / cliente
+                  {areaSel === 'analitica' ? 'Clientes' : 'Área / cliente'}
                 </label>
-                <input className="pm-input" value={form.client} onChange={set('client')}
-                  placeholder={areaSel === 'analitica' ? 'Selecciona o escribe el cliente…' : 'Ej. Admisiones'}
-                  list={areaSel === 'analitica' && analyticsClients.length > 0 ? 'analytics-clients-list' : undefined}
-                  disabled={lockCore} autoComplete="off" />
-                <datalist id="analytics-clients-list">
-                  {analyticsClients.filter(c => c.active).map(c => <option key={c.id} value={c.name} />)}
-                </datalist>
-                {areaSel === 'analitica' && (
-                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
-                    Los clientes se administran desde el Reporte Analítica → «Gestionar clientes».
-                  </div>
+                {areaSel === 'analitica' ? (
+                  <>
+                    <div className="pm-cluser" ref={clientRef}>
+                      <div className={`pm-input pm-cluser-trigger${clientOpen ? ' pm-cluser-trigger--open' : ''}`} onClick={() => !lockCore && setClientOpen(o => !o)}>
+                        {form.clientIds.length === 0
+                          ? <span className="pm-cluser-placeholder">Selecciona uno o más clientes…</span>
+                          : (analyticsClients.filter(c => form.clientIds.includes(String(c.id))).map(c => c.name).join(', ') || 'Selecciona…')}
+                        <span className="pm-cluser-caret">▾</span>
+                      </div>
+                      {clientOpen && !lockCore && (
+                        <div className="pm-cluser-panel">
+                          {analyticsClients.filter(c => c.active).map(c => {
+                            const active = form.clientIds.includes(String(c.id));
+                            return (
+                              <label key={c.id} className={`pm-cluser-item${active ? ' pm-cluser-item--active' : ''}`}>
+                                <input type="checkbox" checked={active} onChange={() => toggleClient(c.id)} />
+                                <span>{c.name}</span>
+                              </label>
+                            );
+                          })}
+                          {analyticsClients.filter(c => c.active).length === 0 && (
+                            <div className="pm-cluser-empty">No hay clientes aún. Créalo abajo.</div>
+                          )}
+                          <div className="pm-cluser-quick">
+                            <input className="pm-input" value={newClientText} onChange={e => setNewClientText(e.target.value)}
+                              placeholder="Nuevo cliente…" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); quickAddClient(); } }} />
+                            <button type="button" className="pm-cluser-add" onClick={quickAddClient} disabled={!newClientText.trim()}>Agregar</button>
+                          </div>
+                          <div className="pm-cluser-hint">El catálogo se administra en Portafolio Analítica → «Clientes».</div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <input className="pm-input" value={form.client} onChange={set('client')}
+                    placeholder="Ej. Admisiones" disabled={lockCore} autoComplete="off" />
                 )}
-              </div>
-              <div className="pm-field">
-                <label className="pm-field-label">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  Entrega
-                </label>
-                <input className="pm-input" type="date" value={form.dueDate} onChange={set('dueDate')} disabled={lockCore} />
-              </div>
-              <div className="pm-field">
-                <label className="pm-field-label">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  Fecha de inicio
-                </label>
-                <input className="pm-input" type="date" value={form.startDate} onChange={set('startDate')} disabled={lockCore} />
               </div>
               <div className="pm-field">
                 <label className="pm-field-label">
@@ -529,7 +580,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
               {!canManageTasks
                 ? 'Marca las tareas completadas — solo el responsable o un líder pueden crearlas o modificarlas.'
                 : isEdit
-                  ? 'Las fechas se usarán para el cronograma y próximas entregas. El progreso del proyecto se calcula según las tareas completadas.'
+                  ? 'Agrega las tareas con su fecha de entrega y prioridad. El progreso del proyecto se calcula según las tareas completadas.'
                   : 'Obligatorio: agrega al menos una tarea. El progreso del proyecto se calculará según las que vayas completando.'}
             </div>
             {canManageTasks && (
@@ -543,6 +594,21 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   <option value={2}>Media</option>
                   <option value={3}>Grande</option>
                 </select>
+                <select className="pm-input" style={{ width: 105 }} value={taskPriority}
+                  onChange={e => setTaskPriority(e.target.value)} title="Prioridad de la tarea">
+                  <option value="high">Alta</option>
+                  <option value="mid">Media</option>
+                  <option value="low">Baja</option>
+                </select>
+                {areaSel === 'analitica' && (
+                  <select className="pm-input" style={{ width: 150 }} value={taskClientId}
+                    onChange={e => setTaskClientId(e.target.value)} title="Cliente (si es específico de este cliente)">
+                    <option value="">General (proyecto)</option>
+                    {analyticsClients.filter(c => c.active && (form.clientIds.includes(String(c.id)) || c.name === form.client)).map(c =>
+                      <option key={c.id} value={String(c.id)}>{c.name}</option>
+                    )}
+                  </select>
+                )}
                 {taskAssigneePool.length > 0 && (
                   <select className="pm-input" style={{ width: 150, borderColor: taskAssignee ? undefined : 'var(--high)' }} value={taskAssignee}
                     onChange={e => setTaskAssignee(e.target.value)} title="Asignar a (obligatorio)">
@@ -578,6 +644,15 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                       return owner ? (
                         <span className={`avatar-xs ${colorClass(owner.colorIndex)}`} title={owner.name}>{owner.initials}</span>
                       ) : null;
+                    })()}
+                    {t.priority && (
+                      <span className={`prio-pill prio-pill--${t.priority}`} title="Prioridad">
+                        {t.priority === 'high' ? 'Alta' : t.priority === 'low' ? 'Baja' : 'Media'}
+                      </span>
+                    )}
+                    {t.clientId && (() => {
+                      const cl = analyticsClients.find(c => c.id === t.clientId);
+                      return cl ? <span className="pm-client-chip" title="Cliente">{cl.name}</span> : null;
                     })()}
                     {t.dueDate && (
                       <span className="pm-task-date">

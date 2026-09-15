@@ -80,6 +80,38 @@ function ensureAssigneesTable() {
   return assigneesReady;
 }
 
+// ── project_clients (N a M proyecto ↔ cliente) ────────────────────────
+let projectClientsReady = null;
+function ensureProjectClientsTable() {
+  if (!projectClientsReady) {
+    projectClientsReady = pool.query(`
+      CREATE TABLE IF NOT EXISTS analytics_clients (
+        id         SERIAL PRIMARY KEY,
+        name       VARCHAR(150) NOT NULL UNIQUE,
+        active     BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `).then(() => pool.query(`
+      CREATE TABLE IF NOT EXISTS project_clients (
+        project_id VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        client_id  INTEGER     NOT NULL REFERENCES analytics_clients(id) ON DELETE CASCADE,
+        PRIMARY KEY (project_id, client_id)
+      )
+    `)).then(async () => {
+      // Migrar proyectos viejos: su columna `client` a la tabla puente
+      await pool.query(`
+        INSERT INTO project_clients (project_id, client_id)
+        SELECT p.id, ac.id
+        FROM projects p
+        JOIN analytics_clients ac ON lower(ac.name) = lower(trim(p.client))
+        WHERE p.tipo = 'analitica' AND p.client IS NOT NULL AND p.client != ''
+        ON CONFLICT DO NOTHING
+      `);
+    }).catch(err => { projectClientsReady = null; throw err; });
+  }
+  return projectClientsReady;
+}
+
 function fmtDate(d) {
   return d ? d.toISOString().slice(0, 10) : null;
 }
@@ -153,64 +185,8 @@ router.delete('/clients/:id', auth, requierePermiso('verReporteAnalitica'), asyn
 // GET /api/analytics-report — Resumen ejecutivo por cliente
 router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
   try {
-    // 1. Cargar clientes desde la BD
+    // 1. Catálogo de clientes
     const dbClients = await getClientsFromDB();
-    const dbClientMap = {};
-    dbClients.forEach(c => { dbClientMap[c.name] = c; });
-
-    // 2. Obtener todos los proyectos de analítica
-    const { rows: projects } = await pool.query(`
-      SELECT p.*,
-        u.name       AS assignee_name,
-        u.initials   AS assignee_initials,
-        u.color_index AS assignee_color,
-        u2.name      AS co_assignee_name,
-        u2.initials  AS co_assignee_initials,
-        u2.color_index AS co_assignee_color
-      FROM projects p
-      LEFT JOIN users u  ON p.assignee_id = u.id
-      LEFT JOIN users u2 ON p.co_assignee_id = u2.id
-      WHERE p.tipo = 'analitica'
-      ORDER BY p.created_at DESC
-    `);
-
-    // 3. Tareas por proyecto
-    const projectIds = projects.map(p => p.id);
-    let tasksByProject = {};
-    if (projectIds.length) {
-      const { rows: tasks } = await pool.query(
-        `SELECT project_id,
-                COUNT(*)::int AS total,
-                COUNT(*) FILTER (WHERE done)::int AS done
-         FROM project_tasks
-         WHERE project_id = ANY($1)
-         GROUP BY project_id`,
-        [projectIds],
-      );
-      tasks.forEach(t => { tasksByProject[t.project_id] = t; });
-    }
-
-    // 4. Responsables múltiples
-    let assigneesByProject = {};
-    if (projectIds.length) {
-      try {
-        await ensureAssigneesTable();
-        const { rows: assignees } = await pool.query(`
-          SELECT pa.project_id, u.id, u.name, u.initials
-          FROM project_assignees pa
-          JOIN users u ON pa.user_id = u.id
-          WHERE pa.project_id = ANY($1)
-        `, [projectIds]);
-        assignees.forEach(a => {
-          if (!assigneesByProject[a.project_id]) assigneesByProject[a.project_id] = [];
-          assigneesByProject[a.project_id].push({ id: a.id, name: a.name, initials: a.initials });
-        });
-      } catch (err) {
-        console.warn('analytics-report: project_assignees no disponible', err.message);
-      }
-    }
-
-    // 5. Agrupar por cliente — empezando desde la BD
     const clientMap = {};
     dbClients.forEach(c => {
       clientMap[c.name] = {
@@ -230,38 +206,109 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       };
     });
 
-    // Agregar clientes huérfanos (de proyectos, no en la tabla)
-    projects.forEach(p => {
-      const clientName = (p.client || '').trim();
-      if (clientName && !clientMap[clientName]) {
-        clientMap[clientName] = {
-          id: null,
-          name: clientName,
-          active: true,
-          projects: [],
-          totalProjects: 0,
-          activeProjects: 0,
-          completedProjects: 0,
-          standbyProjects: 0,
-          testingProjects: 0,
-          backlogProjects: 0,
-          avgProgress: 0,
-          nextDelivery: null,
-          teamMembers: new Set(),
-        };
+    // 2. Proyectos de analítica
+    const { rows: projects } = await pool.query(`
+      SELECT p.*,
+        u.name  AS assignee_name,
+        u.initials AS assignee_initials,
+        u.color_index AS assignee_color,
+        u2.name AS co_assignee_name,
+        u2.initials AS co_assignee_initials,
+        u2.color_index AS co_assignee_color
+      FROM projects p
+      LEFT JOIN users u  ON p.assignee_id = u.id
+      LEFT JOIN users u2 ON p.co_assignee_id = u2.id
+      WHERE p.tipo = 'analitica'
+      ORDER BY p.created_at DESC
+    `);
+
+    const projectIds = projects.map(p => p.id);
+
+    // 3. Clientes de cada proyecto (N a M)
+    const clientsByProject = {};
+    if (projectIds.length) {
+      try {
+        await ensureProjectClientsTable();
+        const { rows } = await pool.query(`
+          SELECT pc.project_id, ac.id, ac.name, ac.active
+          FROM project_clients pc
+          JOIN analytics_clients ac ON ac.id = pc.client_id
+          WHERE pc.project_id = ANY($1)
+        `, [projectIds]);
+        rows.forEach(r => {
+          if (!clientsByProject[r.project_id]) clientsByProject[r.project_id] = [];
+          clientsByProject[r.project_id].push({ id: r.id, name: r.name, active: r.active });
+        });
+      } catch (err) {
+        console.warn('analytics-report: project_clients no disponible', err.message);
       }
-    });
+    }
 
-    // 6. Llenar datos de proyectos
+    // 4. Tareas (pendientes para fechas de entrega, totales para el detalle)
+    let tasksByProject = {};
+    if (projectIds.length) {
+      const { rows: tasks } = await pool.query(`
+        SELECT project_id, id, done, due_date, client_id
+        FROM project_tasks
+        WHERE project_id = ANY($1)
+      `, [projectIds]);
+      tasks.forEach(t => {
+        if (!tasksByProject[t.project_id]) tasksByProject[t.project_id] = [];
+        tasksByProject[t.project_id].push(t);
+      });
+    }
+
+    // 5. Responsables múltiples
+    let assigneesByProject = {};
+    if (projectIds.length) {
+      try {
+        await ensureAssigneesTable();
+        const { rows: assignees } = await pool.query(`
+          SELECT pa.project_id, u.id, u.name, u.initials
+          FROM project_assignees pa
+          JOIN users u ON pa.user_id = u.id
+          WHERE pa.project_id = ANY($1)
+        `, [projectIds]);
+        assignees.forEach(a => {
+          if (!assigneesByProject[a.project_id]) assigneesByProject[a.project_id] = [];
+          assigneesByProject[a.project_id].push({ id: a.id, name: a.name, initials: a.initials });
+        });
+      } catch (err) {
+        console.warn('analytics-report: project_assignees no disponible', err.message);
+      }
+    }
+
+    // 6. Asignar cada proyecto a sus clientes
     projects.forEach(p => {
-      const clientName = (p.client || '').trim();
-      if (!clientName || !clientMap[clientName]) return;
+      let pClients = clientsByProject[p.id] || [];
+      // Fallback a proyectos viejos que guardaban el cliente como texto
+      if (!pClients.length && (p.client || '').trim() && clientMap[p.client.trim()]) {
+        pClients = [clientMap[p.client.trim()]];
+      }
 
-      const client = clientMap[clientName];
-      const tasks = tasksByProject[p.id] || { total: 0, done: 0 };
+      // Clientes huérfanos (de la tabla puente pero fuera del catálogo no debería pasar; de texto sí)
+      let orphans = null;
+      if (!pClients.length && (p.client || '').trim()) {
+        const name = p.client.trim();
+        if (!clientMap[name]) {
+          clientMap[name] = {
+            id: null, name, active: true,
+            projects: [], totalProjects: 0, activeProjects: 0, completedProjects: 0,
+            standbyProjects: 0, testingProjects: 0, backlogProjects: 0,
+            avgProgress: 0, nextDelivery: null, teamMembers: new Set(),
+          };
+          orphans = [clientMap[name]];
+        }
+      }
+      const targets = pClients.length ? pClients : (orphans || []);
+      if (!targets.length) return;
+
+      const tasks = tasksByProject[p.id] || [];
+      const doneCount = tasks.filter(t => t.done).length;
       const extra = assigneesByProject[p.id] || [];
+      const deliverable = !['done', 'cancelado'].includes(p.status);
 
-      client.projects.push({
+      const projectData = {
         id: p.id,
         name: p.name,
         status: p.status,
@@ -271,32 +318,43 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
         participationAnalitica: p.participation_analitica || null,
         startDate: fmtDate(p.start_date),
         dueDate: fmtDate(p.due_date),
+        clientIds: targets.map(c => c.id).filter(v => v != null),
         assignee: p.assignee_id ? { id: p.assignee_id, name: p.assignee_name, initials: p.assignee_initials } : null,
         coAssignee: p.co_assignee_id ? { id: p.co_assignee_id, name: p.co_assignee_name, initials: p.co_assignee_initials } : null,
         extraAssignees: extra,
-        tasksTotal: tasks.total,
-        tasksDone: tasks.done,
-      });
+        tasksTotal: tasks.length,
+        tasksDone: doneCount,
+        pendingDeliveries: deliverable
+          ? tasks.filter(t => !t.done && t.due_date).map(t => ({ id: t.id, due: fmtDate(new Date(t.due_date)) }))
+          : [],
+      };
 
-      client.totalProjects++;
-      if (p.status === 'progress') client.activeProjects++;
-      else if (p.status === 'done') client.completedProjects++;
-      else if (p.status === 'standby') client.standbyProjects++;
-      else if (p.status === 'testing') client.testingProjects++;
-      else if (p.status === 'backlog') client.backlogProjects++;
+      targets.forEach(c => {
+        c.projects.push(projectData);
+        c.totalProjects++;
+        if (p.status === 'progress') c.activeProjects++;
+        else if (p.status === 'done') c.completedProjects++;
+        else if (p.status === 'standby') c.standbyProjects++;
+        else if (p.status === 'testing') c.testingProjects++;
+        else if (p.status === 'backlog') c.backlogProjects++;
 
-      if (p.assignee_id) client.teamMembers.add(p.assignee_id);
-      extra.forEach(a => client.teamMembers.add(a.id));
+        if (p.assignee_id) c.teamMembers.add(p.assignee_id);
+        extra.forEach(a => c.teamMembers.add(a.id));
 
-      if (p.due_date && p.status !== 'done' && p.status !== 'cancelado') {
-        const due = new Date(p.due_date);
-        if (!client.nextDelivery || due < new Date(client.nextDelivery)) {
-          client.nextDelivery = fmtDate(p.due_date);
+        // Próxima entrega: la tarea pendiente más próxima (por cliente o del proyecto)
+        if (deliverable) {
+          const pendingDates = tasks
+            .filter(t => !t.done && t.due_date)
+            .map(t => ({ client_id: t.client_id, due: new Date(t.due_date) }))
+            .filter(t => t.client_id === c.id || t.client_id === null);
+          pendingDates.forEach(({ due }) => {
+            if (!c.nextDelivery || due < new Date(c.nextDelivery)) c.nextDelivery = fmtDate(due);
+          });
         }
-      }
+      });
     });
 
-    // 7. Promedios + convertir Sets a arrays
+    // 7. Promedios + Sets → arrays
     const result = Object.values(clientMap).map(c => ({
       ...c,
       avgProgress: c.totalProjects
@@ -342,22 +400,39 @@ router.get('/history', auth, requierePermiso('verReporteAnalitica'), async (req,
 router.post('/snapshot', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
   try {
     const { rows: projects } = await pool.query(`
-      SELECT client, status, progress
+      SELECT id, client, status, progress
       FROM projects
-      WHERE tipo = 'analitica' AND client IS NOT NULL AND client != ''
+      WHERE tipo = 'analitica'
     `);
+
+    // Clientes de cada proyecto (N a M), con fallback al texto `client`
+    await ensureProjectClientsTable();
+    const { rows: pcRows } = await pool.query(`
+      SELECT pc.project_id, ac.id, ac.name
+      FROM project_clients pc
+      JOIN analytics_clients ac ON ac.id = pc.client_id
+    `);
+
+    const clientsByProject = {};
+    pcRows.forEach(r => {
+      if (!clientsByProject[r.project_id]) clientsByProject[r.project_id] = [];
+      clientsByProject[r.project_id].push(r);
+    });
 
     const clientData = {};
     projects.forEach(p => {
-      const name = p.client.trim();
-      if (!clientData[name]) clientData[name] = { total: 0, active: 0, completed: 0, standby: 0, testing: 0, progressSum: 0 };
-      const c = clientData[name];
-      c.total++;
-      if (p.status === 'progress') c.active++;
-      else if (p.status === 'done') c.completed++;
-      else if (p.status === 'standby') c.standby++;
-      else if (p.status === 'testing') c.testing++;
-      c.progressSum += p.progress || 0;
+      let pClients = (clientsByProject[p.id] || []).map(c => c.name);
+      if (!pClients.length && p.client) pClients = [p.client.trim()];
+      pClients.forEach(name => {
+        if (!clientData[name]) clientData[name] = { total: 0, active: 0, completed: 0, standby: 0, testing: 0, progressSum: 0 };
+        const c = clientData[name];
+        c.total++;
+        if (p.status === 'progress') c.active++;
+        else if (p.status === 'done') c.completed++;
+        else if (p.status === 'standby') c.standby++;
+        else if (p.status === 'testing') c.testing++;
+        c.progressSum += p.progress || 0;
+      });
     });
 
     const today = new Date().toISOString().slice(0, 10);

@@ -183,8 +183,8 @@ function ClientCard({ client, users, index }) {
                 <th style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Estado</th>
                 <th style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Prioridad</th>
                 <th style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Avance</th>
-                <th style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Responsable</th>
-                <th style={{ padding: '10px 16px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Entrega</th>
+                <th style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Tareas pend.</th>
+                <th style={{ padding: '10px 16px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Próxima entrega</th>
               </tr>
             </thead>
             <tbody>
@@ -193,15 +193,16 @@ function ClientCard({ client, users, index }) {
                   <td colSpan={6} style={{ padding: '14px 16px', color: 'var(--rb-text-4)', fontSize: 13 }}>
                     {showInactive
                       ? 'Cliente marcado como no activo — sin proyectos registrados.'
-                      : 'Sin proyectos de analítica registrados para este cliente yet.'}
+                      : 'Sin proyectos de analítica registrados para este cliente todavía.'}
                   </td>
                 </tr>
               )}
               {client.projects.map(p => {
                 const st = STATUS_DEF[p.status] || STATUS_DEF.backlog;
                 const pr = PR_BADGE[p.priority] || PR_BADGE.mid;
-                const pdm = fmtDM(p.dueDate);
-                const dueOverdue = p.dueDate && new Date(p.dueDate + 'T00:00:00') < new Date(new Date().toDateString());
+                const pend = p.pendingDeliveries || [];
+                const next = pend.length ? pend.reduce((a, b) => a.due < b.due ? a : b) : null;
+                const dueOverdue = next && new Date(next.due + 'T00:00:00') < new Date(new Date().toDateString());
                 const responsables = [
                   p.assignee ? userName(p.assignee.id) : null,
                   p.coAssignee ? userName(p.coAssignee.id) : null,
@@ -230,14 +231,16 @@ function ClientCard({ client, users, index }) {
                       </div>
                     </td>
                     <td style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)' }}>
-                      {responsables.length
-                        ? responsables.join(', ')
-                        : <span style={{ color: 'var(--rb-text-4)', fontStyle: 'italic' }}>Sin asignar</span>}
+                      {pend.length > 0 ? (
+                        <span style={{ color: 'var(--rb-warning)', fontWeight: 700 }}>{pend.length} tarea{pend.length !== 1 ? 's' : ''}</span>
+                      ) : (
+                        <span style={{ color: 'var(--rb-text-4)' }}>—</span>
+                      )}
                     </td>
                     <td style={{ padding: '10px 16px', fontSize: 12 }}>
-                      {pdm ? (
+                      {next ? (
                         <span style={{ color: dueOverdue ? 'var(--rb-danger)' : 'var(--rb-text-2)', fontWeight: dueOverdue ? 700 : 400 }}>
-                          {pdm.day} {pdm.mon}
+                          {fmtShort(next.due)}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--rb-text-4)' }}>—</span>
@@ -272,14 +275,6 @@ export default function AnalyticsReportView({ users }) {
   const [error, setError] = useState(null);
   const [snapshotting, setSnapshotting] = useState(false);
   const [snapshotMsg, setSnapshotMsg] = useState('');
-  const [showClientModal, setShowClientModal] = useState(false);
-  const [clientList, setClientList] = useState([]);
-  const [clientLoading, setClientLoading] = useState(false);
-  const [newClientName, setNewClientName] = useState('');
-  const [editingClient, setEditingClient] = useState(null);
-  const [editClientName, setEditClientName] = useState('');
-  const [editClientActive, setEditClientActive] = useState(true);
-  const [clientError, setClientError] = useState('');
 
   const loadData = useCallback(async () => {
     try {
@@ -328,87 +323,29 @@ export default function AnalyticsReportView({ users }) {
     }
   };
 
-  const loadClientList = async () => {
-    try {
-      setClientLoading(true);
-      setClientError('');
-      const clients = await analyticsReportAPI.getClients();
-      setClientList(clients);
-    } catch (e) {
-      setClientError(e.error || 'Error al cargar clientes');
-    } finally {
-      setClientLoading(false);
-    }
-  };
-
-  const addClient = async () => {
-    const name = newClientName.trim();
-    if (!name) return;
-    setClientError('');
-    try {
-      const created = await analyticsReportAPI.createClient({ name, active: true });
-      setClientList(prev => [...prev, created].sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0) || a.name.localeCompare(b.name)));
-      setNewClientName('');
-      await loadData();
-    } catch (e) {
-      setClientError(e.error || 'Error al crear cliente');
-    }
-  };
-
-  const saveClient = async (id) => {
-    const name = editClientName.trim();
-    if (!name) return;
-    setClientError('');
-    try {
-      const updated = await analyticsReportAPI.updateClient(id, { name, active: editClientActive });
-      setClientList(prev => prev.map(c => c.id === id ? updated : c).sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0) || a.name.localeCompare(b.name)));
-      setEditingClient(null);
-      await loadData();
-    } catch (e) {
-      setClientError(e.error || 'Error al actualizar cliente');
-    }
-  };
-
-  const removeClient = async (id) => {
-    setClientError('');
-    try {
-      await analyticsReportAPI.deleteClient(id);
-      setClientList(prev => prev.filter(c => c.id !== id));
-      setEditingClient(null);
-      await loadData();
-    } catch (e) {
-      setClientError(e.error || 'Error al eliminar cliente');
-    }
-  };
-
-  const toggleClientActive = async (id, currentActive) => {
-    const client = clientList.find(c => c.id === id);
-    if (!client) return;
-    setClientError('');
-    try {
-      const updated = await analyticsReportAPI.updateClient(id, { name: client.name, active: !currentActive });
-      setClientList(prev => prev.map(c => c.id === id ? updated : c).sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0) || a.name.localeCompare(b.name)));
-      await loadData();
-    } catch (e) {
-      setClientError(e.error || 'Error al cambiar estado');
-    }
-  };
-
   const activeClients = clients.filter(c => c.active);
   const inactiveClients = clients.filter(c => !c.active);
 
   const totalProjects = clients.reduce((s, c) => s + c.totalProjects, 0);
   const totalActive = clients.reduce((s, c) => s + c.activeProjects, 0);
   const totalDone = clients.reduce((s, c) => s + c.completedProjects, 0);
-  const projectsWithDue = clients.flatMap(c => c.projects)
-    .filter(p => p.dueDate && !['done', 'cancelado'].includes(p.status));
+
+  /* Entregas = tareas sin completar con fecha (sin duplicar por cliente) */
+  const seenDeliveries = new Set();
+  const deliveries = [];
+  clients.forEach(c => c.projects.forEach(p => (p.pendingDeliveries || []).forEach(d => {
+    if (seenDeliveries.has(d.id)) return;
+    seenDeliveries.add(d.id);
+    deliveries.push(d.due);
+  })));
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const week = new Date(today); week.setDate(week.getDate() + 7);
-  const dueThisWeek = projectsWithDue.filter(p =>
-    new Date(p.dueDate + 'T00:00:00') >= today && new Date(p.dueDate + 'T00:00:00') <= week).length;
-  const overdueProjects = projectsWithDue.filter(p =>
-    new Date(p.dueDate + 'T00:00:00') < today);
+  const dueThisWeek = deliveries.filter(d => {
+    const t = new Date(d + 'T00:00:00');
+    return t >= today && t <= week;
+  }).length;
+  const overdueDeliveries = deliveries.filter(d => new Date(d + 'T00:00:00') < today).length;
 
   /* KPIs resumen */
   const summaryCards = [
@@ -416,8 +353,8 @@ export default function AnalyticsReportView({ users }) {
     { l: 'Proyectos analítica', v: totalProjects, u: 'proyectos', c: 'var(--rb-navy)', bg: 'var(--rb-navy-tint)', ic: 'briefcase' },
     { l: 'En ejecución', v: totalActive, u: 'activos', c: 'var(--rb-teal)', bg: 'var(--rb-teal-tint)', ic: 'progress' },
     { l: 'Finalizados', v: totalDone, u: 'proyectos', c: 'var(--rb-success)', bg: 'var(--rb-success-bg)', ic: 'done' },
-    { l: 'Entregas esta semana', v: dueThisWeek, u: 'entregas', c: 'var(--rb-warning)', bg: 'var(--rb-warning-bg)', ic: 'calendar' },
-    { l: 'Vencidas', v: overdueProjects.length, u: 'entregas', c: 'var(--rb-danger)', bg: 'var(--rb-danger-bg)', ic: 'alert' },
+    { l: 'Entregas esta semana', v: dueThisWeek, u: 'tareas', c: 'var(--rb-warning)', bg: 'var(--rb-warning-bg)', ic: 'calendar' },
+    { l: 'Vencidas', v: overdueDeliveries, u: 'tareas', c: 'var(--rb-danger)', bg: 'var(--rb-danger-bg)', ic: 'alert' },
   ];
 
   const ICONS = {
@@ -456,9 +393,6 @@ export default function AnalyticsReportView({ users }) {
           )}
           <Button variant="primary" icon="clock" onClick={handleSnapshot} disabled={snapshotting}>
             {snapshotting ? 'Guardando…' : 'Tomar snapshot'}
-          </Button>
-          <Button variant="ghost" icon="users" onClick={() => { setShowClientModal(true); loadClientList(); }}>
-            Gestionar clientes
           </Button>
         </div>
       </div>
@@ -543,118 +477,6 @@ export default function AnalyticsReportView({ users }) {
               Promedio de progreso de todos los clientes por snapshot
             </div>
             <_GlobalTrend history={history} />
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal de gestión de clientes ── */}
-      {showClientModal && (
-        <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && setShowClientModal(false)}>
-          <div className="modal" style={{ maxWidth: 540 }}>
-            <div className="modal-header">
-              <div>
-                <div className="modal-title">Gestionar clientes</div>
-                <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 2 }}>
-                  Agrega, renombra o desactiva los clientes del proyecto de analítica
-                </div>
-              </div>
-              <button className="modal-close" onClick={() => { setShowClientModal(false); setEditingClient(null); }}>×</button>
-            </div>
-            <div className="modal-body">
-              {clientError && (
-                <div className="login-error" style={{ marginBottom: 12 }}>{clientError}</div>
-              )}
-
-              {/* Agregar nuevo cliente */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                <input
-                  className="pm-input"
-                  style={{ flex: 1 }}
-                  placeholder="Nombre del nuevo cliente…"
-                  value={newClientName}
-                  onChange={e => setNewClientName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addClient()}
-                />
-                <button className="btn btn-primary btn-sm" onClick={addClient} disabled={!newClientName.trim()}>
-                  Agregar
-                </button>
-              </div>
-
-              {/* Lista de clientes */}
-              {clientLoading ? (
-                <div style={{ fontSize: 13, color: 'var(--text3)', padding: '12px 0' }}>Cargando…</div>
-              ) : clientList.length === 0 ? (
-                <div style={{ fontSize: 13, color: 'var(--text3)', padding: '12px 0' }}>No hay clientes registrados</div>
-              ) : (
-                <div style={{ display: 'grid', gap: 6 }}>
-                  {clientList.map(c => (
-                    <div key={c.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '10px 12px', borderRadius: 'var(--rb-r-md)',
-                      background: 'var(--rb-surface-2)',
-                      border: '1px solid var(--rb-line-soft)',
-                      opacity: c.active ? 1 : 0.55,
-                    }}>
-                      {editingClient === c.id ? (
-                        <>
-                          <input
-                            className="pm-input"
-                            style={{ flex: 1, fontSize: 13 }}
-                            value={editClientName}
-                            onChange={e => setEditClientName(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && saveClient(c.id)}
-                            autoFocus
-                          />
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 12, color: 'var(--text3)', whiteSpace: 'nowrap' }}>
-                            <input
-                              type="checkbox"
-                              checked={editClientActive}
-                              onChange={e => setEditClientActive(e.target.checked)}
-                              style={{ accentColor: 'var(--accent)', width: 13, height: 13 }}
-                            />
-                            Activo
-                          </label>
-                          <button className="btn btn-primary btn-sm" style={{ fontSize: 12 }} onClick={() => saveClient(c.id)} disabled={!editClientName.trim()}>Guardar</button>
-                          <button className="btn btn-ghost btn-sm" style={{ fontSize: 12 }} onClick={() => setEditingClient(null)}>Cancelar</button>
-                        </>
-                      ) : (
-                        <>
-                          <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{c.name}</span>
-                          {!c.active && (
-                            <span className="pill-mini" style={{ background: 'var(--rb-neutral-bg)', color: 'var(--rb-neutral)', fontSize: 11 }}>No activo</span>
-                          )}
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            style={{ fontSize: 11, padding: '3px 8px' }}
-                            onClick={() => toggleClientActive(c.id, c.active)}
-                            title={c.active ? 'Desactivar' : 'Activar'}
-                          >
-                            {c.active ? 'Desactivar' : 'Activar'}
-                          </button>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            style={{ fontSize: 11, padding: '3px 8px' }}
-                            onClick={() => { setEditingClient(c.id); setEditClientName(c.name); setEditClientActive(c.active); }}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            style={{ fontSize: 11, padding: '3px 8px' }}
-                            onClick={() => { if (window.confirm(`¿Eliminar "${c.name}"?`)) removeClient(c.id); }}
-                          >
-                            ×
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-ghost btn-sm" onClick={() => { setShowClientModal(false); setEditingClient(null); }}>Cerrar</button>
-            </div>
           </div>
         </div>
       )}

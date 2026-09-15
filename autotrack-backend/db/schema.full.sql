@@ -197,3 +197,27 @@ CREATE TABLE IF NOT EXISTS analytics_clients (
   active     BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- ──────────────────── project_clients ──────────────────────────────────
+-- Relación N a M entre proyectos de analítica y su catálogo de clientes:
+-- un proyecto puede atender a varios clientes a la vez.
+CREATE TABLE IF NOT EXISTS project_clients (
+  project_id VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  client_id  INTEGER     NOT NULL REFERENCES analytics_clients(id) ON DELETE CASCADE,
+  PRIMARY KEY (project_id, client_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_clients_client ON project_clients(client_id);
+
+-- Las tareas pueden pertenecer a un cliente concreto del proyecto o al
+-- proyecto completo (client_id NULL). También ganan prioridad alta/media/baja.
+ALTER TABLE project_tasks
+  ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES analytics_clients(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS priority  VARCHAR(10) NOT NULL DEFAULT 'mid';
+
+-- Indices y valores de prioridad
+UPDATE project_tasks SET priority = 'mid' WHERE priority NOT IN ('high','mid','low');
+ALTER TABLE project_tasks DROP CONSTRAINT IF EXISTS project_tasks_priority_check;
+ALTER TABLE project_tasks ADD  CONSTRAINT project_tasks_priority_check
+  CHECK (priority IN ('high','mid','low'));
+CREATE INDEX IF NOT EXISTS idx_tasks_client ON project_tasks(client_id);

@@ -53,16 +53,66 @@ async function extraAssigneeIds(projectId) {
 
 // Dueño individual (solo relevante en compartidos) y tamaño de cada tarea —
 // columnas agregadas en caliente, igual que project_assignees más arriba.
+// Además: prioridad alta/media/baja y cliente opcional (para analítica).
 let taskColumnsReady = null;
 function ensureTaskColumns() {
   if (!taskColumnsReady) {
     taskColumnsReady = pool.query(`
       ALTER TABLE project_tasks
         ADD COLUMN IF NOT EXISTS assignee_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        ADD COLUMN IF NOT EXISTS weight SMALLINT NOT NULL DEFAULT 2
+        ADD COLUMN IF NOT EXISTS weight SMALLINT NOT NULL DEFAULT 2,
+        ADD COLUMN IF NOT EXISTS priority VARCHAR(10) NOT NULL DEFAULT 'mid',
+        ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES analytics_clients(id) ON DELETE SET NULL
     `).catch(err => { taskColumnsReady = null; throw err; });
   }
   return taskColumnsReady;
+}
+
+// Tabla puente proyecto ↔ clientes (analítica). La crea el propio usuario de
+// la app, igual que project_assignees, para evitar problemas de GRANT.
+let projectClientsReady = null;
+function ensureProjectClientsTable() {
+  if (!projectClientsReady) {
+    projectClientsReady = pool.query(`
+      CREATE TABLE IF NOT EXISTS analytics_clients (
+        id         SERIAL PRIMARY KEY,
+        name       VARCHAR(150) NOT NULL UNIQUE,
+        active     BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `).then(() => pool.query(`
+      CREATE TABLE IF NOT EXISTS project_clients (
+        project_id VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        client_id  INTEGER     NOT NULL REFERENCES analytics_clients(id) ON DELETE CASCADE,
+        PRIMARY KEY (project_id, client_id)
+      )
+    `)).catch(err => { projectClientsReady = null; throw err; });
+  }
+  return projectClientsReady;
+}
+
+// Reemplaza el conjunto completo de clientes de un proyecto de analítica
+async function syncProjectClients(projectId, clientIds) {
+  await ensureProjectClientsTable();
+  await pool.query('DELETE FROM project_clients WHERE project_id=$1', [projectId]);
+  const ids = [...new Set((clientIds || []).filter(Boolean).map(Number))];
+  if (!ids.length) return;
+  const values = ids.map((_, i) => `($1,$${i + 2})`).join(',');
+  await pool.query(
+    `INSERT INTO project_clients (project_id, client_id) VALUES ${values} ON CONFLICT DO NOTHING`,
+    [projectId, ...ids],
+  );
+}
+
+async function projectClientsOf(projectId) {
+  await ensureProjectClientsTable();
+  const { rows } = await pool.query(`
+    SELECT ac.id, ac.name, ac.active
+    FROM project_clients pc
+    JOIN analytics_clients ac ON ac.id = pc.client_id
+    WHERE pc.project_id = $1
+  `, [projectId]);
+  return rows;
 }
 
 // Responsables actuales de un proyecto (para notificaciones)
@@ -123,7 +173,7 @@ function fmtDate(d) {
   return d ? d.toISOString().slice(0, 10) : null;
 }
 
-function fmtProject(p, logs = [], tasks = [], extraAssignees = []) {
+function fmtProject(p, logs = [], tasks = [], extraAssignees = [], clients = []) {
   const primary = p.assignee_id ? {
     id: p.assignee_id, name: p.assignee_name, initials: p.assignee_initials, colorIndex: p.assignee_color,
   } : null;
@@ -135,6 +185,7 @@ function fmtProject(p, logs = [], tasks = [], extraAssignees = []) {
     name: p.name,
     description: p.description,
     client: p.client,
+    clients,
     status: p.status,
     priority: p.priority,
     tipo: p.tipo || 'automatizacion',
@@ -179,6 +230,8 @@ function fmtProject(p, logs = [], tasks = [], extraAssignees = []) {
       id: t.id,
       title: t.title,
       done: t.done,
+      priority: t.priority ?? 'mid',
+      clientId: t.client_id || null,
       dueDate: fmtDate(t.due_date),
       createdAt: t.created_at,
       assigneeId: t.assignee_id || null,
@@ -224,7 +277,8 @@ async function fetchProject(id) {
      FROM project_assignees pa JOIN users u ON pa.user_id = u.id
      WHERE pa.project_id = $1`, [id]
   );
-  return fmtProject(rows[0], logs.rows, tasks.rows, extra.rows);
+  const clients = await projectClientsOf(id);
+  return fmtProject(rows[0], logs.rows, tasks.rows, extra.rows, clients);
 }
 
 const validators = [
@@ -281,7 +335,21 @@ router.get('/', auth, async (req, res) => {
       assigneesByProject[a.project_id].push({ id: a.id, name: a.name, initials: a.initials, colorIndex: a.colorIndex });
     });
 
-    res.json(rows.map(p => fmtProject(p, byProject[p.id] || [], tasksByProject[p.id] || [], assigneesByProject[p.id] || [])));
+    await ensureProjectClientsTable();
+    const clientsRes = await pool.query(`
+      SELECT pc.project_id, ac.id, ac.name, ac.active
+      FROM project_clients pc
+      JOIN analytics_clients ac ON ac.id = pc.client_id
+      WHERE pc.project_id = ANY($1)
+    `, [ids]);
+    const clientsByProject = {};
+    clientsRes.rows.forEach(c => {
+      if (!clientsByProject[c.project_id]) clientsByProject[c.project_id] = [];
+      clientsByProject[c.project_id].push({ id: c.id, name: c.name, active: c.active });
+    });
+
+    res.json(rows.map(p => fmtProject(p, byProject[p.id] || [], tasksByProject[p.id] || [],
+      assigneesByProject[p.id] || [], clientsByProject[p.id] || [])));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -293,7 +361,7 @@ router.post('/', auth, requierePermiso('crearProyectos'), validators, async (req
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, description, client, status, priority, assigneeId, assigneeIds, startDate, dueDate, progress, tipo, docUrl,
+  const { name, description, client, clientIds, status, priority, assigneeId, assigneeIds, startDate, dueDate, progress, tipo, docUrl,
           coAssigneeId, generalAssigneeId, participationAuto, participationAnalitica, progressAuto, progressAnalitica } = req.body;
   const ids = Array.isArray(assigneeIds) && assigneeIds.length
     ? [...new Set(assigneeIds.filter(Boolean).map(Number))]
@@ -313,6 +381,7 @@ router.post('/', auth, requierePermiso('crearProyectos'), validators, async (req
         progressAuto || 0, progressAnalitica || 0, req.user.id, status === 'soporte']);
 
     await syncAssignees(id, ids);
+    await syncProjectClients(id, clientIds);
 
     notify([...ids, coAssigneeId, generalAssigneeId], req.user.id, id,
       'assign', `te asignó el proyecto «${escapeHtml(name)}»`,
@@ -331,7 +400,7 @@ router.put('/:id', auth, validators, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, description, client, status, priority, assigneeId, assigneeIds, startDate, dueDate, progress, tipo, docUrl,
+  const { name, description, client, clientIds, status, priority, assigneeId, assigneeIds, startDate, dueDate, progress, tipo, docUrl,
           coAssigneeId, generalAssigneeId, participationAuto, participationAnalitica, progressAuto, progressAnalitica,
           supportClosed } = req.body;
   const ids = Array.isArray(assigneeIds) && assigneeIds.length
@@ -364,6 +433,7 @@ router.put('/:id', auth, validators, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
     await recalcProgress(req.params.id);
     await syncAssignees(req.params.id, ids);
+    await syncProjectClients(req.params.id, clientIds);
 
     if (before) {
       const oldIds = before.ids.filter(Boolean).map(Number);
@@ -446,9 +516,11 @@ router.post('/:id/tasks', auth, [
     if (!(await assertProjectAccess(req, res, req.params.id))) return;
     await ensureTaskColumns();
     const weight = [1, 2, 3].includes(Number(req.body.weight)) ? Number(req.body.weight) : 2;
+    const priority = ['high', 'mid', 'low'].includes(req.body.priority) ? req.body.priority : 'mid';
+    const clientId = Number(req.body.clientId) || null;
     await pool.query(
-      'INSERT INTO project_tasks (project_id, title, due_date, created_by, assignee_id, weight) VALUES ($1,$2,$3,$4,$5,$6)',
-      [req.params.id, req.body.title.trim(), req.body.dueDate || null, req.user.id, req.body.assigneeId || null, weight]
+      'INSERT INTO project_tasks (project_id, title, due_date, created_by, assignee_id, weight, priority, client_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+      [req.params.id, req.body.title.trim(), req.body.dueDate || null, req.user.id, req.body.assigneeId || null, weight, priority, clientId]
     );
     await recalcProgress(req.params.id);
     const project = await fetchProject(req.params.id);
@@ -475,14 +547,20 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
     if (!(await assertProjectAccess(req, res, req.params.id))) return;
     await ensureTaskColumns();
     const validWeight = [1, 2, 3].includes(Number(weight)) ? Number(weight) : null;
+    const validPriority = ['high', 'mid', 'low'].includes(req.body.priority) ? req.body.priority : null;
     const result = await pool.query(
       `UPDATE project_tasks
        SET done = COALESCE($1, done), title = COALESCE($2, title), due_date = COALESCE($3, due_date),
            assignee_id = CASE WHEN $6 THEN $7 ELSE assignee_id END,
-           weight = COALESCE($8, weight)
+           weight = COALESCE($8, weight),
+           priority = COALESCE($9, priority),
+           client_id = CASE WHEN $10 THEN $11 ELSE client_id END
        WHERE id = $4 AND project_id = $5 RETURNING id`,
       [typeof done === 'boolean' ? done : null, title?.trim() || null, dueDate || null, req.params.taskId, req.params.id,
-       Object.prototype.hasOwnProperty.call(req.body, 'assigneeId'), assigneeId || null, validWeight]
+       Object.prototype.hasOwnProperty.call(req.body, 'assigneeId'), assigneeId || null, validWeight,
+       validPriority,
+       Object.prototype.hasOwnProperty.call(req.body, 'clientId'),
+       req.body.clientId === null || req.body.clientId === undefined ? null : (Number(req.body.clientId) || null)]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tarea no encontrada' });
 

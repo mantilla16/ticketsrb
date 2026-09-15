@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { assignables } from '../lib/tickets';
 import { fmtDate, dateStatus, colorClass, fmtLogDate } from '../utils/helpers';
+import { analyticsReportAPI } from '../services/api';
 
 const STATUS_CLS = {
   backlog:'status-backlog',progress:'status-progress',
@@ -17,6 +18,11 @@ const PR_L    = { high: 'Alta',   mid: 'Media',  low: 'Baja'   };
 
 const TIPO_LABEL = { automatizacion: 'Automatización', analitica: 'Analítica', compartido: 'Compartido', asignacion_flash: 'Asignación Flash' };
 const TIPO_CLS   = { automatizacion: 'tipo-auto', analitica: 'tipo-analitica', compartido: 'tipo-compartido', asignacion_flash: 'tipo-flash' };
+
+const fmtShort = (d) => {
+  if (!d) return '—';
+  return new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+};
 
 const fmtDateTime = (isoStr) => {
   if (!isoStr) return '';
@@ -38,12 +44,17 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   const [error, setError]     = useState('');
   const [taskText, setTaskText]     = useState('');
   const [taskWeight, setTaskWeight] = useState(2);
+  const [taskPriority, setTaskPriority] = useState('mid');
+  const [taskClientId, setTaskClientId] = useState('');
   const [taskAssignee, setTaskAssignee] = useState('');
   const [taskSaving, setTaskSaving] = useState(false);
   const [busyTaskIds, setBusyTaskIds] = useState(new Set());
+  const [analyticsClients, setAnalyticsClients] = useState([]);
   const [isBlock, setIsBlock]       = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editAssignee, setEditAssignee]   = useState('');
+  const [editPriority, setEditPriority]   = useState('mid');
+  const [editClientId, setEditClientId]   = useState('');
 
   const tipo = project?.tipo || 'automatizacion';
 
@@ -62,8 +73,16 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
     const self = taskAssigneePool.some(u => u.id === currentUser?.id);
     setTaskAssignee(self ? String(currentUser.id) : '');
     setTaskWeight(2);
+    setTaskPriority('mid');
+    setTaskClientId('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id]);
+
+  useEffect(() => {
+    if (open && tipo === 'analitica') {
+      analyticsReportAPI.getClients().then(setAnalyticsClients).catch(() => {});
+    }
+  }, [open, tipo]);
 
   if (!open || !project) return null;
 
@@ -96,20 +115,26 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
     try {
       await onAddTask(project.id, taskText.trim(), {
         weight: taskWeight,
+        priority: taskPriority,
+        clientId: taskClientId ? Number(taskClientId) : null,
         assigneeId: taskAssignee ? Number(taskAssignee) : null,
       });
-      setTaskText(''); setTaskWeight(2);
+      setTaskText(''); setTaskWeight(2); setTaskPriority('mid'); setTaskClientId('');
     } finally { setTaskSaving(false); }
   };
 
   const startEditTask = (t) => {
     setEditingTaskId(t.id);
     setEditAssignee(t.assigneeId ? String(t.assigneeId) : '');
+    setEditPriority(t.priority || 'mid');
+    setEditClientId(t.clientId ? String(t.clientId) : '');
   };
 
   const saveEditTask = async (taskId) => {
     await withTaskBusy(taskId, () => onUpdateTask(project.id, taskId, {
       assigneeId: editAssignee ? Number(editAssignee) : null,
+      priority: editPriority,
+      clientId: editClientId ? Number(editClientId) : null,
     }));
     setEditingTaskId(null);
   };
@@ -322,6 +347,17 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                         <span className={`avatar-xs ${colorClass(owner.colorIndex)}`} title={owner.name}>{owner.initials}</span>
                       ) : null;
                     })()}
+                    {t.priority && (
+                      <span className={`prio-pill prio-pill--${t.priority}`} title="Prioridad">
+                        {PR_L[t.priority] || PR_L.mid}
+                      </span>
+                    )}
+                    {t.dueDate && (
+                      <span className="pm-task-date">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        {fmtShort(t.dueDate)}
+                      </span>
+                    )}
                     {canEdit && (
                       <button className="task-del" style={{ opacity: 1 }} disabled={busyTaskIds.has(t.id)}
                         onClick={() => startEditTask(t)} title="Editar responsable">
@@ -340,6 +376,21 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                     )}
                     {editingTaskId === t.id && (
                       <div style={{ display: 'flex', gap: 6, width: '100%', marginTop: 4, paddingLeft: 26 }}>
+                        <select className="form-input" style={{ width: 90, fontSize: 12.5, padding: '6px 8px' }}
+                          value={editPriority} onChange={e => setEditPriority(e.target.value)} title="Prioridad">
+                          <option value="high">Alta</option>
+                          <option value="mid">Media</option>
+                          <option value="low">Baja</option>
+                        </select>
+                        {tipo === 'analitica' && (
+                          <select className="form-input" style={{ width: 120, fontSize: 12.5, padding: '6px 8px' }}
+                            value={editClientId} onChange={e => setEditClientId(e.target.value)} title="Cliente">
+                            <option value="">General</option>
+                            {analyticsClients.filter(c => c.active && (project.clients || []).some(pc => pc.id === c.id)).map(c =>
+                              <option key={c.id} value={String(c.id)}>{c.name}</option>
+                            )}
+                          </select>
+                        )}
                         <select className="form-input" style={{ flex: 1, fontSize: 12.5, padding: '6px 8px' }}
                           value={editAssignee} onChange={e => setEditAssignee(e.target.value)} title="Asignar a">
                           <option value="">Sin asignar</option>
@@ -374,6 +425,21 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                   <option value={2}>Media</option>
                   <option value={3}>Grande</option>
                 </select>
+                <select className="form-input" style={{ width: 90, fontSize: 13, padding: '7px 10px' }}
+                  value={taskPriority} onChange={e => setTaskPriority(e.target.value)} title="Prioridad">
+                  <option value="high">Alta</option>
+                  <option value="mid">Media</option>
+                  <option value="low">Baja</option>
+                </select>
+                {tipo === 'analitica' && (
+                  <select className="form-input" style={{ width: 140, fontSize: 13, padding: '7px 10px' }}
+                    value={taskClientId} onChange={e => setTaskClientId(e.target.value)} title="Cliente">
+                    <option value="">General</option>
+                    {analyticsClients.filter(c => c.active && (project.clients || []).some(pc => pc.id === c.id)).map(c =>
+                      <option key={c.id} value={String(c.id)}>{c.name}</option>
+                    )}
+                  </select>
+                )}
                 {taskAssigneePool.length > 0 && (
                   <select className="form-input" style={{ width: 130, fontSize: 13, padding: '7px 10px', borderColor: taskAssignee ? undefined : 'var(--high)' }}
                     value={taskAssignee} onChange={e => setTaskAssignee(e.target.value)} title="Asignar a (obligatorio)">

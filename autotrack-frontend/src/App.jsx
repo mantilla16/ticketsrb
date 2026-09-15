@@ -16,6 +16,7 @@ import PersonalDashboardView from './components/PersonalDashboardView';
 import GanttView from './components/GanttView';
 import AnalyticsTeamView from './components/AnalyticsTeamView';
 import AnalyticsReportView from './components/AnalyticsReportView';
+import PortfolioAnalitica from './components/PortfolioAnalitica';
 import HistorialView from './components/HistorialView';
 import UsersView from './components/UsersView';
 import UserModal from './components/UserModal';
@@ -35,6 +36,7 @@ const TITLES = {
   reports:       { title: 'Panorama',          sub: 'Qué hay pendiente, a qué ritmo avanzamos, cuánto tardamos y qué viene' },
   dashboard:     { title: 'Panel de ejecución', sub: 'Estado del portafolio de trabajos en curso' },
   'analytics-report': { title: 'Reporte Analítica', sub: 'Seguimiento por cliente del equipo de analítica de datos' },
+  'portfolio-analitica': { title: 'Portafolio Analítica', sub: 'Qué se está haciendo por cliente y qué falta por hacer' },
   'team-kanban': { title: 'Proyectos',          sub: 'Trabajos en ejecución del equipo de automatización' },
   analytics:     { title: 'Equipo Analítica',   sub: 'Trabajos en ejecución del equipo de analítica de datos' },
   gantt:         { title: 'Cronograma',         sub: 'Línea de tiempo y avance de los trabajos en curso' },
@@ -63,6 +65,7 @@ function defaultSection(role) {
 function projectPayload(p, overrides = {}) {
   return {
     name: p.name, description: p.description, client: p.client,
+    clientIds: (p.clients || (p.clientId != null ? [p.clientId] : [])).map(c => typeof c === 'object' ? c.id : c),
     status: p.status, priority: p.priority || 'mid',
     assigneeIds: p.assigneeIds || (p.assigneeId ? [p.assigneeId] : []),
     startDate: p.startDate, dueDate: p.dueDate, progress: p.progress || 0,
@@ -137,7 +140,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
   const [projects, setProjects]       = useState([]);
   const [dashPeriod, setDashPeriod]   = useState('all');
 
-  const [projModal, setProjModal]     = useState({ open: false, project: null, defStatus: null, defAssigneeId: null });
+  const [projModal, setProjModal]     = useState({ open: false, project: null, defStatus: null, defAssigneeId: null, defClientIds: [] });
   const [detailModal, setDetailModal] = useState({ open: false, projectId: null });
   const [userModal, setUserModal]     = useState({ open: false, user: null });
 
@@ -248,12 +251,12 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
 
   /* ── Proyectos ─────────────────────────────────────────────────────────── */
 
-  const openNewProject = (defStatus, defAssigneeId = null) =>
-    setProjModal({ open: true, project: null, defStatus, defAssigneeId });
+  const openNewProject = (defStatus, defAssigneeId = null, defClientIds = []) =>
+    setProjModal({ open: true, project: null, defStatus, defAssigneeId, defClientIds });
 
   const openEditProject = (id) => {
     const p = projects.find(x => x.id === id);
-    if (p) setProjModal({ open: true, project: p, defStatus: null, defAssigneeId: null });
+    if (p) setProjModal({ open: true, project: p, defStatus: null, defAssigneeId: null, defClientIds: [] });
   };
 
   const openDetail = (id) => setDetailModal({ open: true, projectId: id });
@@ -268,7 +271,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
       try {
         for (const t of tasksDelta.added) {
           updated = await projectsAPI.addTask(updated.id, {
-            title: t.title, dueDate: t.dueDate || null, weight: t.weight, assigneeId: t.assigneeId || null,
+            title: t.title, dueDate: t.dueDate || null, weight: t.weight, priority: t.priority, clientId: t.clientId, assigneeId: t.assigneeId || null,
           });
           if (t.done) {
             const created = updated.tasks[updated.tasks.length - 1];
@@ -410,7 +413,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
     }
   };
 
-  const showNewProject = canManage && ['team-kanban', 'analytics'].includes(section);
+  const showNewProject = canManage && ['team-kanban', 'analytics', 'portfolio-analitica'].includes(section);
 
   /* ── Render ────────────────────────────────────────────────────────────── */
 
@@ -489,6 +492,16 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
               <AnalyticsReportView users={users} />
             )}
 
+            {section === 'portfolio-analitica' && can(vistaUser, 'verReporteAnalitica') && (
+              <PortfolioAnalitica
+                projects={projects}
+                users={executorsOf(users, 'analitica')} allUsers={users}
+                currentUser={user}
+                onCardClick={openDetail}
+                onNewProject={(defClientIds) => openNewProject('backlog', null, defClientIds)}
+              />
+            )}
+
             {section === 'gantt' && (
               <GanttView
                 projects={visibleProjects}
@@ -515,7 +528,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
 
         <ProjectModal
           open={projModal.open} project={projModal.project}
-          defStatus={projModal.defStatus} defAssigneeId={projModal.defAssigneeId}
+          defStatus={projModal.defStatus} defAssigneeId={projModal.defAssigneeId} defClientIds={projModal.defClientIds}
           currentUser={user} users={users}
           onSave={handleSaveProject} onDelete={handleDeleteProject} onAddLog={handleAddLog}
           onClose={() => setProjModal(m => ({ ...m, open: false }))}

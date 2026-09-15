@@ -33,25 +33,40 @@ export default function GanttView({ projects, users = [], onRowClick }) {
   const activeAll = projects.filter(p => !['done', 'cancelado'].includes(p.status));
   const areas = [...new Set(activeAll.map(p => (p.client || '').trim()).filter(Boolean))].sort();
 
+  /* Los proyectos ya no tienen fechas propias: el cronograma se deriva de las
+     tareas. Inicio ≈ creación más temprana; entrega ≈ vencimiento más lejano
+     (de pendientes si las hay, si no de cualquier tarea). */
+  const effOf = (p) => {
+    const tasks = p.tasks || [];
+    const starts = tasks.map(t => (t.createdAt || '').slice(0, 10)).filter(Boolean).sort();
+    const start = p.startDate || starts[0] || (p.createdAt || '').slice(0, 10) || null;
+    const dues = tasks.filter(t => t.dueDate).map(t => t.dueDate).sort();
+    const pendDues = tasks.filter(t => !t.done && t.dueDate).map(t => t.dueDate).sort();
+    const due = p.dueDate || (pendDues.length ? pendDues[pendDues.length - 1]
+      : dues.length ? dues[dues.length - 1] : null);
+    return { start, due };
+  };
+
   const active = activeAll.filter(p =>
     (fArea === 'all' || (p.client || '').trim() === fArea) &&
     (fResp === 'all' || (p.assigneeIds || [p.assigneeId]).map(String).includes(fResp)) &&
     (fStat === 'all' || p.status === fStat) &&
-    (fPer === 'all' || (p.dueDate && new Date(p.dueDate) >= monthStart && new Date(p.dueDate) <= monthEnd))
+    (fPer === 'all' || (effOf(p).due && new Date(effOf(p).due) >= monthStart && new Date(effOf(p).due) <= monthEnd))
   );
 
   // Stats
-  const overdueN  = active.filter(p => p.dueDate && new Date(p.dueDate) < today).length;
-  const weekN     = active.filter(p => p.dueDate && new Date(p.dueDate) >= today && new Date(p.dueDate) <= week).length;
+  const overdueN  = active.filter(p => effOf(p).due && new Date(effOf(p).due) < today).length;
+  const weekN     = active.filter(p => effOf(p).due && new Date(effOf(p).due) >= today && new Date(effOf(p).due) <= week).length;
   const sharedN   = active.filter(p => p.tipo === 'compartido').length;
 
-  const withDates    = active.filter(p => p.startDate && p.dueDate).sort((a, b) => a.startDate.localeCompare(b.startDate));
-  const withoutDates = active.filter(p => !p.startDate || !p.dueDate).sort((a, b) => a.name.localeCompare(b.name));
+  const withDates    = active.filter(p => effOf(p).start && effOf(p).due)
+    .sort((a, b) => effOf(a).start.localeCompare(effOf(b).start));
+  const withoutDates = active.filter(p => !effOf(p).start || !effOf(p).due).sort((a, b) => a.name.localeCompare(b.name));
   const all          = [...withDates, ...withoutDates];
 
   let todayPct = 50, minDate, totalDays;
   if (withDates.length) {
-    const allDates = withDates.flatMap(p => [new Date(p.startDate), new Date(p.dueDate)]);
+    const allDates = withDates.flatMap(p => [new Date(effOf(p).start), new Date(effOf(p).due)]);
     minDate  = new Date(Math.min(...allDates));
     const maxDate = new Date(Math.max(...allDates));
     minDate.setDate(minDate.getDate() - 5);
@@ -142,15 +157,16 @@ export default function GanttView({ projects, users = [], onRowClick }) {
               </thead>
               <tbody>
                 {all.map((p, i) => {
-                  const hasDates = Boolean(p.startDate && p.dueDate);
+                  const eff = effOf(p);
+                  const hasDates = Boolean(eff.start && eff.due);
                   const eng  = p.assignee;
                   const pct  = p.progress || 0;
-                  const overdue = hasDates && p.dueDate && new Date(p.dueDate) < today;
+                  const overdue = hasDates && eff.due && new Date(eff.due) < today;
 
                   let left = 0, width = 0;
                   if (hasDates && minDate) {
-                    const sD = new Date(p.startDate);
-                    const dD = new Date(p.dueDate);
+                    const sD = new Date(eff.start);
+                    const dD = new Date(eff.due);
                     left  = Math.max(0, (sD - minDate) / 86400000 / totalDays * 100);
                     width = Math.max(2, (dD - sD) / 86400000 / totalDays * 100);
                   }
@@ -196,12 +212,12 @@ export default function GanttView({ projects, users = [], onRowClick }) {
                           {pct > 0 ? `${pct}%` : '—'}
                         </td>
                         <td style={{ fontSize: 12, color: 'var(--text2)', fontVariantNumeric: 'tabular-nums' }}>
-                          {p.startDate ? fmtDMY(p.startDate) : <span style={{ color: 'var(--text3)' }}>—</span>}
+                          {eff.start ? fmtDMY(eff.start) : <span style={{ color: 'var(--text3)' }}>—</span>}
                         </td>
                         <td style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-                          {p.dueDate ? (
+                          {eff.due ? (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: overdue ? 'var(--rb-danger)' : 'var(--text2)', fontWeight: overdue ? 700 : 400 }}>
-                              {fmtDMY(p.dueDate)}
+                              {fmtDMY(eff.due)}
                               {overdue && (
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--rb-danger)" stroke="var(--rb-danger)" strokeWidth="0"><circle cx="12" cy="12" r="10" fill="var(--rb-danger-bg)"/><rect x="11" y="6" width="2" height="8" rx="1" fill="var(--rb-danger)"/><rect x="11" y="16" width="2" height="2" rx="1" fill="var(--rb-danger)"/></svg>
                               )}
@@ -211,15 +227,15 @@ export default function GanttView({ projects, users = [], onRowClick }) {
                         <td className="gantt-bar-cell">
                           {hasDates ? (
                             <div className="gv-timeline">
-                              <span className="gv-tl-date">{fmtShort(p.startDate)}</span>
+                              <span className="gv-tl-date">{fmtShort(eff.start)}</span>
                               <div className="gantt-bar-wrap">
                                 <div className="gv-today-line" style={{ left: `${todayPct}%` }} />
                                 <div className="gv-bar" style={{ left: `${left}%`, width: `${width}%`, background: BAR_COLOR[p.status] || 'var(--accent)' }} />
                               </div>
-                              <span className="gv-tl-date" style={overdue ? { color: 'var(--rb-danger)', fontWeight: 700 } : undefined}>{fmtShort(p.dueDate)}</span>
+                              <span className="gv-tl-date" style={overdue ? { color: 'var(--rb-danger)', fontWeight: 700 } : undefined}>{fmtShort(eff.due)}</span>
                             </div>
                           ) : (
-                            <span style={{ fontSize: 11.5, color: 'var(--text3)', fontStyle: 'italic' }}>Sin fecha de inicio / entrega</span>
+                            <span style={{ fontSize: 11.5, color: 'var(--text3)', fontStyle: 'italic' }}>Sin fechas de tareas</span>
                           )}
                         </td>
                       </tr>
