@@ -16,7 +16,9 @@ export const PORD = { high: 0, mid: 1, low: 2 };
 
 export function fmtDate(d) {
   if (!d) return '—';
-  const [y, m, day] = d.split('-');
+  const iso = d.includes('T') ? d.slice(0, 10) : d;
+  const [y, m, day] = iso.split('-');
+  if (!y || !m || !day) return d;
   return `${day}/${m}/${y}`;
 }
 

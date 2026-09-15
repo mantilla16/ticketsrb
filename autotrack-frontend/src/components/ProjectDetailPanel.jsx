@@ -357,7 +357,7 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
           {/* Tareas agrupadas por cliente */}
           {showSections ? (
             <>
-              {clients.map(c => {
+              {clients.filter(c => (tasksByClient[c.id] || []).length > 0).map(c => {
                 const clientTasks = tasksByClient[c.id] || [];
                 const clientDone  = clientTasks.filter(t => t.done).length;
                 const sectionTitle = c.sectionTitle || c.name;
@@ -382,9 +382,10 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
                 );
               })}
 
-              {(tasksByClient['_general'] || []).length > 0 && (
-                <Section title="General" count={`${(tasksByClient['_general'] || []).filter(t => t.done).length}/${(tasksByClient['_general'] || []).length}`}>
-                  <TaskList tasks={tasksByClient['_general']} canEdit={canEdit} busyTaskIds={busyTaskIds}
+              {/* Sección General: tareas sin cliente asignado, o todas si no hay clientes con tareas */}
+              {((tasksByClient['_general'] || []).length > 0 || clients.filter(c => (tasksByClient[c.id] || []).length > 0).length === 0) && (
+                <Section title="Tareas" count={`${(tasksByClient['_general'] || allTasks).filter(t => t.done).length}/${(tasksByClient['_general'] || allTasks).length}`}>
+                  <TaskList tasks={tasksByClient['_general'] || allTasks} canEdit={canEdit} busyTaskIds={busyTaskIds}
                     taskAssigneePool={taskAssigneePool} analyticsClients={analyticsClients}
                     project={project} tipo={tipo}
                     onToggle={handleToggle} onDelete={handleDelete}
@@ -393,14 +394,11 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
                     editClientId={editClientId} setEditClientId={setEditClientId}
                     editAssignee={editAssignee} setEditAssignee={setEditAssignee}
                     saveEditTask={saveEditTask} />
-                </Section>
-              )}
-
-              {canEdit && editingTaskId == null && (tasksByClient['_general'] || []).length === 0 && (
-                <Section title="General" count="0" defaultOpen={false}>
-                  <AddTaskInline clientId={null} canEdit={canEdit} taskSaving={taskSaving}
-                    onAdd={handleAddTaskInSection(null)} taskAssigneePool={taskAssigneePool}
-                    tipo={tipo} analyticsClients={analyticsClients} project={project} />
+                  {canEdit && editingTaskId == null && (
+                    <AddTaskInline clientId={null} canEdit={canEdit} taskSaving={taskSaving}
+                      onAdd={handleAddTaskInSection(null)} taskAssigneePool={taskAssigneePool}
+                      tipo={tipo} analyticsClients={analyticsClients} project={project} />
+                  )}
                 </Section>
               )}
             </>
@@ -464,7 +462,7 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
 
         {/* Footer */}
         <div className="dp-footer">
-          <span>Creado {fmtDate(project.createdAt)}</span>
+          <span>Creado {fmtDate((project.createdAt || '').slice(0, 10))}</span>
           {project.docUrl && (
             <a href={project.docUrl} target="_blank" rel="noopener noreferrer" className="dp-footer-link">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
