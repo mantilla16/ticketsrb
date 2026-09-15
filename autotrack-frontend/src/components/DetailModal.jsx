@@ -43,7 +43,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
   const [taskText, setTaskText]     = useState('');
-  const [taskWeight, setTaskWeight] = useState(2);
+  const [taskDate, setTaskDate]     = useState('');
   const [taskPriority, setTaskPriority] = useState('mid');
   const [taskClientId, setTaskClientId] = useState('');
   const [taskAssignee, setTaskAssignee] = useState('');
@@ -72,7 +72,7 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
   useEffect(() => {
     const self = taskAssigneePool.some(u => u.id === currentUser?.id);
     setTaskAssignee(self ? String(currentUser.id) : '');
-    setTaskWeight(2);
+    setTaskDate('');
     setTaskPriority('mid');
     setTaskClientId('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -114,12 +114,13 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
     setTaskSaving(true);
     try {
       await onAddTask(project.id, taskText.trim(), {
-        weight: taskWeight,
+        weight: 2,
         priority: taskPriority,
         clientId: taskClientId ? Number(taskClientId) : null,
         assigneeId: taskAssignee ? Number(taskAssignee) : null,
+        dueDate: taskDate || null,
       });
-      setTaskText(''); setTaskWeight(2); setTaskPriority('mid'); setTaskClientId('');
+      setTaskText(''); setTaskDate(''); setTaskPriority('mid'); setTaskClientId('');
     } finally { setTaskSaving(false); }
   };
 
@@ -420,17 +421,13 @@ export default function DetailModal({ open, project, onClose, onEdit, onAddLog, 
                   onKeyDown={e => e.key === 'Enter' && addTask()}
                 />
                 <select className="form-input" style={{ width: 100, fontSize: 13, padding: '7px 10px' }}
-                  value={taskWeight} onChange={e => setTaskWeight(Number(e.target.value))} title="Tamaño de la tarea">
-                  <option value={1}>Pequeña</option>
-                  <option value={2}>Media</option>
-                  <option value={3}>Grande</option>
-                </select>
-                <select className="form-input" style={{ width: 90, fontSize: 13, padding: '7px 10px' }}
                   value={taskPriority} onChange={e => setTaskPriority(e.target.value)} title="Prioridad">
                   <option value="high">Alta</option>
                   <option value="mid">Media</option>
                   <option value="low">Baja</option>
                 </select>
+                <input className="form-input" type="date" style={{ width: 130, fontSize: 13, padding: '7px 10px' }}
+                  value={taskDate} onChange={e => setTaskDate(e.target.value)} title="Fecha de entrega" />
                 {tipo === 'analitica' && (
                   <select className="form-input" style={{ width: 140, fontSize: 13, padding: '7px 10px' }}
                     value={taskClientId} onChange={e => setTaskClientId(e.target.value)} title="Cliente">
