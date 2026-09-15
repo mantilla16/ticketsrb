@@ -62,7 +62,8 @@ function ensureTaskColumns() {
         ADD COLUMN IF NOT EXISTS assignee_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
         ADD COLUMN IF NOT EXISTS weight SMALLINT NOT NULL DEFAULT 2,
         ADD COLUMN IF NOT EXISTS priority VARCHAR(10) NOT NULL DEFAULT 'mid',
-        ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES analytics_clients(id) ON DELETE SET NULL
+        ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES analytics_clients(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS platform_uploaded BOOLEAN NOT NULL DEFAULT FALSE
     `).catch(err => { taskColumnsReady = null; throw err; });
   }
   return taskColumnsReady;
@@ -245,6 +246,7 @@ function fmtProject(p, logs = [], tasks = [], extraAssignees = [], clients = [])
       createdAt: t.created_at,
       assigneeId: t.assignee_id || null,
       weight: t.weight ?? 2,
+      platformUploaded: t.platform_uploaded || false,
     })),
   };
 }
@@ -563,13 +565,16 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
            assignee_id = CASE WHEN $6 THEN $7 ELSE assignee_id END,
            weight = COALESCE($8, weight),
            priority = COALESCE($9, priority),
-           client_id = CASE WHEN $10 THEN $11 ELSE client_id END
+           client_id = CASE WHEN $10 THEN $11 ELSE client_id END,
+           platform_uploaded = CASE WHEN $12 THEN $13 ELSE platform_uploaded END
        WHERE id = $4 AND project_id = $5 RETURNING id`,
       [typeof done === 'boolean' ? done : null, title?.trim() || null, dueDate || null, req.params.taskId, req.params.id,
        Object.prototype.hasOwnProperty.call(req.body, 'assigneeId'), assigneeId || null, validWeight,
        validPriority,
        Object.prototype.hasOwnProperty.call(req.body, 'clientId'),
-       req.body.clientId === null || req.body.clientId === undefined ? null : (Number(req.body.clientId) || null)]
+       req.body.clientId === null || req.body.clientId === undefined ? null : (Number(req.body.clientId) || null),
+       Object.prototype.hasOwnProperty.call(req.body, 'platformUploaded'),
+       req.body.platformUploaded === true]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tarea no encontrada' });
 

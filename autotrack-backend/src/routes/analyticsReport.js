@@ -257,7 +257,7 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
     let tasksByProject = {};
     if (projectIds.length) {
       const { rows: tasks } = await pool.query(`
-        SELECT project_id, id, title, done, due_date, client_id, priority
+        SELECT project_id, id, title, done, due_date, client_id, priority, platform_uploaded, assignee_id
         FROM project_tasks
         WHERE project_id = ANY($1)
       `, [projectIds]);
@@ -329,13 +329,19 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
         dueDate: fmtDate(p.due_date),
         clientIds: targets.map(c => c.id).filter(v => v != null),
         sectionTitle: targets[0]?.sectionTitle || null,
-        assignee: p.assignee_id ? { id: p.assignee_id, name: p.assignee_name, initials: p.assignee_initials } : null,
-        coAssignee: p.co_assignee_id ? { id: p.co_assignee_id, name: p.co_assignee_name, initials: p.co_assignee_initials } : null,
+        assignee: p.assignee_id ? { id: p.assignee_id, name: p.assignee_name, initials: p.assignee_initials, colorIndex: p.assignee_color } : null,
+        coAssignee: p.co_assignee_id ? { id: p.co_assignee_id, name: p.co_assignee_name, initials: p.co_assignee_initials, colorIndex: p.co_assignee_color } : null,
         extraAssignees: extra,
+        assignees: [
+          p.assignee_id ? { id: p.assignee_id, name: p.assignee_name, initials: p.assignee_initials, colorIndex: p.assignee_color } : null,
+          p.co_assignee_id ? { id: p.co_assignee_id, name: p.co_assignee_name, initials: p.co_assignee_initials, colorIndex: p.co_assignee_color } : null,
+          ...extra,
+        ].filter(Boolean),
         tasksTotal: tasks.length,
         tasksDone: doneCount,
         tasks: tasks.map(t => ({
           id: t.id, title: t.title, done: t.done, clientId: t.client_id, dueDate: fmtDate(t.due_date), priority: t.priority,
+          platformUploaded: t.platform_uploaded || false, assigneeId: t.assignee_id || null,
         })),
         pendingDeliveries: deliverable
           ? tasks.filter(t => !t.done && t.due_date).map(t => ({ id: t.id, due: fmtDate(new Date(t.due_date)) }))

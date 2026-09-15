@@ -56,7 +56,7 @@ function Section({ title, count, children, defaultOpen = true, accent }) {
 function TaskList({ tasks, canEdit, busyTaskIds, taskAssigneePool, analyticsClients, project, tipo,
                     onToggle, onDelete, onEdit, editingTaskId, setEditingTaskId,
                     editPriority, setEditPriority, editClientId, setEditClientId,
-                    editAssignee, setEditAssignee, saveEditTask }) {
+                    editAssignee, setEditAssignee, saveEditTask, onTogglePlatform }) {
   return (
     <div className="dp-tasks">
       {tasks.map(t => {
@@ -68,7 +68,7 @@ function TaskList({ tasks, canEdit, busyTaskIds, taskAssigneePool, analyticsClie
               onClick={() => canEdit && onToggle(t.id)}>
               {t.done && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
             </button>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="dp-task-info">
               <span className={`task-title${t.done ? ' task-title--done' : ''}`}>{t.title}</span>
               {t.dueDate && (
                 <span className="dp-task-date" style={isOverdue(t.dueDate) ? { color: 'var(--rb-danger)' } : undefined}>
@@ -82,6 +82,21 @@ function TaskList({ tasks, canEdit, busyTaskIds, taskAssigneePool, analyticsClie
               </span>
             )}
             {owner && <span className={`rb-avatar rb-avatar--sm`} data-c={(owner.colorIndex ?? 0) % 8} title={owner.name}>{owner.initials}</span>}
+            {onTogglePlatform && (
+              <button
+                className={`dp-platform-btn${t.platformUploaded ? ' dp-platform-btn--done' : ''}`}
+                onClick={() => onTogglePlatform(t.id, !t.platformUploaded)}
+                title={t.platformUploaded ? 'Cargado en plataforma' : 'Marcar como cargado en plataforma'}
+                disabled={!canEdit || busyTaskIds.has(t.id)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  {t.platformUploaded ? (
+                    <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>
+                  ) : (
+                    <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>
+                  )}
+                </svg>
+              </button>
+            )}
             {canEdit && (
               <button className="task-del" style={{ opacity: 1 }} onClick={() => {
                 setEditingTaskId(editingTaskId === t.id ? null : t.id);
@@ -250,6 +265,7 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
 
   const handleToggle = (taskId) => withTaskBusy(taskId, () => onToggleTask(project.id, taskId, !allTasks.find(t => t.id === taskId)?.done));
   const handleDelete = (taskId) => withTaskBusy(taskId, () => onDeleteTask(project.id, taskId));
+  const handleTogglePlatform = (taskId, val) => withTaskBusy(taskId, () => onUpdateTask(project.id, taskId, { platformUploaded: val }));
 
   const saveEditTask = async (taskId) => {
     await withTaskBusy(taskId, () => onUpdateTask(project.id, taskId, {
@@ -367,7 +383,7 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
                     <TaskList tasks={clientTasks} canEdit={canEdit} busyTaskIds={busyTaskIds}
                       taskAssigneePool={taskAssigneePool} analyticsClients={analyticsClients}
                       project={project} tipo={tipo}
-                      onToggle={handleToggle} onDelete={handleDelete}
+                      onToggle={handleToggle} onDelete={handleDelete} onTogglePlatform={handleTogglePlatform}
                       editingTaskId={editingTaskId} setEditingTaskId={setEditingTaskId}
                       editPriority={editPriority} setEditPriority={setEditPriority}
                       editClientId={editClientId} setEditClientId={setEditClientId}
@@ -388,7 +404,7 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
                   <TaskList tasks={tasksByClient['_general'] || allTasks} canEdit={canEdit} busyTaskIds={busyTaskIds}
                     taskAssigneePool={taskAssigneePool} analyticsClients={analyticsClients}
                     project={project} tipo={tipo}
-                    onToggle={handleToggle} onDelete={handleDelete}
+                    onToggle={handleToggle} onDelete={handleDelete} onTogglePlatform={handleTogglePlatform}
                     editingTaskId={editingTaskId} setEditingTaskId={setEditingTaskId}
                     editPriority={editPriority} setEditPriority={setEditPriority}
                     editClientId={editClientId} setEditClientId={setEditClientId}
@@ -408,7 +424,7 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
               <TaskList tasks={allTasks} canEdit={canEdit} busyTaskIds={busyTaskIds}
                 taskAssigneePool={taskAssigneePool} analyticsClients={analyticsClients}
                 project={project} tipo={tipo}
-                onToggle={handleToggle} onDelete={handleDelete}
+                onToggle={handleToggle} onDelete={handleDelete} onTogglePlatform={handleTogglePlatform}
                 editingTaskId={editingTaskId} setEditingTaskId={setEditingTaskId}
                 editPriority={editPriority} setEditPriority={setEditPriority}
                 editClientId={editClientId} setEditClientId={setEditClientId}

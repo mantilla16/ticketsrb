@@ -1,16 +1,15 @@
-/* Reporte Especial de Analítica — seguimiento por cliente del equipo de
-   analítica de datos. Visible solo para gerencia y coordinación. */
+/* Reporte Analítica — vista operativa de seguimiento por proyecto y cliente.
+   Muestra qué se hace, quién lo hace, progreso y estado de carga en plataforma. */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { analyticsReportAPI } from '../services/api';
 import { colorClass } from '../utils/helpers';
-import { Button } from './ui';
 
 const STATUS_DEF = {
   backlog:  { l: 'Por hacer',  c: 'var(--rb-neutral)', bg: 'var(--rb-neutral-bg)' },
   progress: { l: 'En proceso', c: 'var(--rb-navy)',    bg: 'var(--rb-navy-tint)' },
   standby:  { l: 'En standby', c: 'var(--rb-warning)', bg: 'var(--rb-warning-bg)' },
-  testing:  { l: 'En testing', c: 'var(--rb-violet)',  bg: 'var(--rb-violet-bg)' },
+  testing:  { l: 'Testing',    c: 'var(--rb-violet)',  bg: 'var(--rb-violet-bg)' },
   done:     { l: 'Finalizado', c: 'var(--rb-success)', bg: 'var(--rb-success-bg)' },
   soporte:  { l: 'Soporte',    c: 'var(--rb-info)',    bg: 'var(--rb-info-bg)' },
   cancelado:{ l: 'Cancelado',  c: 'var(--rb-danger)',  bg: 'var(--rb-danger-bg)' },
@@ -22,276 +21,150 @@ const PR_BADGE = {
   low:  { l: 'Baja',  c: 'var(--rb-success)', bg: 'var(--rb-success-bg)' },
 };
 
-const fmtDM = (d) => {
-  if (!d) return null;
-  const dt = new Date(d + 'T00:00:00');
-  return { day: dt.getDate(), mon: dt.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '') };
-};
-
 const fmtShort = (d) => {
-  if (!d) return '—';
-  const dt = new Date(d + 'T00:00:00');
+  if (!d) return null;
+  const iso = d.includes('T') ? d.slice(0, 10) : d;
+  const dt = new Date(iso + 'T00:00:00');
   return dt.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-/* Mini-gráfica de tendencia (SVG): progreso promedio por cliente en el tiempo */
-function TrendChart({ data, height = 60 }) {
-  if (!data || data.length < 2) {
-    return (
-      <div style={{ fontSize: 12, color: 'var(--rb-text-4)', padding: '10px 0', fontStyle: 'italic' }}>
-        Aún no hay historial — toma un snapshot para comenzar a registrar avances
+function SummaryCard({ icon, label, value, unit, color, bg }) {
+  return (
+    <div className="ar-kpi">
+      <div className="ar-kpi-icon" style={{ background: bg, color }}>{icon}</div>
+      <div>
+        <div className="ar-kpi-label">{label}</div>
+        <div className="ar-kpi-value" style={{ color }}>{value} <span className="ar-kpi-unit">{unit}</span></div>
       </div>
-    );
-  }
-  const W = 220, H = height, pad = 4;
-  const max = Math.max(100, ...data.map(d => d.avgProgress));
-  const min = Math.min(0, ...data.map(d => d.avgProgress));
-  const range = Math.max(1, max - min);
-  const n = data.length;
-  const pts = data.map((d, i) => {
-    const x = pad + (i / (n - 1)) * (W - pad * 2);
-    const y = H - pad - ((d.avgProgress - min) / range) * (H - pad * 2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-
-  return (
-    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
-      <line x1={pad} y1={H - pad} x2={W - pad} y2={H - pad} stroke="var(--rb-line)" strokeWidth="1" />
-      <polyline points={pts} fill="none" stroke="var(--rb-navy)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      {data.map((d, i) => {
-        const x = pad + (i / (n - 1)) * (W - pad * 2);
-        const y = H - pad - ((d.avgProgress - min) / range) * (H - pad * 2);
-        return i === n - 1 ? (
-          <circle key={i} cx={x} cy={y} r="3" fill="var(--rb-navy)" />
-        ) : (
-          <circle key={i} cx={x} cy={y} r="1.8" fill="var(--rb-n-400)" />
-        );
-      })}
-    </svg>
-  );
-}
-
-/* Mini-mapa de avance por estado (barras apiladas) */
-function StatusStrip({ client }) {
-  const labels = [
-    ['progress', 'var(--rb-navy)'],
-    ['testing', 'var(--rb-violet)'],
-    ['standby', 'var(--rb-warning)'],
-    ['backlog', 'var(--rb-neutral)'],
-    ['done', 'var(--rb-success)'],
-    ['soporte', 'var(--rb-info)'],
-    ['cancelado', 'var(--rb-danger)'],
-  ];
-  const total = Math.max(1, client.totalProjects);
-  return (
-    <div style={{ display: 'flex', gap: 2, height: 8 }}>
-      {labels.map(([k, color]) => {
-        const n = client[`${k}Projects`] ?? 0;
-        if (!n) return null;
-        return <span key={k} title={`${STATUS_DEF[k].l}: ${n}`} style={{ width: `${(n / total) * 100}%`, background: color, borderRadius: 2 }} />;
-      })}
     </div>
   );
 }
 
-/* Filas resumen del estado de un cliente */
-function ClientCard({ client, users, index, allClients }) {
+function ProgressBar({ value, color }) {
+  return (
+    <div className="ar-bar">
+      <div className="ar-bar-fill" style={{ width: `${value}%`, background: color || (value >= 80 ? 'var(--rb-success)' : 'var(--rb-navy)') }} />
+    </div>
+  );
+}
+
+function ProjectRow({ project, users, onClickProject }) {
   const [expanded, setExpanded] = useState(false);
-  const dm = fmtDM(client.nextDelivery);
-  const overdue = client.nextDelivery && new Date(client.nextDelivery + 'T00:00:00') < new Date(new Date().toDateString());
+  const st = STATUS_DEF[project.status] || STATUS_DEF.backlog;
+  const pr = PR_BADGE[project.priority] || PR_BADGE.mid;
+  const tasks = project.tasks || [];
+  const done = tasks.filter(t => t.done).length;
+  const uploaded = tasks.filter(t => t.platformUploaded).length;
+  const total = tasks.length;
+  const pct = project.progress || 0;
 
-  const proyectosActivos = client.projects.filter(p => ['progress', 'testing'].includes(p.status)).length;
-  const doneCount = client.completedProjects;
-  const showInactive = client.active === false;
-
-  const userName = (id) => users.find(u => Number(u.id) === Number(id))?.name || null;
+  const assigneeNames = (project.assignees || []).map(a => a.name).join(', ') || 'Sin asignar';
+  const nextTask = tasks.find(t => !t.done && t.dueDate);
+  const overdue = nextTask?.dueDate && new Date(nextTask.dueDate + 'T00:00:00') < new Date(new Date().toDateString());
 
   return (
-    <div className="ar-client" style={{
-      border: '1px solid var(--rb-line)',
-      borderRadius: 'var(--rb-r-lg)',
-      background: 'var(--rb-surface)',
-      overflow: 'hidden',
-    }}>
-      {/* Encabezado del cliente */}
-      <button
-        className="ar-client-head"
-        onClick={() => setExpanded(e => !e)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
-          background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
-        }}
-      >
-        <span className={`avatar ${colorClass(index % 8)}`} style={{ fontSize: 12 }}>
-          {client.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontWeight: 'var(--rb-w-bold)', fontSize: 'var(--rb-fs-md)', color: 'var(--rb-text)' }}>
-              {client.name}
-            </span>
-            {showInactive && (
-              <span className="pill-mini" style={{ background: 'var(--rb-neutral-bg)', color: 'var(--rb-neutral)' }}>
-                No activo
+    <div className="ar-project">
+      <button className="ar-project-head" onClick={() => setExpanded(e => !e)}>
+        <div className="ar-project-main">
+          <div className="ar-project-name">{project.name}</div>
+          <div className="ar-project-meta">
+            <span className="pill-mini" style={{ background: st.bg, color: st.c }}>{st.l}</span>
+            <span className="pill-mini" style={{ background: pr.bg, color: pr.c }}>{pr.l}</span>
+            <span className="ar-project-assignee">{assigneeNames}</span>
+          </div>
+        </div>
+        <div className="ar-project-stats">
+          <div className="ar-project-stat">
+            <span className="ar-project-stat-val">{pct}%</span>
+            <span className="ar-project-stat-lbl">Avance</span>
+          </div>
+          <div className="ar-project-stat">
+            <span className="ar-project-stat-val">{done}/{total}</span>
+            <span className="ar-project-stat-lbl">Tareas</span>
+          </div>
+          <div className="ar-project-stat">
+            <span className={`ar-project-stat-val${uploaded === total && total > 0 ? ' ar-project-stat-val--success' : ''}`}>{uploaded}/{total}</span>
+            <span className="ar-project-stat-lbl">Cargadas</span>
+          </div>
+          {nextTask && (
+            <div className="ar-project-stat">
+              <span className={`ar-project-stat-val${overdue ? ' ar-project-stat-val--danger' : ''}`}>
+                {fmtShort(nextTask.dueDate)}
               </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 14, marginTop: 6 }} className="ar-client-pills">
-            <span style={{ fontSize: 12, color: 'var(--rb-text-3)' }}>
-              <b style={{ color: 'var(--rb-text)' }}>{client.totalProjects}</b> proyectos
-            </span>
-            <span style={{ fontSize: 12, color: 'var(--rb-text-3)' }}>
-              <b style={{ color: 'var(--rb-navy)' }}>{proyectosActivos}</b> activos
-            </span>
-            <span style={{ fontSize: 12, color: 'var(--rb-text-3)' }}>
-              <b style={{ color: 'var(--rb-success)' }}>{doneCount}</b> finalizados
-            </span>
-            <span style={{ fontSize: 12, color: 'var(--rb-text-3)' }}>
-              <b style={{ color: 'var(--rb-navy)' }}>{client.avgProgress}%</b> progreso prom.
-            </span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-          {client.nextDelivery ? (
-            <span className="pill-mini" style={{
-              background: overdue ? 'var(--rb-danger-bg)' : 'var(--rb-success-bg)',
-              color: overdue ? 'var(--rb-danger)' : 'var(--rb-success)',
-            }}>
-              {overdue ? 'Vencida' : 'Entrega'} · {fmtShort(client.nextDelivery)}
-            </span>
-          ) : (
-            <span style={{ fontSize: 12, color: 'var(--rb-text-4)' }}>Sin entregas</span>
+              <span className="ar-project-stat-lbl">Próxima</span>
+            </div>
           )}
-          <span className="pill-mini" style={{ background: 'var(--rb-n-100)', color: 'var(--rb-text-3)' }}>
-            {expanded ? 'Ocultar proyectos' : `Ver proyectos (${client.projects.length})`}
-          </span>
         </div>
+        <svg className="ar-project-chevron" style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
+          width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
       </button>
 
-      {/* Strip de estados */}
-      <div style={{ padding: '0 16px' }}>
-        <StatusStrip client={client} />
+      {/* Barra de avance */}
+      <div style={{ padding: '0 16px 8px' }}>
+        <ProgressBar value={pct} />
       </div>
 
-      {/* Detalle expandido */}
-      {expanded && (
-        <div style={{ borderTop: '1px solid var(--rb-line-soft)', marginTop: 12 }}>
-          <table className="ar-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+      {expanded && tasks.length > 0 && (
+        <div className="ar-project-tasks">
+          <table className="ar-task-table">
             <thead>
-              <tr style={{ textAlign: 'left' }}>
-                <th style={{ padding: '10px 16px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Proyecto</th>
-                <th style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Estado</th>
-                <th style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Prioridad</th>
-                <th style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Avance</th>
-                <th style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Tareas pend.</th>
-                <th style={{ padding: '10px 16px', fontSize: 12, color: 'var(--rb-text-3)', fontWeight: 400 }}>Próxima entrega</th>
+              <tr>
+                <th>Tarea</th>
+                <th>Responsable</th>
+                <th>Prioridad</th>
+                <th>Vence</th>
+                <th>Estado</th>
+                <th style={{ textAlign: 'center' }}>Plataforma</th>
               </tr>
             </thead>
             <tbody>
-              {client.projects.length === 0 && (
-                <tr>
-                  <td colSpan={6} style={{ padding: '14px 16px', color: 'var(--rb-text-4)', fontSize: 13 }}>
-                    {showInactive
-                      ? 'Cliente marcado como no activo — sin proyectos registrados.'
-                      : 'Sin proyectos de analítica registrados para este cliente todavía.'}
-                  </td>
-                </tr>
-              )}
-              {client.projects.map(p => {
-                const st = STATUS_DEF[p.status] || STATUS_DEF.backlog;
-                const pr = PR_BADGE[p.priority] || PR_BADGE.mid;
-                const pend = p.pendingDeliveries || [];
-                const next = pend.length ? pend.reduce((a, b) => a.due < b.due ? a : b) : null;
-                const dueOverdue = next && new Date(next.due + 'T00:00:00') < new Date(new Date().toDateString());
-                const responsables = [
-                  p.assignee ? userName(p.assignee.id) : null,
-                  p.coAssignee ? userName(p.coAssignee.id) : null,
-                  ...(p.extraAssignees || []).map(a => userName(a.id)),
-                ].filter(Boolean);
-                const projectTasks = p.tasks || [];
-                const tasksByClient = {};
-                projectTasks.forEach(t => {
-                  const key = t.clientId || '_general';
-                  if (!tasksByClient[key]) tasksByClient[key] = [];
-                  tasksByClient[key].push(t);
-                });
+              {tasks.map(t => {
+                const assignee = t.assigneeId ? users.find(u => Number(u.id) === t.assigneeId) : null;
+                const tOverdue = t.dueDate && !t.done && new Date(t.dueDate + 'T00:00:00') < new Date(new Date().toDateString());
+                const tp = PR_BADGE[t.priority] || PR_BADGE.mid;
                 return (
-                  <React.Fragment key={p.id}>
-                    <tr style={{ borderTop: '1px solid var(--rb-line-soft)' }}>
-                      <td style={{ padding: '10px 16px', fontSize: 13, color: 'var(--rb-text)' }}>
-                        {p.name}
-                        {p.participationAnalitica && (
-                          <div style={{ fontSize: 11, color: 'var(--rb-text-4)', marginTop: 2 }}>{p.participationAnalitica}</div>
-                        )}
-                      </td>
-                      <td style={{ padding: '10px 8px' }}>
-                        <span className="pill-mini" style={{ background: st.bg, color: st.c }}>{st.l}</span>
-                      </td>
-                      <td style={{ padding: '10px 8px' }}>
-                        <span className="pill-mini" style={{ background: pr.bg, color: pr.c }}>{pr.l}</span>
-                      </td>
-                      <td style={{ padding: '10px 8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span className="at-card-bar" style={{ width: 56 }}>
-                            <span style={{ width: `${p.progress}%`, background: p.progress >= 80 ? 'var(--rb-success)' : 'var(--rb-navy)' }} />
-                          </span>
-                          <span style={{ fontSize: 12, color: 'var(--rb-text-3)' }}>{p.progress}%</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '10px 8px', fontSize: 12, color: 'var(--rb-text-3)' }}>
-                        {pend.length > 0 ? (
-                          <span style={{ color: 'var(--rb-warning)', fontWeight: 700 }}>{pend.length} tarea{pend.length !== 1 ? 's' : ''}</span>
+                  <tr key={t.id} className={t.done ? 'ar-task-row--done' : ''}>
+                    <td>
+                      <span className={`ar-task-title${t.done ? ' ar-task-title--done' : ''}`}>{t.title}</span>
+                    </td>
+                    <td>
+                      {assignee ? (
+                        <span className="ar-task-assignee">
+                          <span className={`rb-avatar rb-avatar--xs`} data-c={(assignee.colorIndex ?? 0) % 8}>{assignee.initials}</span>
+                          {assignee.name}
+                        </span>
+                      ) : <span className="ar-task-none">—</span>}
+                    </td>
+                    <td><span className="pill-mini" style={{ background: tp.bg, color: tp.c, fontSize: 10 }}>{tp.l}</span></td>
+                    <td>
+                      {t.dueDate ? (
+                        <span className={`ar-task-due${tOverdue ? ' ar-task-due--overdue' : ''}`}>
+                          {fmtShort(t.dueDate)}
+                        </span>
+                      ) : <span className="ar-task-none">—</span>}
+                    </td>
+                    <td>
+                      <span className={`ar-task-check${t.done ? ' ar-task-check--done' : ''}`}>
+                        {t.done ? 'Completada' : 'Pendiente'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className={`ar-task-platform${t.platformUploaded ? ' ar-task-platform--done' : ''}`}>
+                        {t.platformUploaded ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         ) : (
-                          <span style={{ color: 'var(--rb-text-4)' }}>—</span>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/></svg>
                         )}
-                      </td>
-                      <td style={{ padding: '10px 16px', fontSize: 12 }}>
-                        {next ? (
-                          <span style={{ color: dueOverdue ? 'var(--rb-danger)' : 'var(--rb-text-2)', fontWeight: dueOverdue ? 700 : 400 }}>
-                            {fmtShort(next.due)}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--rb-text-4)' }}>—</span>
-                        )}
-                      </td>
-                    </tr>
-                    {projectTasks.length > 0 && (
-                      <tr>
-                        <td colSpan={6} style={{ padding: '0 16px 8px' }}>
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {Object.entries(tasksByClient).map(([cid, ts]) => {
-                              const done = ts.filter(t => t.done).length;
-                              const clName = cid === '_general' ? 'General' : (allClients?.find(c => String(c.id) === cid)?.name || `Cliente #${cid}`);
-                              return (
-                                <span key={cid} className="pill-mini" style={{
-                                  background: done === ts.length ? 'var(--rb-success-bg)' : 'var(--rb-n-100)',
-                                  color: done === ts.length ? 'var(--rb-success)' : 'var(--rb-text-3)',
-                                  fontSize: 11, gap: 4,
-                                }}>
-                                  {clName}: {done}/{ts.length}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
+                        {t.platformUploaded ? 'Sí' : 'No'}
+                      </span>
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
           </table>
-
-          {/* Histórico de avance del cliente */}
-          {client.history && client.history.length > 1 && (
-            <div style={{ padding: '12px 16px', borderTop: '1px solid var(--rb-line-soft)', background: 'var(--rb-surface-2)' }}>
-              <div style={{ fontSize: 12, color: 'var(--rb-text-3)', marginBottom: 8 }}>Histórico de progreso promedio</div>
-              <TrendChart data={client.history} height={44} />
-              <div style={{ fontSize: 11, color: 'var(--rb-text-4)', marginTop: 6 }}>
-                {fmtShort(client.history[client.history.length - 1].snapshot_date)} · snapshot más reciente
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -299,36 +172,22 @@ function ClientCard({ client, users, index, allClients }) {
 }
 
 export default function AnalyticsReportView({ users }) {
-  const [clients, setClients] = useState([]);
-  const [history, setHistory] = useState([]);
+  const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [snapshotting, setSnapshotting] = useState(false);
-  const [snapshotMsg, setSnapshotMsg] = useState('');
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [report, hist] = await Promise.all([
-        analyticsReportAPI.getReport(),
-        analyticsReportAPI.getHistory(),
-      ]);
-      setClients(report.clients);
-      setHistory(hist);
-
-      // Enriquecer cada cliente con su historial específico
-      const histByClient = {};
-      hist.forEach(s => {
-        if (!histByClient[s.client_name]) histByClient[s.client_name] = [];
-        histByClient[s.client_name].push(s);
+      const data = await analyticsReportAPI.getReport();
+      /* Aplanar: extraer proyectos únicos de todos los clientes */
+      const seen = new Map();
+      (data.clients || []).forEach(c => {
+        (c.projects || []).forEach(p => {
+          if (!seen.has(p.id)) seen.set(p.id, p);
+        });
       });
-      Object.keys(histByClient).forEach(k =>
-        histByClient[k].sort((a, b) => new Date(a.snapshot_date) - new Date(b.snapshot_date)));
-
-      setClients(prev => prev.map(c => ({
-        ...c,
-        history: (histByClient[c.name] || []).slice(-8),
-      })));
+      setReport({ clients: data.clients || [], projects: Array.from(seen.values()) });
       setError(null);
     } catch (e) {
       setError(e.error || 'Error al cargar el reporte');
@@ -339,270 +198,85 @@ export default function AnalyticsReportView({ users }) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleSnapshot = async () => {
-    try {
-      setSnapshotting(true);
-      setSnapshotMsg('');
-      await analyticsReportAPI.takeSnapshot();
-      setSnapshotMsg('Snapshot guardado correctamente');
-      await loadData();
-    } catch (e) {
-      setSnapshotMsg(e.error || 'Error al tomar el snapshot');
-    } finally {
-      setSnapshotting(false);
-    }
-  };
-
-  const activeClients = clients.filter(c => c.active);
-  const inactiveClients = clients.filter(c => !c.active);
-
-  const totalProjects = clients.reduce((s, c) => s + c.totalProjects, 0);
-  const totalActive = clients.reduce((s, c) => s + c.activeProjects, 0);
-  const totalDone = clients.reduce((s, c) => s + c.completedProjects, 0);
-
-  /* Entregas = tareas sin completar con fecha (sin duplicar por cliente) */
-  const seenDeliveries = new Set();
-  const deliveries = [];
-  clients.forEach(c => c.projects.forEach(p => (p.pendingDeliveries || []).forEach(d => {
-    if (seenDeliveries.has(d.id)) return;
-    seenDeliveries.add(d.id);
-    deliveries.push(d.due);
-  })));
-
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const week = new Date(today); week.setDate(week.getDate() + 7);
-  const dueThisWeek = deliveries.filter(d => {
-    const t = new Date(d + 'T00:00:00');
-    return t >= today && t <= week;
-  }).length;
-  const overdueDeliveries = deliveries.filter(d => new Date(d + 'T00:00:00') < today).length;
-
-  /* KPIs resumen */
-  const summaryCards = [
-    { l: 'Clientes activos', v: activeClients.length, u: 'clientes', c: 'var(--rb-navy)', bg: 'var(--rb-navy-tint)', ic: 'folder' },
-    { l: 'Proyectos analítica', v: totalProjects, u: 'proyectos', c: 'var(--rb-navy)', bg: 'var(--rb-navy-tint)', ic: 'briefcase' },
-    { l: 'En ejecución', v: totalActive, u: 'activos', c: 'var(--rb-teal)', bg: 'var(--rb-teal-tint)', ic: 'progress' },
-    { l: 'Finalizados', v: totalDone, u: 'proyectos', c: 'var(--rb-success)', bg: 'var(--rb-success-bg)', ic: 'done' },
-    { l: 'Entregas esta semana', v: dueThisWeek, u: 'tareas', c: 'var(--rb-warning)', bg: 'var(--rb-warning-bg)', ic: 'calendar' },
-    { l: 'Vencidas', v: overdueDeliveries, u: 'tareas', c: 'var(--rb-danger)', bg: 'var(--rb-danger-bg)', ic: 'alert' },
-  ];
-
-  const ICONS = {
-    folder:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
-    briefcase: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>,
-    progress:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.2-8.56"/><polyline points="21 3 21 9 15 9"/></svg>,
-    done:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></svg>,
-    calendar:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-    alert:     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
-  };
-
-  if (loading && !clients.length) {
-    return (
-      <div style={{ display: 'grid', placeItems: 'center', padding: 48 }}>
-        <span style={{ color: 'var(--rb-text-3)' }}>Cargando reporte…</span>
-      </div>
-    );
+  if (loading && !report) {
+    return <div className="ar-loading">Cargando reporte…</div>;
   }
+
+  if (error) {
+    return <div className="ar-error">{error}</div>;
+  }
+
+  if (!report) return null;
+
+  const projects = report.projects || [];
+  const clients = report.clients || [];
+
+  /* Calcular KPIs globales */
+  let totalTasks = 0, doneTasks = 0, uploadedTasks = 0, overdueTasks = 0;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  projects.forEach(p => {
+    (p.tasks || []).forEach(t => {
+      totalTasks++;
+      if (t.done) doneTasks++;
+      if (t.platformUploaded) uploadedTasks++;
+      if (!t.done && t.dueDate && new Date(t.dueDate + 'T00:00:00') < today) overdueTasks++;
+    });
+  });
+
+  const activeProjects = projects.filter(p => !['done', 'cancelado'].includes(p.status));
+  const doneProjects = projects.filter(p => p.status === 'done');
 
   return (
     <div className="ar-root">
-      {/* Encabezado con acciones */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 13, color: 'var(--rb-text-3)' }}>
-          Seguimiento del proyecto de analítica por cliente. {totalProjects} proyectos · {clients.length} clientes configurados.
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {snapshotMsg && (
-            <span style={{
-              fontSize: 12, padding: '4px 10px', borderRadius: 'var(--rb-r-pill)',
-              background: snapshotMsg.startsWith('Error') ? 'var(--rb-danger-bg)' : 'var(--rb-success-bg)',
-              color: snapshotMsg.startsWith('Error') ? 'var(--rb-danger)' : 'var(--rb-success)',
-            }}>
-              {snapshotMsg}
-            </span>
-          )}
-          <Button variant="primary" icon="clock" onClick={handleSnapshot} disabled={snapshotting}>
-            {snapshotting ? 'Guardando…' : 'Tomar snapshot'}
-          </Button>
+      <div className="ar-header">
+        <div>
+          <h2 className="ar-title">Reporte Analítica</h2>
+          <p className="ar-subtitle">Seguimiento operativo de proyectos, tareas y carga en plataforma</p>
         </div>
       </div>
-
-      {error && (
-        <div style={{
-          padding: '12px 16px', borderRadius: 'var(--rb-r-md)', marginBottom: 16,
-          background: 'var(--rb-danger-bg)', color: 'var(--rb-danger)', fontSize: 13,
-        }}>
-          {error}
-        </div>
-      )}
 
       {/* KPIs */}
-      <div className="ar-kpis" style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: 12, marginBottom: 20,
-      }}>
-        {summaryCards.map(({ l, v, u, c, bg, ic }) => (
-          <div key={l} style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '14px 16px', borderRadius: 'var(--rb-r-lg)',
-            background: 'var(--rb-surface)', border: '1px solid var(--rb-line)',
-          }}>
-            <span style={{
-              width: 34, height: 34, borderRadius: 'var(--rb-r-md)',
-              display: 'grid', placeItems: 'center', background: bg, color: c,
-            }}>
-              {ICONS[ic]}
-            </span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12, color: 'var(--rb-text-3)' }}>{l}</div>
-              <div style={{ fontSize: 19, fontWeight: 'var(--rb-w-black)', color: 'var(--rb-text)', lineHeight: 1.1 }}>
-                {v} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--rb-text-4)' }}>{u}</span>
-              </div>
-            </div>
-          </div>
-        ))}
+      <div className="ar-kpis">
+        <SummaryCard icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>}
+          label="Proyectos activos" value={activeProjects.length} unit="proyectos" color="var(--rb-navy)" bg="var(--rb-navy-tint)" />
+        <SummaryCard icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l10 6.5v7L12 22 2 15.5v-7z"/></svg>}
+          label="Total tareas" value={totalTasks} unit="tareas" color="var(--rb-navy)" bg="var(--rb-navy-tint)" />
+        <SummaryCard icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>}
+          label="Completadas" value={doneTasks} unit="tareas" color="var(--rb-success)" bg="var(--rb-success-bg)" />
+        <SummaryCard icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
+          label="Cargadas en plataforma" value={uploadedTasks} unit={`de ${totalTasks}`} color="var(--rb-teal)" bg="var(--rb-teal-tint)" />
+        <SummaryCard icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>}
+          label="Vencidas" value={overdueTasks} unit="tareas" color="overdueTasks > 0 ? 'var(--rb-danger)' : 'var(--rb-text3)'" bg="var(--rb-danger-bg)" />
       </div>
 
-      {/* Clientes activos */}
-      <div style={{ fontSize: 14, fontWeight: 'var(--rb-w-bold)', color: 'var(--rb-text)', margin: '20px 0 10px' }}>
-        Clientes activos
-        <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--rb-text-4)', marginLeft: 8 }}>
-          ({activeClients.length})
-        </span>
-      </div>
-      <div className="ar-clients" style={{ display: 'grid', gap: 10 }}>
-        {activeClients.map((c, i) => (
-          <ClientCard key={c.name} client={c} users={users} index={i} allClients={clients} />
-        ))}
-      </div>
-
-      {/* Clientes no activos */}
-      {inactiveClients.length > 0 && (
-        <>
-          <div style={{ fontSize: 14, fontWeight: 'var(--rb-w-bold)', color: 'var(--rb-text)', margin: '24px 0 10px' }}>
-            Clientes no activos
-            <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--rb-text-4)', marginLeft: 8 }}>
-              ({inactiveClients.length}) · marcados para seguimiento, sin proyectos en curso
-            </span>
+      {/* Barra de progreso global de plataforma */}
+      {totalTasks > 0 && (
+        <div className="ar-platform-bar">
+          <div className="ar-platform-bar-header">
+            <span>Carga en plataforma</span>
+            <span className="ar-platform-bar-pct">{Math.round((uploadedTasks / totalTasks) * 100)}%</span>
           </div>
-          <div className="ar-clients" style={{ display: 'grid', gap: 10, opacity: 0.82 }}>
-            {inactiveClients.map((c, i) => (
-              <ClientCard key={c.name} client={c} users={users} index={i} allClients={clients} />
-            ))}
+          <div className="ar-platform-bar-track">
+            <div className="ar-platform-bar-fill" style={{ width: `${(uploadedTasks / totalTasks) * 100}%` }} />
           </div>
-        </>
-      )}
-
-      {/* Histórico global */}
-      {history.length > 0 && (
-        <div style={{ marginTop: 26 }}>
-          <div style={{ fontSize: 14, fontWeight: 'var(--rb-w-bold)', color: 'var(--rb-text)', marginBottom: 8 }}>
-            Histórico global de avance
-          </div>
-          <div style={{
-            background: 'var(--rb-surface)', border: '1px solid var(--rb-line)',
-            borderRadius: 'var(--rb-r-lg)', padding: 16,
-          }}>
-            <div style={{ fontSize: 12, color: 'var(--rb-text-3)', marginBottom: 8 }}>
-              Promedio de progreso de todos los clientes por snapshot
-            </div>
-            <_GlobalTrend history={history} />
-          </div>
+          <div className="ar-platform-bar-detail">{uploadedTasks} de {totalTasks} tareas con información cargada</div>
         </div>
       )}
-    </div>
-  );
-}
 
-/* Tendencia global — agrega todos los clientes por fecha */
-function _GlobalTrend({ history }) {
-  const byDate = {};
-  history.forEach(s => {
-    if (!byDate[s.snapshot_date]) byDate[s.snapshot_date] = { total: 0, sum: 0, count: 0 };
-    byDate[s.snapshot_date].sum += s.avg_progress;
-    byDate[s.snapshot_date].count++;
-  });
-  const series = Object.entries(byDate)
-    .map(([d, v]) => ({ date: d, avgProgress: v.count ? Math.round(v.sum / v.count) : 0 }))
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  if (series.length < 2) {
-    return (
-      <div style={{ fontSize: 12, color: 'var(--rb-text-4)', fontStyle: 'italic' }}>
-        Se necesitan al menos dos snapshots para ver la tendencia.
+      {/* Lista de proyectos */}
+      <div className="ar-section-header">
+        <span className="ar-section-title">Proyectos</span>
+        <span className="ar-section-count">{projects.length}</span>
       </div>
-    );
-  }
-
-  const countByDate = {};
-  history.forEach(s => { countByDate[s.snapshot_date] = (countByDate[s.snapshot_date] || 0) + 1; });
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span className="pill-mini" style={{ background: 'var(--rb-n-100)', color: 'var(--rb-text-3)' }}>
-          {series.length} snapshots registrados
-        </span>
-        <span className="pill-mini" style={{ background: 'var(--rb-n-100)', color: 'var(--rb-text-3)' }}>
-          Desde {fmtShort(series[0].date)} hasta {fmtShort(series[series.length - 1].date)}
-        </span>
-      </div>
-      <div style={{ marginTop: 10 }}>
-        <TrendChartFilled data={series} labels={countByDate} />
+      <div className="ar-projects">
+        {projects.length === 0 ? (
+          <div className="ar-empty">No hay proyectos registrados</div>
+        ) : (
+          projects.map(p => (
+            <ProjectRow key={p.id} project={p} users={users} />
+          ))
+        )}
       </div>
     </div>
-  );
-}
-
-/* Gráfica de tendencia global con etiquetas en el eje */
-function TrendChartFilled({ data }) {
-  const W = 480, H = 160, padL = 30, padR = 10, padT = 10, padB = 22;
-  const max = Math.max(100, ...data.map(d => d.avgProgress));
-  const plotW = W - padL - padR, plotH = H - padT - padB;
-  const n = data.length;
-  const pts = data.map((d, i) => {
-    const x = padL + (i / (n - 1)) * plotW;
-    const y = padT + plotH - (d.avgProgress / max) * plotH;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-
-  const last = data[n - 1];
-
-  return (
-    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
-      {/* Líneas guía */}
-      {[0, 25, 50, 75, 100].map(p => {
-        const y = padT + plotH - (p / 100) * plotH;
-        return (
-          <g key={p}>
-            <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="var(--rb-line-soft)" strokeWidth="1" strokeDasharray="3 3" />
-            <text x={padL - 6} y={y + 3} textAnchor="end" fontSize="9" fill="var(--rb-text-4)">{p}%</text>
-          </g>
-        );
-      })}
-      <polyline points={pts} fill="none" stroke="var(--rb-navy)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      {data.map((d, i) => {
-        const x = padL + (i / (n - 1)) * plotW;
-        const y = padT + plotH - (d.avgProgress / max) * plotH;
-        return (
-          <circle key={i} cx={x} cy={y} r="2.4" fill={i === n - 1 ? 'var(--rb-navy)' : 'var(--rb-n-400)'} />
-        );
-      })}
-      {/* Etiquetas de eje X */}
-      {data.filter((_, i) => i === 0 || i === n - 1 || i === Math.floor(n / 2)).map((d, j) => {
-        const i = data.indexOf(d);
-        const x = padL + (i / (n - 1)) * plotW;
-        return (
-          <text key={j} x={x} y={H - 6} textAnchor="middle" fontSize="9" fill="var(--rb-text-4)">
-            {new Date(d.date + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
-          </text>
-        );
-      })}
-      {/* Último valor */}
-      <text x={padL + plotW} y={last.avgProgress >= 50 ? -2 + padT + plotH - (last.avgProgress / max) * plotH - 6 : padT + plotH - (last.avgProgress / max) * plotH + 14}
-        textAnchor="end" fontSize="10" fontWeight="700" fill="var(--rb-navy)">
-        {last.avgProgress}%
-      </text>
-    </svg>
   );
 }
