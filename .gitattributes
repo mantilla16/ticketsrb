@@ -1,0 +1,21 @@
+# El desarrollo es en Windows y el servidor es Linux. Sin esto, un commit
+# hecho con core.autocrlf puede guardar los scripts con CRLF, y entonces el
+# servidor responde «bad interpreter: No such file or directory» — un error
+# que no menciona los finales de línea por ninguna parte.
+* text=auto
+
+*.sh   text eol=lf
+*.mjs  text eol=lf
+*.js   text eol=lf
+*.sql  text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+
+# Binarios: que Git no los toque.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.ico  binary
+*.pdf  binary
+*.woff  binary
+*.woff2 binary
