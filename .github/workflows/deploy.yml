@@ -23,6 +23,9 @@ jobs:
       - name: Comprobar coherencia
         run: node scripts/verificar-coherencia.mjs
 
+      - name: Probar la cobertura de analítica
+        run: node scripts/probar-cobertura.mjs
+
       - name: Comprobar sintaxis del backend
         run: |
           cd autotrack-backend

@@ -326,6 +326,14 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
   const handleDeleteTask = (id, taskId)       => taskOp('remove')(id, taskId);
   const handleUpdateTask = (id, taskId, data) => taskOp('update')(id, taskId, data);
 
+  /* Marcar la analítica de un cliente entra por la misma cola que las tareas:
+     comparte proyecto con ellas y el servidor devuelve el proyecto completo,
+     así que dos respuestas cruzadas dejarían el panel mostrando lo anterior. */
+  const handleSetClientAnalytics = (id, clientId, cargada) => enqueueTaskOp(id, async () => {
+    const updated = await projectsAPI.setClientAnalytics(id, clientId, cargada);
+    setProjects(ps => ps.map(p => (p.id === updated.id ? updated : p)));
+  });
+
   /* Flujo permitido a quien ejecuta: En proceso → Testing → Finalizado/Soporte. */
   const ENGINEER_FLOW = { progress: ['testing'], testing: ['done', 'soporte'] };
 
@@ -495,6 +503,7 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
           onAddLog={handleAddLog}
           onAddTask={handleAddTask} onToggleTask={handleToggleTask}
           onDeleteTask={handleDeleteTask} onUpdateTask={handleUpdateTask}
+          onSetClientAnalytics={handleSetClientAnalytics}
         />
 
         <UserModal

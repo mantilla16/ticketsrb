@@ -34,34 +34,90 @@ async function extraAssigneeIds(projectId) {
   return rows.map(r => r.user_id);
 }
 
-// Reemplaza el conjunto completo de clientes de un proyecto
-async function syncProjectClients(projectId, clientIds, sectionTitles = {}) {
+/**
+ * Deja el proyecto exactamente con los clientes indicados.
+ *
+ * No se puede borrar todo y volver a insertar: `analytics_loaded` —y quién y
+ * cuándo la marcó— vive en esta tabla, y eso lo perdería en cada guardado del
+ * proyecto. Se borra solo lo que ya no está y se actualiza el resto, de modo
+ * que un cliente que sigue en la lista conserva su marca.
+ *
+ * `sectionTitles` puede venir incompleto; `COALESCE` evita que un título que
+ * la pantalla no estaba editando se borre solo.
+ */
+async function syncProjectClients(projectId, clientIds, sectionTitles = {}, opciones = {}) {
+  const { analyticsLoaded = {}, userId = null } = opciones;
   try {
     await asegurarClientesDeProyecto();
-    await pool.query('DELETE FROM project_clients WHERE project_id=$1', [projectId]);
     const ids = [...new Set((clientIds || []).filter(Boolean).map(Number))];
-    if (!ids.length) return;
-    for (const id of ids) {
-      const title = sectionTitles[id] || null;
+
+    if (ids.length) {
       await pool.query(
-        'INSERT INTO project_clients (project_id, client_id, section_title) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-        [projectId, id, title],
+        'DELETE FROM project_clients WHERE project_id=$1 AND client_id <> ALL($2)',
+        [projectId, ids],
       );
+    } else {
+      await pool.query('DELETE FROM project_clients WHERE project_id=$1', [projectId]);
+      return;
+    }
+
+    for (const id of ids) {
+      const title = sectionTitles[id] ?? null;
+      // `undefined` = la pantalla no editaba esta marca; solo un booleano
+      // explícito la cambia, y solo entonces se reescribe quién y cuándo.
+      const carga = typeof analyticsLoaded[id] === 'boolean' ? analyticsLoaded[id] : null;
+
+      await pool.query(`
+        INSERT INTO project_clients
+          (project_id, client_id, section_title, analytics_loaded, analytics_loaded_at, analytics_loaded_by)
+        VALUES ($1, $2, $3, COALESCE($4, FALSE),
+                CASE WHEN $4 THEN NOW() END,
+                CASE WHEN $4 THEN $5::int END)
+        ON CONFLICT (project_id, client_id) DO UPDATE SET
+          section_title       = COALESCE($3, project_clients.section_title),
+          analytics_loaded    = COALESCE($4, project_clients.analytics_loaded),
+          analytics_loaded_at = CASE
+            WHEN $4 IS NULL              THEN project_clients.analytics_loaded_at
+            WHEN $4 IS TRUE              THEN COALESCE(project_clients.analytics_loaded_at, NOW())
+            ELSE NULL END,
+          analytics_loaded_by = CASE
+            WHEN $4 IS NULL              THEN project_clients.analytics_loaded_by
+            WHEN $4 IS TRUE              THEN COALESCE(project_clients.analytics_loaded_by, $5::int)
+            ELSE NULL END
+      `, [projectId, id, title, carga, userId]);
     }
   } catch (err) {
     console.warn('syncProjectClients: no se pudieron guardar los clientes del proyecto', err.message);
   }
 }
 
+/* La fila de project_clients se convierte en objeto en dos sitios —un
+   proyecto suelto y la lista completa—. Si divergen, el panorama deja de ver
+   la marca en una de las dos rutas y no hay error que lo delate. */
+const aCliente = (r) => ({
+  id: r.id,
+  name: r.name,
+  active: r.active,
+  sectionTitle: r.section_title || null,
+  analyticsLoaded: r.analytics_loaded || false,
+  analyticsLoadedAt: r.analytics_loaded_at || null,
+  analyticsLoadedBy: r.analytics_loaded_by_name || null,
+});
+
+const CLIENTES_SELECT = `
+  SELECT pc.project_id, ac.id, ac.name, ac.active, pc.section_title,
+         pc.analytics_loaded, pc.analytics_loaded_at,
+         u.name AS analytics_loaded_by_name
+  FROM project_clients pc
+  JOIN analytics_clients ac ON ac.id = pc.client_id
+  LEFT JOIN users u ON u.id = pc.analytics_loaded_by
+`;
+
 async function projectClientsOf(projectId) {
   await asegurarClientesDeProyecto();
-  const { rows } = await pool.query(`
-    SELECT ac.id, ac.name, ac.active, pc.section_title
-    FROM project_clients pc
-    JOIN analytics_clients ac ON ac.id = pc.client_id
-    WHERE pc.project_id = $1
-  `, [projectId]);
-  return rows.map(r => ({ id: r.id, name: r.name, active: r.active, sectionTitle: r.section_title || null }));
+  const { rows } = await pool.query(
+    `${CLIENTES_SELECT} WHERE pc.project_id = $1 ORDER BY ac.name`, [projectId]);
+  return rows.map(aCliente);
 }
 
 // Responsables actuales de un proyecto (para notificaciones)
@@ -286,16 +342,14 @@ router.get('/', auth, async (req, res) => {
     });
 
     await asegurarClientesDeProyecto();
-    const clientsRes = await pool.query(`
-      SELECT pc.project_id, ac.id, ac.name, ac.active, pc.section_title
-      FROM project_clients pc
-      JOIN analytics_clients ac ON ac.id = pc.client_id
-      WHERE pc.project_id = ANY($1)
-    `, [ids]);
+    // Misma forma que devuelve projectClientsOf para un proyecto suelto: la
+    // marca de analítica incluida, que es de lo que vive el panorama.
+    const clientsRes = await pool.query(
+      `${CLIENTES_SELECT} WHERE pc.project_id = ANY($1) ORDER BY ac.name`, [ids]);
     const clientsByProject = {};
     clientsRes.rows.forEach(c => {
       if (!clientsByProject[c.project_id]) clientsByProject[c.project_id] = [];
-      clientsByProject[c.project_id].push({ id: c.id, name: c.name, active: c.active, sectionTitle: c.section_title || null });
+      clientsByProject[c.project_id].push(aCliente(c));
     });
 
     res.json(rows.map(p => fmtProject(p, byProject[p.id] || [], tasksByProject[p.id] || [],
@@ -331,7 +385,8 @@ router.post('/', auth, requierePermiso('crearProyectos'), validators, async (req
         progressAuto || 0, progressAnalitica || 0, req.user.id, status === 'soporte']);
 
     await syncAssignees(id, ids);
-    await syncProjectClients(id, clientIds, sectionTitles);
+    await syncProjectClients(id, clientIds, sectionTitles,
+      { analyticsLoaded: req.body.analyticsLoaded || {}, userId: req.user.id });
 
     notify([...ids, coAssigneeId, generalAssigneeId], req.user.id, id,
       'assign', `te asignó el proyecto «${escapeHtml(name)}»`,
@@ -383,7 +438,8 @@ router.put('/:id', auth, validators, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
     await recalcProgress(req.params.id);
     await syncAssignees(req.params.id, ids);
-    await syncProjectClients(req.params.id, clientIds, sectionTitles);
+    await syncProjectClients(req.params.id, clientIds, sectionTitles,
+      { analyticsLoaded: req.body.analyticsLoaded || {}, userId: req.user.id });
 
     if (before) {
       const oldIds = before.ids.filter(Boolean).map(Number);
@@ -404,6 +460,41 @@ router.put('/:id', auth, validators, async (req, res) => {
       }
     }
 
+    res.json(await fetchProject(req.params.id));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+/**
+ * PATCH /api/projects/:id/clients/:clientId — marcar que a ese cliente ya se
+ * le cargó la analítica, o desmarcarlo.
+ *
+ * Es su propia ruta y no un campo más del proyecto porque se marca cliente a
+ * cliente mientras se trabaja, no al guardar la ficha entera; y porque así
+ * queda registrado quién la marcó en ese momento.
+ *
+ * Al desmarcar se limpian autor y fecha: dejar el rastro de una carga que ya
+ * no está sugiere que alguien la hizo y se deshizo, que no es lo que pasó.
+ */
+router.patch('/:id/clients/:clientId', auth, async (req, res) => {
+  const cargada = req.body.analyticsLoaded === true;
+  try {
+    if (!(await assertProjectAccess(req, res, req.params.id))) return;
+    await asegurarClientesDeProyecto();
+    const { rows } = await pool.query(`
+      UPDATE project_clients
+      SET analytics_loaded    = $1,
+          analytics_loaded_at = CASE WHEN $1 THEN NOW() ELSE NULL END,
+          analytics_loaded_by = CASE WHEN $1 THEN $2::int ELSE NULL END
+      WHERE project_id = $3 AND client_id = $4
+      RETURNING client_id
+    `, [cargada, req.user.id, req.params.id, Number(req.params.clientId)]);
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Ese cliente no está en este proyecto' });
+    }
     res.json(await fetchProject(req.params.id));
   } catch (err) {
     console.error(err);

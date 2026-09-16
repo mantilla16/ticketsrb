@@ -33,6 +33,9 @@ export const projectsAPI = {
   addTask:    (id, data)    => api.post(`/projects/${id}/tasks`, data),
   updateTask: (id, taskId, data) => api.patch(`/projects/${id}/tasks/${taskId}`, data),
   removeTask: (id, taskId)  => api.delete(`/projects/${id}/tasks/${taskId}`),
+  // Marcar/desmarcar que a un cliente del proyecto ya se le cargó la analítica.
+  setClientAnalytics: (id, clientId, analyticsLoaded) =>
+    api.patch(`/projects/${id}/clients/${clientId}`, { analyticsLoaded }),
 };
 
 export const usersAPI = {

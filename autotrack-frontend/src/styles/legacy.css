@@ -1851,6 +1851,50 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
 }
 .dp-section-body { padding: 0 14px 14px; }
 
+/* Casilla de «analítica cargada» dentro del formulario del proyecto. */
+.pm-carga {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  padding: 5px 10px; border-radius: var(--radius-pill); white-space: nowrap;
+  font-size: 11px; font-weight: 700; color: var(--rb-text-3);
+  background: var(--bg); border: 1px solid var(--border);
+  transition: background .12s, border-color .12s, color .12s;
+}
+.pm-carga:hover { border-color: var(--rb-teal); }
+.pm-carga--si {
+  background: var(--rb-teal-tint); border-color: var(--rb-teal); color: var(--rb-teal-ink);
+}
+.pm-carga input { accent-color: var(--rb-teal); cursor: pointer; }
+
+/* Cabecera de sección: el botón de plegar ocupa lo que sobra y la marca de
+   analítica se queda a la derecha, fuera de él. */
+.dp-section-bar { display: flex; align-items: center; gap: 8px; padding-right: 12px; }
+.dp-section-bar .dp-section-head { flex: 1; min-width: 0; }
+
+/* Marca de analítica cargada, por cliente. Pendiente se ve como un contorno
+   apagado y cargada como un relleno en verde azulado: la diferencia tiene que
+   leerse de un vistazo al recorrer la lista, sin detenerse a leer. */
+.dp-carga {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: 4px 10px; border-radius: var(--radius-pill); cursor: pointer;
+  font-family: var(--font); font-size: 11px; font-weight: 700; white-space: nowrap;
+  background: var(--bg); border: 1px solid var(--border); color: var(--rb-text-3);
+  transition: background .12s, border-color .12s, color .12s;
+}
+.dp-carga:hover:not(:disabled) { border-color: var(--rb-teal); color: var(--rb-teal-ink); }
+.dp-carga--si {
+  background: var(--rb-teal-tint); border-color: var(--rb-teal);
+  color: var(--rb-teal-ink);
+}
+/* Sin permiso sigue leyéndose: es información, no solo un control. */
+.dp-carga:disabled { cursor: default; opacity: .9; }
+.dp-carga-quien {
+  font-weight: 600; font-size: 10px; opacity: .8;
+  padding-left: 6px; margin-left: 2px; border-left: 1px solid currentColor;
+}
+@media (max-width: 560px) {
+  .dp-carga-quien { display: none; }
+}
+
 .dp-tasks { display: flex; flex-direction: column; gap: 4px; }
 .dp-task {
   display: flex; align-items: flex-start; gap: 10px;

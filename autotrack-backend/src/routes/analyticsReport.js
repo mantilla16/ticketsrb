@@ -65,8 +65,18 @@ function fmtDate(d) {
 
 // ───────────────────────── CRUD de clientes ────────────────────────────
 
+/* Leer el catálogo y administrarlo son permisos distintos.
+ *
+ * Leerlo lo necesita cualquiera que trabaje en la mesa: sin la lista, el
+ * selector de cliente de un proyecto sale vacío. Exigir `verReporteAnalitica`
+ * —que es un permiso de dirección— dejaba fuera justo al equipo de analítica,
+ * y el 403 se tragaba en silencio: en pantalla solo se veía una lista vacía,
+ * sin ningún error.
+ *
+ * Administrarlo va con quien gestiona proyectos. */
+
 // GET /api/analytics-report/clients — Lista de clientes
-router.get('/clients', auth, requierePermiso('verReporteAnalitica'), async (_req, res) => {
+router.get('/clients', auth, requierePermiso('bandeja'), async (_req, res) => {
   try {
     const clients = await getClientsFromDB();
     res.json(clients);
@@ -77,7 +87,7 @@ router.get('/clients', auth, requierePermiso('verReporteAnalitica'), async (_req
 });
 
 // POST /api/analytics-report/clients — Crear cliente
-router.post('/clients', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
+router.post('/clients', auth, requierePermiso('gestionarProyectos'), async (req, res) => {
   try {
     const name = (req.body.name || '').trim();
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
@@ -95,7 +105,7 @@ router.post('/clients', auth, requierePermiso('verReporteAnalitica'), async (req
 });
 
 // PUT /api/analytics-report/clients/:id — Actualizar cliente (nombre y/o active)
-router.put('/clients/:id', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
+router.put('/clients/:id', auth, requierePermiso('gestionarProyectos'), async (req, res) => {
   try {
     const { id } = req.params;
     const name   = (req.body.name || '').trim();
@@ -117,7 +127,7 @@ router.put('/clients/:id', auth, requierePermiso('verReporteAnalitica'), async (
 });
 
 // DELETE /api/analytics-report/clients/:id — Eliminar cliente
-router.delete('/clients/:id', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
+router.delete('/clients/:id', auth, requierePermiso('gestionarProyectos'), async (req, res) => {
   try {
     const { rowCount } = await pool.query('DELETE FROM analytics_clients WHERE id = $1', [req.params.id]);
     if (!rowCount) return res.status(404).json({ error: 'Cliente no encontrado' });
@@ -150,6 +160,9 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
         backlogProjects: 0,
         avgProgress: 0,
         nextDelivery: null,
+        analyticsLoadedCount: 0,
+        analyticsLoadedAt: null,
+        analyticsLoadedBy: null,
         teamMembers: new Set(),
       };
     });
@@ -173,22 +186,35 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
 
     // 3. Clientes de cada proyecto (N a M)
     const clientsByProject = {};
+    const cargaPorPareja = new Map();
     if (projectIds.length) {
       try {
         await asegurarClientesDeProyecto();
         const { rows } = await pool.query(`
-          SELECT pc.project_id, ac.id, ac.name, ac.active, pc.section_title
+          SELECT pc.project_id, ac.id, ac.name, ac.active, pc.section_title,
+                 pc.analytics_loaded, pc.analytics_loaded_at,
+                 u.name AS analytics_loaded_by
           FROM project_clients pc
           JOIN analytics_clients ac ON ac.id = pc.client_id
+          LEFT JOIN users u ON u.id = pc.analytics_loaded_by
           WHERE pc.project_id = ANY($1)
         `, [projectIds]);
         rows.forEach(r => {
           if (!clientsByProject[r.project_id]) clientsByProject[r.project_id] = [];
+          // La carga es de esta pareja proyecto↔cliente, no del cliente: se
+          // guarda aparte para no pisarla cuando el cliente sale en varios.
+          cargaPorPareja.set(`${r.project_id}|${r.id}`, {
+            loaded: r.analytics_loaded || false,
+            at: fmtDate(r.analytics_loaded_at),
+            by: r.analytics_loaded_by || null,
+          });
           const mapped = clientMap[r.name] || {
             id: r.id, name: r.name, active: r.active, sectionTitle: r.section_title || null,
             projects: [], totalProjects: 0, activeProjects: 0, completedProjects: 0,
             standbyProjects: 0, testingProjects: 0, backlogProjects: 0,
-            avgProgress: 0, nextDelivery: null, teamMembers: new Set(),
+            avgProgress: 0, nextDelivery: null,
+            analyticsLoadedCount: 0, analyticsLoadedAt: null, analyticsLoadedBy: null,
+            teamMembers: new Set(),
           };
           mapped.sectionTitle = r.section_title || mapped.sectionTitle || null;
           clientsByProject[r.project_id].push(mapped);
@@ -249,7 +275,9 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
             id: null, name, active: true,
             projects: [], totalProjects: 0, activeProjects: 0, completedProjects: 0,
             standbyProjects: 0, testingProjects: 0, backlogProjects: 0,
-            avgProgress: 0, nextDelivery: null, teamMembers: new Set(),
+            avgProgress: 0, nextDelivery: null,
+            analyticsLoadedCount: 0, analyticsLoadedAt: null, analyticsLoadedBy: null,
+            teamMembers: new Set(),
           };
           orphans = [clientMap[name]];
         }
@@ -273,6 +301,15 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
         startDate: fmtDate(p.start_date),
         dueDate: fmtDate(p.due_date),
         clientIds: targets.map(c => c.id).filter(v => v != null),
+        clients: targets.filter(c => c.id != null).map(c => {
+          const carga = cargaPorPareja.get(`${p.id}|${c.id}`) || {};
+          return {
+            id: c.id, name: c.name,
+            analyticsLoaded: carga.loaded || false,
+            analyticsLoadedAt: carga.at || null,
+            analyticsLoadedBy: carga.by || null,
+          };
+        }),
         sectionTitle: targets[0]?.sectionTitle || null,
         assignee: p.assignee_id ? { id: p.assignee_id, name: p.assignee_name, initials: p.assignee_initials, colorIndex: p.assignee_color } : null,
         coAssignee: p.co_assignee_id ? { id: p.co_assignee_id, name: p.co_assignee_name, initials: p.co_assignee_initials, colorIndex: p.co_assignee_color } : null,
@@ -305,6 +342,18 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
         if (p.assignee_id) c.teamMembers.add(p.assignee_id);
         extra.forEach(a => c.teamMembers.add(a.id));
 
+        /* Cobertura de analítica. A un cliente le basta estar cargado en un
+           proyecto para contar como cubierto: la pregunta de dirección es
+           «¿a este cliente ya se le hizo?», no «¿en cuántos sitios?». */
+        const carga = cargaPorPareja.get(`${p.id}|${c.id}`);
+        if (carga?.loaded) {
+          c.analyticsLoadedCount++;
+          if (!c.analyticsLoadedAt || (carga.at && carga.at > c.analyticsLoadedAt)) {
+            c.analyticsLoadedAt = carga.at;
+            c.analyticsLoadedBy = carga.by;
+          }
+        }
+
         // Próxima entrega: la tarea pendiente más próxima (por cliente o del proyecto)
         if (deliverable) {
           const pendingDates = tasks
@@ -321,6 +370,7 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
     // 7. Promedios + Sets → arrays
     const result = Object.values(clientMap).map(c => ({
       ...c,
+      analyticsLoaded: c.analyticsLoadedCount > 0,
       avgProgress: c.totalProjects
         ? Math.round(c.projects.reduce((s, p) => s + p.progress, 0) / c.totalProjects)
         : 0,

@@ -73,8 +73,21 @@ const asegurarClientesDeProyecto = unaVez(async () => {
       PRIMARY KEY (project_id, client_id)
     )
   `);
-  // Para bases donde la tabla ya existía sin este campo.
-  await pool.query('ALTER TABLE project_clients ADD COLUMN IF NOT EXISTS section_title VARCHAR(200)');
+  /* Columnas añadidas después de que la tabla existiera.
+
+     `analytics_loaded` es la marca de que a ese cliente ya se le cargó la
+     analítica. Vive en la relación proyecto↔cliente, no en el cliente: el
+     mismo cliente puede estar cargado en un proyecto y pendiente en otro.
+
+     Se guarda además quién la marcó y cuándo, porque la pregunta que se hace
+     dirección no es solo «cuántos faltan» sino «quién lo hizo». */
+  await pool.query(`
+    ALTER TABLE project_clients
+      ADD COLUMN IF NOT EXISTS section_title       VARCHAR(200),
+      ADD COLUMN IF NOT EXISTS analytics_loaded    BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS analytics_loaded_at TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS analytics_loaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+  `);
   await pool.query('CREATE INDEX IF NOT EXISTS idx_project_clients_client ON project_clients(client_id)');
 
   // Proyectos que guardaban el cliente como texto libre pasan a la relación,

@@ -3,7 +3,7 @@
    propias tareas y botón "+" que auto-asigna el clientId. */
 
 import { useState, useEffect, useMemo } from 'react';
-import { assignables } from '../lib/tickets';
+import { assignables, can } from '../lib/tickets';
 import { fmtDate, fmtLogDate } from '../utils/helpers';
 import { analyticsReportAPI } from '../services/api';
 
@@ -23,9 +23,18 @@ const PR_L = { high: 'Alta', mid: 'Media', low: 'Baja' };
 const PR_BG = { high: 'var(--rb-danger-bg)', mid: 'var(--rb-navy-tint)', low: 'var(--rb-success-bg)' };
 const PR_C  = { high: 'var(--rb-danger)', mid: 'var(--rb-navy)', low: 'var(--rb-success)' };
 
+/* Acepta tanto una fecha suelta («2026-09-16», como las de vencimiento) como
+   una marca de tiempo completa («2026-09-16T14:22:00.000Z», como la de carga
+   de analítica): se queda con el día. Concatenar la hora a algo que ya la
+   traía daba «Invalid Date». Se lee como fecha local, no UTC, para que no se
+   corra un día. */
 const fmtShort = (d) => {
   if (!d) return '—';
-  return new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  const dia = String(d).slice(0, 10);
+  const fecha = new Date(`${dia}T00:00:00`);
+  return Number.isNaN(fecha.getTime())
+    ? '—'
+    : fecha.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
 };
 
 const isOverdue = (d) => {
@@ -34,10 +43,13 @@ const isOverdue = (d) => {
 };
 
 /* Sección colapsable genérica */
-function Section({ title, count, children, defaultOpen = true, accent }) {
+function Section({ title, count, children, defaultOpen = true, accent, extra }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="dp-section">
+      {/* `extra` va fuera del botón: un control dentro de otro control no se
+          puede pulsar sin plegar la sección. */}
+      <div className="dp-section-bar">
       <button className="dp-section-head" onClick={() => setOpen(o => !o)}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
           style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>
@@ -47,8 +59,46 @@ function Section({ title, count, children, defaultOpen = true, accent }) {
         {title}
         {count != null && <span className="dp-section-count">{count}</span>}
       </button>
+        {extra}
+      </div>
       {open && <div className="dp-section-body">{children}</div>}
     </div>
+  );
+}
+
+/**
+ * Marca de analítica cargada para un cliente del proyecto.
+ *
+ * Es distinto de `platformUploaded`, que es por tarea: esto responde «¿a este
+ * cliente ya se le cargó la analítica?», que es lo que dirección cuenta.
+ * Muestra quién y cuándo, porque una marca sin autor no sirve para preguntar.
+ */
+function MarcaAnalitica({ cliente, canEdit, guardando, onToggle }) {
+  const cargada = cliente.analyticsLoaded;
+  const quien = cliente.analyticsLoadedBy;
+  const cuando = cliente.analyticsLoadedAt ? fmtShort(cliente.analyticsLoadedAt) : null;
+
+  const detalle = cargada
+    ? [quien, cuando].filter(Boolean).join(' · ') || 'Cargada'
+    : 'Sin cargar';
+
+  return (
+    <button
+      type="button"
+      className={`dp-carga${cargada ? ' dp-carga--si' : ''}`}
+      disabled={!canEdit || guardando}
+      onClick={() => onToggle(cliente.id, !cargada)}
+      title={canEdit
+        ? (cargada ? `Analítica cargada — ${detalle}. Pulsa para desmarcar.` : 'Marcar la analítica de este cliente como cargada')
+        : `Analítica ${cargada ? `cargada — ${detalle}` : 'sin cargar'}`}
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        {cargada ? <polyline points="20 6 9 17 4 12" /> : <circle cx="12" cy="12" r="9" strokeWidth="2" />}
+      </svg>
+      <span>{cargada ? 'Analítica cargada' : 'Analítica pendiente'}</span>
+      {cargada && (quien || cuando) && <span className="dp-carga-quien">{detalle}</span>}
+    </button>
   );
 }
 
@@ -189,7 +239,7 @@ function AddTaskInline({ clientId, canEdit, taskSaving, onAdd, taskAssigneePool,
   );
 }
 
-export default function ProjectDetailPanel({ open, project, onClose, onEdit, onAddLog, onAddTask, onToggleTask, onDeleteTask, onUpdateTask, currentUser, users = [] }) {
+export default function ProjectDetailPanel({ open, project, onClose, onEdit, onAddLog, onAddTask, onToggleTask, onDeleteTask, onUpdateTask, onSetClientAnalytics, currentUser, users = [] }) {
   const [taskSaving, setTaskSaving]   = useState(false);
   const [busyTaskIds, setBusyTaskIds] = useState(new Set());
   const [analyticsClients, setAnalyticsClients] = useState([]);
@@ -201,13 +251,17 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
   const [editPriority, setEditPriority] = useState('mid');
   const [editClientId, setEditClientId] = useState('');
   const [editAssignee, setEditAssignee] = useState('');
+  const [cargaBusy, setCargaBusy]     = useState(null);  // id del cliente guardándose
 
   const tipo = project?.tipo || 'automatizacion';
-  const isLeader     = ['admin', 'leader_analytics'].includes(currentUser?.role);
-  const isRestricted = ['engineer', 'member_analytics'].includes(currentUser?.role);
+  /* Quién puede editar, por capacidad y no por nombre de rol: una lista
+     literal aquí dejaba fuera al coordinador, que sí gestiona proyectos.
+     Quien gestiona proyectos edita cualquiera; quien solo edita los suyos,
+     los suyos. */
   const isOwner = project && [...(project.assigneeIds || [project.assigneeId]), project.coAssigneeId, project.generalAssigneeId]
     .filter(v => v != null).map(Number).includes(Number(currentUser?.id));
-  const canEdit = isLeader || (isRestricted && isOwner);
+  const canEdit = can(currentUser, 'gestionarProyectos')
+    || (can(currentUser, 'editarProyectosPropios') && isOwner);
 
   const delEquipo = (equipo) => assignables(users, equipo);
   const taskAssigneePool = tipo === 'analitica'
@@ -274,6 +328,17 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
       clientId: editClientId ? Number(editClientId) : null,
     }));
     setEditingTaskId(null);
+  };
+
+  const handleMarcarAnalitica = async (clientId, cargada) => {
+    if (cargaBusy != null) return;
+    setCargaBusy(clientId);
+    setError('');
+    try {
+      await onSetClientAnalytics(project.id, clientId, cargada);
+    } catch (err) {
+      setError(err.error || 'No se pudo guardar la marca de analítica');
+    } finally { setCargaBusy(null); }
   };
 
   const handleAddTaskInSection = (clientId) => async ({ text, date, priority, assigneeId }) => {
@@ -373,13 +438,20 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
           {/* Tareas agrupadas por cliente */}
           {showSections ? (
             <>
-              {clients.filter(c => (tasksByClient[c.id] || []).length > 0).map(c => {
+              {/* Todos los clientes del proyecto, también los que aún no tienen
+                  tareas: si no se vieran, no habría dónde marcar su analítica
+                  ni forma de notar que están sin empezar. */}
+              {clients.map(c => {
                 const clientTasks = tasksByClient[c.id] || [];
                 const clientDone  = clientTasks.filter(t => t.done).length;
                 const sectionTitle = c.sectionTitle || c.name;
                 return (
-                  <Section key={c.id} title={sectionTitle} count={`${clientDone}/${clientTasks.length}`}
-                    accent="var(--rb-magenta)">
+                  <Section key={c.id} title={sectionTitle}
+                    count={clientTasks.length ? `${clientDone}/${clientTasks.length}` : '0'}
+                    defaultOpen={clientTasks.length > 0}
+                    accent={c.analyticsLoaded ? 'var(--rb-teal)' : 'var(--rb-magenta)'}
+                    extra={<MarcaAnalitica cliente={c} canEdit={canEdit}
+                      guardando={cargaBusy === c.id} onToggle={handleMarcarAnalitica} />}>
                     <TaskList tasks={clientTasks} canEdit={canEdit} busyTaskIds={busyTaskIds}
                       taskAssigneePool={taskAssigneePool} analyticsClients={analyticsClients}
                       project={project} tipo={tipo}
@@ -399,7 +471,7 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
               })}
 
               {/* Sección General: tareas sin cliente asignado, o todas si no hay clientes con tareas */}
-              {((tasksByClient['_general'] || []).length > 0 || clients.filter(c => (tasksByClient[c.id] || []).length > 0).length === 0) && (
+              {((tasksByClient['_general'] || []).length > 0 || clients.length === 0) && (
                 <Section title="Tareas" count={`${(tasksByClient['_general'] || allTasks).filter(t => t.done).length}/${(tasksByClient['_general'] || allTasks).length}`}>
                   <TaskList tasks={tasksByClient['_general'] || allTasks} canEdit={canEdit} busyTaskIds={busyTaskIds}
                     taskAssigneePool={taskAssigneePool} analyticsClients={analyticsClients}

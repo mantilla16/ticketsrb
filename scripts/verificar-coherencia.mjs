@@ -96,7 +96,8 @@ function verificarPermisos(ROLE) {
   const { ROLES } = require(join(raiz, 'autotrack-backend/src/config/roles.js'));
   const capacidades = [
     'bandeja', 'triage', 'eliminarTickets', 'crearProyectos',
-    'gestionarProyectos', 'gestionarUsuarios', 'verReporteAnalitica',
+    'gestionarProyectos', 'editarProyectosPropios', 'gestionarUsuarios',
+    'verReporteAnalitica',
   ];
 
   for (const r of new Set([...Object.keys(ROLES), ...Object.keys(ROLE)])) {

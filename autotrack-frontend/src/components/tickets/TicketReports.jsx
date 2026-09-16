@@ -16,7 +16,7 @@ import { useMemo, useState } from 'react';
 import { useTickets } from '../../context/TicketsContext';
 import {
   CATEGORIES, categoryOf, isOpen, isClosed, slaOf,
-  PRIORITY_LIST, priorityOf, statusOf, fmtDate,
+  PRIORITY_LIST, priorityOf, statusOf, fmtDate, coberturaAnalitica,
 } from '../../lib/tickets';
 import { Badge, EmptyState, Segmented, Stat } from '../ui';
 
@@ -311,6 +311,8 @@ export default function TicketReports({ projects = [] }) {
     return sin ? [...filas, { label: 'Sin asignar', value: sin, color: 'var(--rb-orange)' }] : filas;
   }, [abiertos]);
 
+  const analitica = useMemo(() => coberturaAnalitica(projects), [projects]);
+
   if (loading) return <div className="rb-skeleton" style={{ height: 320 }} />;
 
   if (!todo.length) {
@@ -421,7 +423,80 @@ export default function TicketReports({ projects = [] }) {
           )}
         </Panel>
 
-        {/* 5 ── De dónde viene y cómo se reparte */}
+        {/* 5 ── Analítica: a qué clientes ya se les cargó
+               Solo aparece si hay clientes en juego; en una mesa sin proyectos
+               de analítica sería un panel vacío pidiendo explicación. */}
+        {analitica.total > 0 && (
+          <Panel
+            title="Analítica por cliente"
+            sub="A cuántos clientes se les cargó la analítica y a cuántos falta"
+            nota="Un cliente cuenta como cargado en cuanto se marca en alguno de sus proyectos. Se marca desde la ficha del proyecto, cliente por cliente."
+          >
+            <div className="rb-row" style={{ gap: 28, alignItems: 'baseline', marginBottom: 18, flexWrap: 'wrap' }}>
+              <div>
+                <div className="rb-stat-value" style={{ fontSize: 'var(--rb-fs-2xl)', color: 'var(--rb-teal-ink)' }}>
+                  {analitica.hechos.length}
+                </div>
+                <div className="rb-hint">Con analítica cargada</div>
+              </div>
+              <div>
+                <div className="rb-stat-value" style={{ fontSize: 'var(--rb-fs-2xl)', color: analitica.faltan.length ? 'var(--rb-orange-ink)' : 'var(--rb-text-3)' }}>
+                  {analitica.faltan.length}
+                </div>
+                <div className="rb-hint">Pendientes</div>
+              </div>
+              <div>
+                <div className="rb-stat-value" style={{ fontSize: 'var(--rb-fs-2xl)' }}>{analitica.pct}%</div>
+                <div className="rb-hint">De {analitica.total} clientes en curso</div>
+              </div>
+            </div>
+
+            <Bars rows={[
+              { label: 'Cargada',   value: analitica.hechos.length, color: 'var(--rb-teal)' },
+              { label: 'Pendiente', value: analitica.faltan.length, color: 'var(--rb-orange)' },
+            ]} />
+
+            {analitica.faltan.length > 0 && (
+              <>
+                <div className="tk-section-title" style={{ marginTop: 20 }}>Falta cargar</div>
+                <div className="tk-review">
+                  {analitica.faltan.map(c => (
+                    <div className="tk-review-row" key={c.id} style={{ gridTemplateColumns: 'minmax(0,1fr) auto' }}>
+                      <span className="rb-truncate">{c.nombre}</span>
+                      <span className="rb-hint rb-truncate" style={{ maxWidth: 220 }}>
+                        {[...new Set(c.proyectos)].join(' · ')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {analitica.hechos.length > 0 && (
+              <>
+                <div className="tk-section-title" style={{ marginTop: 20 }}>Ya cargada</div>
+                <div className="tk-review">
+                  {analitica.hechos.map(c => (
+                    <div className="tk-review-row" key={c.id} style={{ gridTemplateColumns: 'minmax(0,1fr) auto auto' }}>
+                      <span className="rb-truncate">{c.nombre}</span>
+                      <span className="rb-hint rb-truncate" style={{ maxWidth: 160 }}>{c.quien || '—'}</span>
+                      <b style={{ fontSize: 'var(--rb-fs-xs)' }}>{c.cuando ? fmtDate(c.cuando) : '—'}</b>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {analitica.porPersona.length > 0 && (
+              <>
+                <div className="tk-section-title" style={{ marginTop: 20 }}>Quién la ha cargado</div>
+                <Bars rows={analitica.porPersona} sufijo=" clientes" />
+              </>
+            )}
+          </Panel>
+        )}
+
+        {/* 6 ── De dónde viene y cómo se reparte */}
         <Panel title="Demanda por línea de servicio" sub="De dónde viene el trabajo">
           <Bars rows={porLinea} />
         </Panel>

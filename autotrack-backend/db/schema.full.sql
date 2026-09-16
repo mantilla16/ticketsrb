@@ -204,15 +204,26 @@ CREATE TABLE IF NOT EXISTS analytics_clients (
 -- `section_title` es el encabezado con que ese cliente aparece dentro del
 -- proyecto; vive en la relación y no en el cliente porque el mismo cliente
 -- puede titularse distinto en dos proyectos.
+--
+-- `analytics_loaded` marca que a ese cliente ya se le cargó la analítica. Va
+-- en la relación y no en el cliente porque el mismo cliente puede estar
+-- cargado en un proyecto y pendiente en otro. Se guarda quién y cuándo.
 CREATE TABLE IF NOT EXISTS project_clients (
-  project_id    VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  client_id     INTEGER     NOT NULL REFERENCES analytics_clients(id) ON DELETE CASCADE,
-  section_title VARCHAR(200),
+  project_id          VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  client_id           INTEGER     NOT NULL REFERENCES analytics_clients(id) ON DELETE CASCADE,
+  section_title       VARCHAR(200),
+  analytics_loaded    BOOLEAN NOT NULL DEFAULT FALSE,
+  analytics_loaded_at TIMESTAMP,
+  analytics_loaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   PRIMARY KEY (project_id, client_id)
 );
 
--- Para bases que ya tenían la tabla sin esta columna.
-ALTER TABLE project_clients ADD COLUMN IF NOT EXISTS section_title VARCHAR(200);
+-- Para bases que ya tenían la tabla sin estas columnas.
+ALTER TABLE project_clients
+  ADD COLUMN IF NOT EXISTS section_title       VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS analytics_loaded    BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS analytics_loaded_at TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS analytics_loaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_project_clients_client ON project_clients(client_id);
 

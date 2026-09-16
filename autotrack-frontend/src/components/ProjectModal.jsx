@@ -75,6 +75,10 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   const [clientOpen, setClientOpen] = useState(false);
   const [newClientText, setNewClientText] = useState('');
   const [sectionTitles, setSectionTitles] = useState({});
+  /* Marca de «analítica cargada» por cliente. Se guarda con el resto del
+     formulario, no al pulsar: el modal tiene botón Guardar y aplicar unos
+     cambios al instante y otros no es justo lo que confunde. */
+  const [analyticsLoaded, setAnalyticsLoaded] = useState({});
   const clientRef = useRef(null);
   useEffect(() => {
     if (!clientOpen) return;
@@ -172,8 +176,13 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         setTasks((project.tasks || []).map(t => ({ ...t })));
         setLogs(project.logs || []);
         const st = {};
-        (project.clients || []).forEach(c => { if (c.sectionTitle) st[String(c.id)] = c.sectionTitle; });
+        const cargas = {};
+        (project.clients || []).forEach(c => {
+          if (c.sectionTitle) st[String(c.id)] = c.sectionTitle;
+          cargas[String(c.id)] = Boolean(c.analyticsLoaded);
+        });
         setSectionTitles(st);
+        setAnalyticsLoaded(cargas);
       } else {
         setAreaSel(defArea || defaultArea);
         setTypeSel('proyecto');
@@ -186,6 +195,8 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         });
         setTasks([]);
         setLogs([]);
+        setSectionTitles({});
+        setAnalyticsLoaded({});
       }
     }
   }, [open, project, defStatus, defAssigneeId, defClientIds]);
@@ -263,6 +274,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         client:                form.client.trim() || null,
         clientIds:             form.clientIds.map(Number),
         sectionTitles:         Object.fromEntries(Object.entries(sectionTitles).map(([k, v]) => [Number(k), v])),
+        analyticsLoaded:       Object.fromEntries(Object.entries(analyticsLoaded).map(([k, v]) => [Number(k), v])),
         status:                form.status,
         priority:              form.priority,
         assigneeIds:           form.assigneeIds.map(Number),
@@ -435,27 +447,35 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                 <div className="pm-field" style={{ gridColumn: '1 / -1' }}>
                   <label className="pm-field-label">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    Títulos de sección por cliente
+                    Cada cliente de este proyecto
                   </label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {form.clientIds.map(cid => {
                       const cl = analyticsClients.find(c => String(c.id) === cid);
                       if (!cl) return null;
+                      const cargada = Boolean(analyticsLoaded[cid]);
                       return (
-                        <div key={cid} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div key={cid} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           <span className="pill-mini" style={{ background: 'var(--rb-magenta-tint)', color: 'var(--rb-magenta-ink)', fontSize: 11, minWidth: 100, justifyContent: 'center' }}>
                             {cl.name}
                           </span>
-                          <input className="pm-input" style={{ flex: 1 }}
+                          <input className="pm-input" style={{ flex: 1, minWidth: 140 }}
                             placeholder={`Título de la sección (ej: ${cl.name})`}
                             value={sectionTitles[cid] || ''}
                             onChange={e => setSectionTitles(st => ({ ...st, [cid]: e.target.value }))} />
+                          <label className={`pm-carga${cargada ? ' pm-carga--si' : ''}`}
+                            title="Marca que a este cliente ya se le cargó la analítica">
+                            <input type="checkbox" checked={cargada}
+                              onChange={e => setAnalyticsLoaded(a => ({ ...a, [cid]: e.target.checked }))} />
+                            <span>Analítica cargada</span>
+                          </label>
                         </div>
                       );
                     })}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
-                    Opcional: personaliza el nombre de la sección de tareas para cada cliente.
+                    El título de sección es opcional. «Analítica cargada» es lo que cuenta
+                    el panorama de gerencia: cuántos clientes están hechos y cuántos faltan.
                   </div>
                 </div>
               )}

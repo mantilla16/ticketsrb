@@ -141,6 +141,7 @@ export const ROLE = {
     bandeja: true, triage: true, eliminarTickets: true,
     gestionarProyectos: true, crearProyectos: true, gestionarUsuarios: true,
     verReporteAnalitica: true,
+    editarProyectosPropios: false,
     ejecuta: false,
     equipos: ['automatizacion', 'analitica'],
   },
@@ -152,6 +153,7 @@ export const ROLE = {
     bandeja: true, triage: true, eliminarTickets: false,
     gestionarProyectos: true, crearProyectos: true, gestionarUsuarios: false,
     verReporteAnalitica: true,
+    editarProyectosPropios: false,
     ejecuta: false,
     equipos: ['automatizacion', 'analitica'],
   },
@@ -159,6 +161,7 @@ export const ROLE = {
     label: 'Líder de Analítica',
     bandeja: true, triage: true, eliminarTickets: true,
     gestionarProyectos: true, crearProyectos: true, gestionarUsuarios: false,
+    editarProyectosPropios: false,
     ejecuta: false,
     equipos: ['analitica'],
   },
@@ -166,6 +169,7 @@ export const ROLE = {
     label: 'Analista de Datos',
     bandeja: true, triage: true, eliminarTickets: false,
     gestionarProyectos: false, crearProyectos: true, gestionarUsuarios: false,
+    editarProyectosPropios: true,
     ejecuta: true,
     equipos: ['analitica'],
   },
@@ -173,6 +177,7 @@ export const ROLE = {
     label: 'Analista',
     bandeja: true, triage: false, eliminarTickets: false,
     gestionarProyectos: false, crearProyectos: false, gestionarUsuarios: false,
+    editarProyectosPropios: true,
     ejecuta: true,
     equipos: ['automatizacion'],
   },
@@ -183,6 +188,7 @@ export const ROLE = {
     bandeja: true, triage: false, eliminarTickets: false,
     gestionarProyectos: false, crearProyectos: false, gestionarUsuarios: false,
     verReporteAnalitica: true,
+    editarProyectosPropios: false,
     ejecuta: false,
     equipos: ['automatizacion', 'analitica'],
   },
@@ -190,6 +196,7 @@ export const ROLE = {
     label: 'Auditor solicitante',
     bandeja: false, triage: false, eliminarTickets: false,
     gestionarProyectos: false, crearProyectos: false, gestionarUsuarios: false,
+    editarProyectosPropios: false,
     ejecuta: false,
     equipos: [],
   },
@@ -350,4 +357,69 @@ export function searchBlob(t) {
     ticketRef(t), t.title, t.description, t.area, t.nombre_solicitante,
     t.correo_solicitante, t.user_name, t.assignee_name, categoryOf(t.type).label,
   ].filter(Boolean).join(' ').toLowerCase();
+}
+
+/* ────────────────────── Cobertura de analítica ─────────────────────────── */
+
+/**
+ * Cuántos clientes tienen la analítica cargada y a cuántos falta.
+ *
+ * La marca vive en la pareja proyecto↔cliente, pero la pregunta de dirección
+ * es por cliente: a uno que aparece en dos proyectos le basta estar cargado en
+ * uno para contar como hecho.
+ *
+ * Solo entran los clientes que ya están en algún proyecto. Los del catálogo
+ * que nadie ha tomado todavía no son «pendientes» de este equipo —son trabajo
+ * sin asignar— y meterlos inflaría el denominador hasta volverlo inútil.
+ *
+ * Está aquí, fuera del componente, porque es el número que mira gerencia y
+ * conviene poder comprobarlo sin montar la pantalla entera.
+ */
+export function coberturaAnalitica(projects = []) {
+  const porCliente = new Map();
+
+  projects.forEach(p => {
+    (p.clients || []).forEach(c => {
+      if (c?.id == null) return;
+      if (!porCliente.has(c.id)) {
+        porCliente.set(c.id, {
+          id: c.id, nombre: c.name || 'Sin nombre',
+          cargada: false, quien: null, cuando: null, proyectos: [],
+        });
+      }
+      const acc = porCliente.get(c.id);
+      if (p.name && !acc.proyectos.includes(p.name)) acc.proyectos.push(p.name);
+      if (!c.analyticsLoaded) return;
+
+      acc.cargada = true;
+      // De varias cargas nos quedamos con la más reciente, que es la que
+      // responde «quién lo hizo» sin ambigüedad.
+      const cuando = c.analyticsLoadedAt || null;
+      if (!acc.cuando || (cuando && cuando > acc.cuando)) {
+        acc.cuando = cuando || acc.cuando;
+        acc.quien  = c.analyticsLoadedBy || acc.quien;
+      }
+    });
+  });
+
+  const todos  = [...porCliente.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  const hechos = todos.filter(c => c.cargada);
+  const faltan = todos.filter(c => !c.cargada);
+
+  // Quién ha cargado cuántos: la otra mitad de la pregunta.
+  const conteo = new Map();
+  hechos.forEach(c => {
+    const k = c.quien || 'Sin registrar';
+    conteo.set(k, (conteo.get(k) || 0) + 1);
+  });
+
+  return {
+    total: todos.length,
+    hechos,
+    faltan,
+    porPersona: [...conteo.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value),
+    pct: todos.length ? Math.round((hechos.length / todos.length) * 100) : 0,
+  };
 }
