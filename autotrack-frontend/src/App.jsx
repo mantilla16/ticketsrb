@@ -9,7 +9,7 @@ import Login from './pages/Login';
 import Sidebar, { sectionsFor } from './components/Sidebar';
 import { Button, Icon } from './components/ui';
 import { SelectorVistaPrevia, AvisoVistaPrevia } from './components/VistaPreviaRol';
-import { TicketsView } from './components/tickets';
+import { TicketsView, TicketReports } from './components/tickets';
 
 import GanttView from './components/GanttView';
 import ProjectBoard from './components/ProjectBoard';
@@ -443,6 +443,10 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
                 onCardClick={openDetail}
                 onNewProject={() => openNewProject('backlog')}
               />
+            )}
+
+            {section === 'reports' && (
+              <TicketReports projects={visibleProjects} />
             )}
 
             {section === 'analytics-report' && can(vistaUser, 'verReporteAnalitica') && (

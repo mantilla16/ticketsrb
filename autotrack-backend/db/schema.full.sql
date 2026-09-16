@@ -201,19 +201,32 @@ CREATE TABLE IF NOT EXISTS analytics_clients (
 -- ──────────────────── project_clients ──────────────────────────────────
 -- Relación N a M entre proyectos de analítica y su catálogo de clientes:
 -- un proyecto puede atender a varios clientes a la vez.
+-- `section_title` es el encabezado con que ese cliente aparece dentro del
+-- proyecto; vive en la relación y no en el cliente porque el mismo cliente
+-- puede titularse distinto en dos proyectos.
 CREATE TABLE IF NOT EXISTS project_clients (
-  project_id VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  client_id  INTEGER     NOT NULL REFERENCES analytics_clients(id) ON DELETE CASCADE,
+  project_id    VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  client_id     INTEGER     NOT NULL REFERENCES analytics_clients(id) ON DELETE CASCADE,
+  section_title VARCHAR(200),
   PRIMARY KEY (project_id, client_id)
 );
+
+-- Para bases que ya tenían la tabla sin esta columna.
+ALTER TABLE project_clients ADD COLUMN IF NOT EXISTS section_title VARCHAR(200);
 
 CREATE INDEX IF NOT EXISTS idx_project_clients_client ON project_clients(client_id);
 
 -- Las tareas pueden pertenecer a un cliente concreto del proyecto o al
 -- proyecto completo (client_id NULL). También ganan prioridad alta/media/baja.
+-- Esta lista tiene que coincidir con `ensureTaskColumns` en
+-- src/routes/projects.js, que la vuelve a aplicar al arrancar. Si se añade una
+-- columna allí y no aquí, el esquema deja de describir la base real.
 ALTER TABLE project_tasks
-  ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES analytics_clients(id) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS priority  VARCHAR(10) NOT NULL DEFAULT 'mid';
+  ADD COLUMN IF NOT EXISTS assignee_id       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS weight            SMALLINT NOT NULL DEFAULT 2,
+  ADD COLUMN IF NOT EXISTS client_id         INTEGER REFERENCES analytics_clients(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS priority          VARCHAR(10) NOT NULL DEFAULT 'mid',
+  ADD COLUMN IF NOT EXISTS platform_uploaded BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Indices y valores de prioridad
 UPDATE project_tasks SET priority = 'mid' WHERE priority NOT IN ('high','mid','low');

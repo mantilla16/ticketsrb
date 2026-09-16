@@ -32,6 +32,7 @@ export const SECTIONS = [
   { id: 'gantt',    label: 'Cronograma', icon: 'calendar', cap: 'bandeja' },
 
   { group: 'Análisis' },
+  { id: 'reports', label: 'Panorama', icon: 'chart', cap: 'bandeja' },
   { id: 'analytics-report', label: 'Reporte Analítica', icon: 'chart', cap: 'verReporteAnalitica' },
   { id: 'historial',        label: 'Historial',         icon: 'archive', cap: 'bandeja' },
 

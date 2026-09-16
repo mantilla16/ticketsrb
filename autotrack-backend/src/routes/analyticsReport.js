@@ -2,6 +2,8 @@ const router = require('express').Router();
 const pool = require('../config/database');
 const auth = require('../middleware/auth');
 const { requierePermiso } = require('../config/roles');
+const { asegurarResponsables, asegurarClientes, asegurarClientesDeProyecto }
+  = require('../db/esquema');
 
 // ── Clientes semilla (insertados solo si la tabla queda vacía) ─────────
 const SEED_CLIENTS = [
@@ -29,90 +31,32 @@ const SEED_CLIENTS = [
   { name: 'Ground Investment', active: true },
 ];
 
-// ── Inicialización de la tabla analytics_clients ───────────────────────
-let clientsReady = null;
-function ensureClientsTable() {
-  if (!clientsReady) {
-    clientsReady = pool.query(`
-      CREATE TABLE IF NOT EXISTS analytics_clients (
-        id         SERIAL PRIMARY KEY,
-        name       VARCHAR(150) NOT NULL UNIQUE,
-        active     BOOLEAN NOT NULL DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `).then(async () => {
+// ── Siembra del catálogo ───────────────────────────────────────────────
+// La tabla la crea `db/esquema.js`; aquí solo se llena la primera vez. Si ya
+// tiene filas no se toca: renombrar o desactivar un cliente desde la interfaz
+// no debe deshacerse en el siguiente arranque.
+let siembraLista = null;
+function sembrarClientes() {
+  if (!siembraLista) {
+    siembraLista = (async () => {
+      await asegurarClientes();
       const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM analytics_clients');
-      if (rows[0].n === 0) {
-        for (const c of SEED_CLIENTS) {
-          await pool.query(
-            'INSERT INTO analytics_clients (name, active) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-            [c.name, c.active],
-          );
-        }
+      if (rows[0].n > 0) return;
+      for (const c of SEED_CLIENTS) {
+        await pool.query(
+          'INSERT INTO analytics_clients (name, active) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [c.name, c.active],
+        );
       }
-    }).catch(err => { clientsReady = null; throw err; });
+    })().catch(err => { siembraLista = null; throw err; });
   }
-  return clientsReady;
+  return siembraLista;
 }
 
 async function getClientsFromDB() {
-  await ensureClientsTable();
+  await sembrarClientes();
   const { rows } = await pool.query('SELECT id, name, active FROM analytics_clients ORDER BY active DESC, name');
   return rows;
-}
-
-// ── project_assignees (tolerante a base vieja) ────────────────────────
-let assigneesReady = null;
-function ensureAssigneesTable() {
-  if (!assigneesReady) {
-    assigneesReady = pool.query(`
-      CREATE TABLE IF NOT EXISTS project_assignees (
-        project_id VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-        user_id    INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        PRIMARY KEY (project_id, user_id)
-      )
-    `).then(() => pool.query(`
-      INSERT INTO project_assignees (project_id, user_id)
-      SELECT id, assignee_id FROM projects WHERE assignee_id IS NOT NULL
-      ON CONFLICT DO NOTHING
-    `)).catch(err => { assigneesReady = null; throw err; });
-  }
-  return assigneesReady;
-}
-
-// ── project_clients (N a M proyecto ↔ cliente) ────────────────────────
-let projectClientsReady = null;
-function ensureProjectClientsTable() {
-  if (!projectClientsReady) {
-    projectClientsReady = pool.query(`
-      CREATE TABLE IF NOT EXISTS analytics_clients (
-        id         SERIAL PRIMARY KEY,
-        name       VARCHAR(150) NOT NULL UNIQUE,
-        active     BOOLEAN NOT NULL DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `).then(() => pool.query(`
-      CREATE TABLE IF NOT EXISTS project_clients (
-        project_id VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-        client_id  INTEGER     NOT NULL REFERENCES analytics_clients(id) ON DELETE CASCADE,
-        section_title VARCHAR(200),
-        PRIMARY KEY (project_id, client_id)
-      )
-    `)).then(() => pool.query(`
-      ALTER TABLE project_clients ADD COLUMN IF NOT EXISTS section_title VARCHAR(200)
-    `)).then(async () => {
-      // Migrar proyectos viejos: su columna `client` a la tabla puente
-      await pool.query(`
-        INSERT INTO project_clients (project_id, client_id)
-        SELECT p.id, ac.id
-        FROM projects p
-        JOIN analytics_clients ac ON lower(ac.name) = lower(trim(p.client))
-        WHERE p.tipo = 'analitica' AND p.client IS NOT NULL AND p.client != ''
-        ON CONFLICT DO NOTHING
-      `);
-    }).catch(err => { projectClientsReady = null; throw err; });
-  }
-  return projectClientsReady;
 }
 
 function fmtDate(d) {
@@ -138,6 +82,7 @@ router.post('/clients', auth, requierePermiso('verReporteAnalitica'), async (req
     const name = (req.body.name || '').trim();
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
     const active = req.body.active !== false;
+    await asegurarClientes();
     const { rows } = await pool.query(
       'INSERT INTO analytics_clients (name, active) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET active = EXCLUDED.active RETURNING id, name, active',
       [name, active],
@@ -230,7 +175,7 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
     const clientsByProject = {};
     if (projectIds.length) {
       try {
-        await ensureProjectClientsTable();
+        await asegurarClientesDeProyecto();
         const { rows } = await pool.query(`
           SELECT pc.project_id, ac.id, ac.name, ac.active, pc.section_title
           FROM project_clients pc
@@ -271,7 +216,7 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
     let assigneesByProject = {};
     if (projectIds.length) {
       try {
-        await ensureAssigneesTable();
+        await asegurarResponsables();
         const { rows: assignees } = await pool.query(`
           SELECT pa.project_id, u.id, u.name, u.initials
           FROM project_assignees pa
@@ -424,7 +369,7 @@ router.post('/snapshot', auth, requierePermiso('verReporteAnalitica'), async (re
     `);
 
     // Clientes de cada proyecto (N a M), con fallback al texto `client`
-    await ensureProjectClientsTable();
+    await asegurarClientesDeProyecto();
     const { rows: pcRows } = await pool.query(`
       SELECT pc.project_id, ac.id, ac.name
       FROM project_clients pc

@@ -5,6 +5,8 @@ const { requierePermiso, puede, filtroEquipos } = require('../config/roles');
 const { body, validationResult } = require('express-validator');
 const { notify } = require('../utils/notify');
 const escapeHtml = require('../utils/escapeHtml');
+const { asegurarResponsables, asegurarClientesDeProyecto, asegurarColumnasDeTarea }
+  = require('../db/esquema');
 
 const STATUS_LABEL = {
   backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
@@ -13,28 +15,9 @@ const STATUS_LABEL = {
 
 
 
-// Tabla de responsables múltiples — la crea el propio usuario de la app para evitar problemas de GRANT
-let assigneesReady = null;
-function ensureAssigneesTable() {
-  if (!assigneesReady) {
-    assigneesReady = pool.query(`
-      CREATE TABLE IF NOT EXISTS project_assignees (
-        project_id VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        PRIMARY KEY (project_id, user_id)
-      )
-    `).then(() => pool.query(`
-      INSERT INTO project_assignees (project_id, user_id)
-      SELECT id, assignee_id FROM projects WHERE assignee_id IS NOT NULL
-      ON CONFLICT DO NOTHING
-    `)).catch(err => { assigneesReady = null; throw err; });
-  }
-  return assigneesReady;
-}
-
 // Reemplaza el conjunto completo de responsables de un proyecto
 async function syncAssignees(projectId, userIds) {
-  await ensureAssigneesTable();
+  await asegurarResponsables();
   await pool.query('DELETE FROM project_assignees WHERE project_id=$1', [projectId]);
   const ids = [...new Set((userIds || []).filter(Boolean).map(Number))];
   if (!ids.length) return;
@@ -46,59 +29,15 @@ async function syncAssignees(projectId, userIds) {
 }
 
 async function extraAssigneeIds(projectId) {
-  await ensureAssigneesTable();
+  await asegurarResponsables();
   const { rows } = await pool.query('SELECT user_id FROM project_assignees WHERE project_id=$1', [projectId]);
   return rows.map(r => r.user_id);
-}
-
-// Dueño individual (solo relevante en compartidos) y tamaño de cada tarea —
-// columnas agregadas en caliente, igual que project_assignees más arriba.
-// Además: prioridad alta/media/baja y cliente opcional (para analítica).
-let taskColumnsReady = null;
-function ensureTaskColumns() {
-  if (!taskColumnsReady) {
-    taskColumnsReady = pool.query(`
-      ALTER TABLE project_tasks
-        ADD COLUMN IF NOT EXISTS assignee_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        ADD COLUMN IF NOT EXISTS weight SMALLINT NOT NULL DEFAULT 2,
-        ADD COLUMN IF NOT EXISTS priority VARCHAR(10) NOT NULL DEFAULT 'mid',
-        ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES analytics_clients(id) ON DELETE SET NULL,
-        ADD COLUMN IF NOT EXISTS platform_uploaded BOOLEAN NOT NULL DEFAULT FALSE
-    `).catch(err => { taskColumnsReady = null; throw err; });
-  }
-  return taskColumnsReady;
-}
-
-// Tabla puente proyecto ↔ clientes (analítica). La crea el propio usuario de
-// la app, igual que project_assignees, para evitar problemas de GRANT.
-let projectClientsReady = null;
-function ensureProjectClientsTable() {
-  if (!projectClientsReady) {
-    projectClientsReady = pool.query(`
-      CREATE TABLE IF NOT EXISTS analytics_clients (
-        id         SERIAL PRIMARY KEY,
-        name       VARCHAR(150) NOT NULL UNIQUE,
-        active     BOOLEAN NOT NULL DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `).then(() => pool.query(`
-      CREATE TABLE IF NOT EXISTS project_clients (
-        project_id VARCHAR(60) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-        client_id  INTEGER     NOT NULL REFERENCES analytics_clients(id) ON DELETE CASCADE,
-        section_title VARCHAR(200),
-        PRIMARY KEY (project_id, client_id)
-      )
-    `)).then(() => pool.query(`
-      ALTER TABLE project_clients ADD COLUMN IF NOT EXISTS section_title VARCHAR(200)
-    `)).catch(err => { projectClientsReady = null; throw err; });
-  }
-  return projectClientsReady;
 }
 
 // Reemplaza el conjunto completo de clientes de un proyecto
 async function syncProjectClients(projectId, clientIds, sectionTitles = {}) {
   try {
-    await ensureProjectClientsTable();
+    await asegurarClientesDeProyecto();
     await pool.query('DELETE FROM project_clients WHERE project_id=$1', [projectId]);
     const ids = [...new Set((clientIds || []).filter(Boolean).map(Number))];
     if (!ids.length) return;
@@ -115,7 +54,7 @@ async function syncProjectClients(projectId, clientIds, sectionTitles = {}) {
 }
 
 async function projectClientsOf(projectId) {
-  await ensureProjectClientsTable();
+  await asegurarClientesDeProyecto();
   const { rows } = await pool.query(`
     SELECT ac.id, ac.name, ac.active, pc.section_title
     FROM project_clients pc
@@ -278,11 +217,11 @@ async function fetchProject(id) {
     WHERE pl.project_id = $1
     ORDER BY pl.created_at DESC
   `, [id]);
-  await ensureTaskColumns();
+  await asegurarColumnasDeTarea();
   const tasks = await pool.query(
     'SELECT * FROM project_tasks WHERE project_id = $1 ORDER BY created_at ASC', [id]
   );
-  await ensureAssigneesTable();
+  await asegurarResponsables();
   const extra = await pool.query(
     `SELECT u.id, u.name, u.initials, u.color_index AS "colorIndex"
      FROM project_assignees pa JOIN users u ON pa.user_id = u.id
@@ -324,7 +263,7 @@ router.get('/', auth, async (req, res) => {
       byProject[l.project_id].push(l);
     });
 
-    await ensureTaskColumns();
+    await asegurarColumnasDeTarea();
     const tasksRes = await pool.query(
       'SELECT * FROM project_tasks WHERE project_id = ANY($1) ORDER BY created_at ASC', [ids]
     );
@@ -334,7 +273,7 @@ router.get('/', auth, async (req, res) => {
       tasksByProject[t.project_id].push(t);
     });
 
-    await ensureAssigneesTable();
+    await asegurarResponsables();
     const assigneesRes = await pool.query(
       `SELECT pa.project_id, u.id, u.name, u.initials, u.color_index AS "colorIndex"
        FROM project_assignees pa JOIN users u ON pa.user_id = u.id
@@ -346,7 +285,7 @@ router.get('/', auth, async (req, res) => {
       assigneesByProject[a.project_id].push({ id: a.id, name: a.name, initials: a.initials, colorIndex: a.colorIndex });
     });
 
-    await ensureProjectClientsTable();
+    await asegurarClientesDeProyecto();
     const clientsRes = await pool.query(`
       SELECT pc.project_id, ac.id, ac.name, ac.active, pc.section_title
       FROM project_clients pc
@@ -525,7 +464,7 @@ router.post('/:id/tasks', auth, [
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
   try {
     if (!(await assertProjectAccess(req, res, req.params.id))) return;
-    await ensureTaskColumns();
+    await asegurarColumnasDeTarea();
     const weight = [1, 2, 3].includes(Number(req.body.weight)) ? Number(req.body.weight) : 2;
     const priority = ['high', 'mid', 'low'].includes(req.body.priority) ? req.body.priority : 'mid';
     const clientId = Number(req.body.clientId) || null;
@@ -556,7 +495,7 @@ router.patch('/:id/tasks/:taskId', auth, async (req, res) => {
   const { done, title, dueDate, assigneeId, weight } = req.body;
   try {
     if (!(await assertProjectAccess(req, res, req.params.id))) return;
-    await ensureTaskColumns();
+    await asegurarColumnasDeTarea();
     const validWeight = [1, 2, 3].includes(Number(weight)) ? Number(weight) : null;
     const validPriority = ['high', 'mid', 'low'].includes(req.body.priority) ? req.body.priority : null;
     const result = await pool.query(
