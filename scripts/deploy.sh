@@ -35,6 +35,15 @@ AHORA=$(git -C "$APP_DIR" rev-parse --short HEAD)
 echo "  $ANTES → $AHORA"
 [ "$ANTES" = "$AHORA" ] && echo "  (sin cambios nuevos)"
 
+# Coherencias entre archivos que ni el compilador ni vite ven: permisos que
+# difieren entre backend y frontend, roles que entran a una pantalla que no
+# existe, columnas que la aplicación crea pero el esquema no declara. Se
+# comprueba antes de tocar nada, porque desplegar eso deja la mesa rota.
+say "Comprobaciones previas"
+node "$APP_DIR/scripts/verificar-coherencia.mjs" || {
+  echo "  Se aborta el despliegue: la revisión anterior sigue en pie."; exit 1;
+}
+
 say "Backend"
 cd "$APP_DIR/autotrack-backend"
 npm install --omit=dev --silent
