@@ -17,6 +17,12 @@ jobs:
         with:
           node-version: '20'
 
+      # Antes que nada: incoherencias entre archivos que compilan por separado
+      # pero rompen la aplicación juntos (un rol sin pantalla, permisos que
+      # difieren entre backend y frontend, columnas fuera del esquema).
+      - name: Comprobar coherencia
+        run: node scripts/verificar-coherencia.mjs
+
       - name: Comprobar sintaxis del backend
         run: |
           cd autotrack-backend
