@@ -5,8 +5,8 @@ const { requierePermiso, puede, filtroEquipos } = require('../config/roles');
 const { body, validationResult } = require('express-validator');
 const { notify } = require('../utils/notify');
 const escapeHtml = require('../utils/escapeHtml');
-const { asegurarResponsables, asegurarClientesDeProyecto, asegurarColumnasDeTarea }
-  = require('../db/esquema');
+const { asegurarResponsables, asegurarClientesDeProyecto, asegurarColumnasDeTarea,
+        asegurarColumnasDeProyecto } = require('../db/esquema');
 
 const STATUS_LABEL = {
   backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
@@ -194,6 +194,9 @@ function fmtProject(p, logs = [], tasks = [], extraAssignees = [], clients = [])
     status: p.status,
     priority: p.priority,
     tipo: p.tipo || 'automatizacion',
+    // Si la columna todavía no existe en una base vieja, se asume que sí:
+    // es el valor por defecto y no cambia lo que ya se estaba contando.
+    requiresAnalytics: p.requires_analytics !== false,
     docUrl: p.doc_url || null,
     assigneeId: p.assignee_id,
     assignee: primary,
@@ -264,6 +267,7 @@ const PROJECT_JOIN = `
 `;
 
 async function fetchProject(id) {
+  await asegurarColumnasDeProyecto();
   const { rows } = await pool.query(`${PROJECT_JOIN} WHERE p.id = $1`, [id]);
   if (!rows.length) return null;
   const logs = await pool.query(`
@@ -298,6 +302,7 @@ const validators = [
 // GET /api/projects
 router.get('/', auth, async (req, res) => {
   try {
+    await asegurarColumnasDeProyecto();
     let { rows } = await pool.query(`${PROJECT_JOIN} ORDER BY p.created_at DESC`);
     // Visibilidad por equipo: cada equipo ve lo suyo + compartidos
     const soloSuEquipo = filtroEquipos(req.user.role);
@@ -373,16 +378,19 @@ router.post('/', auth, requierePermiso('crearProyectos'), validators, async (req
   const primaryAssignee = ids[0] || null;
   const id = uid();
   try {
+    await asegurarColumnasDeProyecto();
     await pool.query(`
       INSERT INTO projects (id, name, description, client, status, priority, assignee_id, start_date, due_date, progress, tipo, doc_url,
-        co_assignee_id, general_assignee_id, participation_auto, participation_analitica, progress_auto, progress_analitica, created_by, was_soporte)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+        co_assignee_id, general_assignee_id, participation_auto, participation_analitica, progress_auto, progress_analitica, created_by, was_soporte,
+        requires_analytics)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
     `, [id, name, description || null, client || null, status, priority,
         primaryAssignee, startDate || null, dueDate || null, 0, // el progreso arranca en 0 — lo suben las tareas
         tipo || 'automatizacion', docUrl || null,
         coAssigneeId || null, generalAssigneeId || null,
         participationAuto || null, participationAnalitica || null,
-        progressAuto || 0, progressAnalitica || 0, req.user.id, status === 'soporte']);
+        progressAuto || 0, progressAnalitica || 0, req.user.id, status === 'soporte',
+        req.body.requiresAnalytics !== false]);
 
     await syncAssignees(id, ids);
     await syncProjectClients(id, clientIds, sectionTitles,
@@ -414,6 +422,7 @@ router.put('/:id', auth, validators, async (req, res) => {
   const primaryAssignee = ids[0] || null;
   try {
     if (!(await assertProjectAccess(req, res, req.params.id))) return;
+    await asegurarColumnasDeProyecto();
     const before = await projectPeople(req.params.id);
     // El progreso ya no se recibe del cliente: lo determinan las tareas (ver recalcProgress).
     const result = await pool.query(`
@@ -425,6 +434,9 @@ router.put('/:id', auth, validators, async (req, res) => {
         participation_auto=$13, participation_analitica=$14,
         progress_auto=$15, progress_analitica=$16,
         support_closed=COALESCE($17, support_closed),
+        -- Solo se toca si la pantalla lo mandó: un formulario que no edita
+        -- este campo no debe reponerlo al valor por defecto sin querer.
+        requires_analytics=COALESCE($20, requires_analytics),
         was_soporte=(COALESCE(was_soporte, FALSE) OR $19='soporte'), updated_at=NOW()
       WHERE id=$18 RETURNING id
     `, [name, description || null, client || null, status, priority,
@@ -433,7 +445,8 @@ router.put('/:id', auth, validators, async (req, res) => {
         coAssigneeId || null, generalAssigneeId || null,
         participationAuto || null, participationAnalitica || null,
         progressAuto || 0, progressAnalitica || 0,
-        supportClosed === undefined ? null : supportClosed === true, req.params.id, status]);
+        supportClosed === undefined ? null : supportClosed === true, req.params.id, status,
+        req.body.requiresAnalytics === undefined ? null : req.body.requiresAnalytics === true]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
     await recalcProgress(req.params.id);

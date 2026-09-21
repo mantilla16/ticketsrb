@@ -10,6 +10,7 @@ const EMPTY = {
   docUrl: '',
   coAssigneeId: '', generalAssigneeId: '', participationAuto: '', participationAnalitica: '',
   progressAuto: 0, progressAnalitica: 0,
+  requiresAnalytics: true,
 };
 
 const AREAS = [
@@ -182,6 +183,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
           participationAnalitica:project.participationAnalitica || '',
           progressAuto:          project.progressAuto || 0,
           progressAnalitica:     project.progressAnalitica || 0,
+          requiresAnalytics:     project.requiresAnalytics !== false,
         });
         setTasks((project.tasks || []).map(t => ({ ...t })));
         setLogs(project.logs || []);
@@ -300,6 +302,7 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
         clientIds:             form.clientIds.map(Number),
         sectionTitles:         Object.fromEntries(Object.entries(sectionTitles).map(([k, v]) => [Number(k), v])),
         analyticsLoaded:       Object.fromEntries(Object.entries(analyticsLoaded).map(([k, v]) => [Number(k), v])),
+        requiresAnalytics:     form.requiresAnalytics !== false,
         status:                form.status,
         priority:              form.priority,
         assigneeIds:           form.assigneeIds.map(Number),
@@ -432,6 +435,23 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   )}
                 </div>
               )}
+              {/* Va aquí, pegado a los clientes, porque es lo que decide si
+                  esos clientes cuentan en el reporte de analítica. */}
+              <div className="pm-field" style={{ gridColumn: '1 / -1' }}>
+                <label className={`pm-requiere${form.requiresAnalytics === false ? ' pm-requiere--no' : ''}`}>
+                  <input type="checkbox" checked={form.requiresAnalytics !== false}
+                    disabled={lockCore}
+                    onChange={e => setForm(f => ({ ...f, requiresAnalytics: e.target.checked }))} />
+                  <span>
+                    <b>Este trabajo requiere analítica</b>
+                    <i>
+                      {form.requiresAnalytics === false
+                        ? 'No aparece en el reporte de analítica ni cuenta para la cobertura por cliente.'
+                        : 'Sus clientes cuentan en el reporte de analítica y en el panorama de gerencia.'}
+                    </i>
+                  </span>
+                </label>
+              </div>
               <div className="pm-field">
                 <label className="pm-field-label">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>

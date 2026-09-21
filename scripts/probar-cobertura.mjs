@@ -75,6 +75,18 @@ check(r.porPersona[0].label === 'Sin registrar', 'una carga sin autor no se pier
 r = coberturaAnalitica([{ name:'P1' }, { name:'P2', clients:null }, { name:'P3', clients:[{},{id:null}] }]);
 check(r.total === 0, 'proyectos sin clientes o con filas corruptas no rompen nada');
 
+// Caso 6b — un proyecto que no requiere analítica no arrastra la cobertura
+r = coberturaAnalitica([
+  { name:'Ana1', clients:[C(1,'Camacol',true,'Ana','2026-09-10T10:00:00Z')] },
+  { name:'Auto1', requiresAnalytics:false, clients:[C(2,'Quintal',false), C(3,'Cedel',false)] },
+]);
+check(r.total === 1, 'un proyecto marcado «no requiere analítica» queda fuera del conteo');
+check(r.pct === 100, `sus clientes no cuentan como pendientes (${r.pct}%)`);
+
+// Caso 6c — el valor por defecto (sin el campo) sí cuenta
+r = coberturaAnalitica([{ name:'Viejo', clients:[C(9,'Kredit',false)] }]);
+check(r.total === 1, 'un proyecto sin el campo sigue contando, como antes');
+
 // Caso 7 — proyectos que no son de analítica sin clientes no ensucian
 r = coberturaAnalitica([
   { name:'Auto1', clients: [] },

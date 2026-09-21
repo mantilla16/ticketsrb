@@ -55,7 +55,11 @@ ALTER TABLE projects
   ADD COLUMN IF NOT EXISTS progress_auto           INTEGER DEFAULT 0,
   ADD COLUMN IF NOT EXISTS progress_analitica      INTEGER DEFAULT 0,
   ADD COLUMN IF NOT EXISTS was_soporte             BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS support_closed          BOOLEAN DEFAULT FALSE;
+  ADD COLUMN IF NOT EXISTS support_closed          BOOLEAN DEFAULT FALSE,
+  -- ¿A este trabajo le toca analítica? Los que digan que no quedan fuera del
+  -- reporte de analítica y no arrastran sus indicadores. Por defecto sí, para
+  -- no cambiar el significado de lo que ya estaba guardado.
+  ADD COLUMN IF NOT EXISTS requires_analytics      BOOLEAN NOT NULL DEFAULT TRUE;
 
 -- Los CHECK se recrean porque el original no aceptaba 'soporte' ni 'cancelado',
 -- que sí son estados válidos según los validators de src/routes/projects.js.

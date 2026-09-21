@@ -103,6 +103,20 @@ const asegurarClientesDeProyecto = unaVez(async () => {
   `);
 });
 
+/* ── Columnas de los proyectos ─────────────────────────────────────────── */
+
+/* `requires_analytics` dice si a este trabajo le toca analítica.
+   Por defecto sí, para no cambiar de significado lo que ya estaba guardado:
+   marcar los que no la necesitan es una decisión de quien los conoce, no algo
+   que se pueda deducir. Los que digan que no quedan fuera del reporte de
+   analítica y no arrastran sus indicadores. */
+const asegurarColumnasDeProyecto = unaVez(async () => {
+  await pool.query(`
+    ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS requires_analytics BOOLEAN NOT NULL DEFAULT TRUE
+  `);
+});
+
 /* ── Columnas de las tareas ────────────────────────────────────────────── */
 
 /* `client_id` referencia analytics_clients, así que el catálogo tiene que
@@ -123,6 +137,7 @@ const asegurarColumnasDeTarea = unaVez(async () => {
 
 module.exports = {
   asegurarResponsables,
+  asegurarColumnasDeProyecto,
   asegurarClientes,
   asegurarClientesDeProyecto,
   asegurarColumnasDeTarea,

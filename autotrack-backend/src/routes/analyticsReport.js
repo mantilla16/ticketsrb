@@ -2,8 +2,8 @@ const router = require('express').Router();
 const pool = require('../config/database');
 const auth = require('../middleware/auth');
 const { requierePermiso } = require('../config/roles');
-const { asegurarResponsables, asegurarClientes, asegurarClientesDeProyecto }
-  = require('../db/esquema');
+const { asegurarResponsables, asegurarClientes, asegurarClientesDeProyecto,
+        asegurarColumnasDeProyecto } = require('../db/esquema');
 
 // ── Clientes semilla (insertados solo si la tabla queda vacía) ─────────
 const SEED_CLIENTS = [
@@ -167,7 +167,13 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       };
     });
 
-    // 2. Todos los proyectos (no solo analítica)
+    /* 2. Los proyectos a los que les toca analítica.
+          No todos la necesitan: un trabajo marcado como que no la requiere no
+          debe aparecer aquí ni arrastrar los indicadores —sus clientes
+          figurarían como pendientes para siempre y la cobertura no volvería a
+          significar nada—. La columna puede faltar en una base que aún no ha
+          arrancado con el código nuevo, así que se garantiza antes. */
+    await asegurarColumnasDeProyecto();
     const { rows: projects } = await pool.query(`
       SELECT p.*,
         u.name  AS assignee_name,
@@ -179,6 +185,7 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       FROM projects p
       LEFT JOIN users u  ON p.assignee_id = u.id
       LEFT JOIN users u2 ON p.co_assignee_id = u2.id
+      WHERE p.requires_analytics IS NOT FALSE
       ORDER BY p.created_at DESC
     `);
 
@@ -413,9 +420,13 @@ router.get('/history', auth, requierePermiso('verReporteAnalitica'), async (req,
 // POST /api/analytics-report/snapshot — Tomar snapshot del estado actual
 router.post('/snapshot', auth, requierePermiso('verReporteAnalitica'), async (req, res) => {
   try {
+    // Mismo criterio que el reporte: si un trabajo no requiere analítica,
+    // tampoco cuenta en el histórico. Si no, las dos vistas se contradirían.
+    await asegurarColumnasDeProyecto();
     const { rows: projects } = await pool.query(`
       SELECT id, client, status, progress
       FROM projects
+      WHERE requires_analytics IS NOT FALSE
     `);
 
     // Clientes de cada proyecto (N a M), con fallback al texto `client`

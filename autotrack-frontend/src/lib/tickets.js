@@ -372,6 +372,11 @@ export function searchBlob(t) {
  * que nadie ha tomado todavía no son «pendientes» de este equipo —son trabajo
  * sin asignar— y meterlos inflaría el denominador hasta volverlo inútil.
  *
+ * Tampoco cuentan los proyectos marcados como que no requieren analítica: sus
+ * clientes figurarían como pendientes para siempre y la cobertura dejaría de
+ * significar nada. Es el mismo criterio que aplica el servidor en el reporte,
+ * y tienen que coincidir o las dos pantallas se contradicen.
+ *
  * Está aquí, fuera del componente, porque es el número que mira gerencia y
  * conviene poder comprobarlo sin montar la pantalla entera.
  */
@@ -379,6 +384,7 @@ export function coberturaAnalitica(projects = []) {
   const porCliente = new Map();
 
   projects.forEach(p => {
+    if (p.requiresAnalytics === false) return;
     (p.clients || []).forEach(c => {
       if (c?.id == null) return;
       if (!porCliente.has(c.id)) {

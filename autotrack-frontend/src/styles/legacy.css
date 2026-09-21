@@ -1883,6 +1883,22 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
 }
 .dp-section-body { padding: 0 14px 14px; }
 
+/* «Requiere analítica»: decide si el trabajo entra en el reporte, así que se
+   explica en la propia casilla en vez de esperar a que alguien lo deduzca. */
+.pm-requiere {
+  display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+  padding: 11px 13px; border-radius: var(--radius-sm);
+  background: var(--rb-teal-tint); border: 1px solid var(--rb-teal);
+  transition: background .14s, border-color .14s;
+}
+.pm-requiere--no { background: var(--bg); border-color: var(--border); }
+.pm-requiere input { margin-top: 2px; accent-color: var(--rb-teal); cursor: pointer; }
+.pm-requiere b { display: block; font-size: 12.5px; font-weight: 700; color: var(--text); }
+.pm-requiere i {
+  display: block; font-style: normal; font-size: 11px;
+  color: var(--text3); margin-top: 3px; line-height: 1.4;
+}
+
 /* Casilla de «analítica cargada» dentro del formulario del proyecto. */
 .pm-carga {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
