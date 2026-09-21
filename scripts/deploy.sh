@@ -76,6 +76,18 @@ say "Reiniciando la API"
 systemctl restart "$SERVICE"
 sleep 3
 
+# Comprobar /health no basta: si un proceso viejo se quedó atado al puerto
+# —EADDRINUSE tras un reset --hard interrumpido, por ejemplo—, el servicio
+# nuevo entra en bucle de reinicio y quien responde es el viejo con el código
+# anterior. Todo saldría en verde y el despliegue no habría desplegado nada.
+if ! systemctl is-active --quiet "$SERVICE"; then
+  printf '\n\033[31m\xe2\x9c\x97 El servicio no quedó activo tras reiniciar\033[0m\n'
+  puerto_ocupado=$(ss -lptnH "sport = :$APP_PORT" 2>/dev/null | head -3)
+  [ -n "$puerto_ocupado" ] && printf '\n  Puerto %s ocupado por:\n  %s\n' "$APP_PORT" "$puerto_ocupado"
+  journalctl -u "$SERVICE" -n 30 --no-pager
+  exit 1
+fi
+
 if curl -fsS "http://127.0.0.1:$APP_PORT/api/health" >/dev/null; then
   printf '\n\033[32m✓ Despliegue correcto\033[0m — versión %s\n\n' "$AHORA"
   curl -fsS "http://127.0.0.1:$APP_PORT/api/health"; echo
