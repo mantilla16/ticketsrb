@@ -25,9 +25,14 @@ const STATUS_C = {
   testing: 'var(--rb-warning)', done: 'var(--rb-success)', soporte: '#0B6E80', cancelado: 'var(--rb-danger)',
 };
 
+/* Toda situación en la que puede estar un trabajo vivo necesita su columna:
+   un estado sin columna no sale por ningún lado —el proyecto desaparece del
+   tablero sin aviso— aunque siga contando como activo en el resumen.
+   `cancelado` es la excepción y no está por eso: se descarta antes. */
 const COLUMNS = [
   { key: 'backlog',  label: 'Por hacer' },
   { key: 'progress', label: 'En proceso' },
+  { key: 'standby',  label: 'En standby' },
   { key: 'soporte',  label: 'Soporte' },
   { key: 'testing',  label: 'Testing' },
   { key: 'done',     label: 'Finalizado' },

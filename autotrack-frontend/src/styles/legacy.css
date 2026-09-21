@@ -1727,9 +1727,25 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
 .pb-layout { display: grid; grid-template-columns: 1fr 280px; gap: 16px; align-items: start; }
 @media (max-width: 1100px) { .pb-layout { grid-template-columns: 1fr; } }
 
-.pb-cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; align-items: start; }
-@media (max-width: 1100px) { .pb-cols { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 640px) { .pb-cols { grid-template-columns: 1fr; } }
+/* Las columnas se reparten solas. Estaba fijo en 4 y había 5, así que la
+   última caía sola a una segunda fila; al añadir «En standby» habrían sido 6
+   y peor. Así, añadir un estado no rompe la retícula. */
+/* Las columnas se reparten el ancho, y si no caben se desplazan en
+   horizontal en vez de partirse en dos filas. Estaba fijo en 4 y había 5, así
+   que la última caía sola abajo; con «En standby» serían 6 y peor. Así,
+   añadir un estado no rompe la retícula ni deja una columna suelta. */
+.pb-cols {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr);
+  gap: 14px; align-items: start; overflow-x: auto; padding-bottom: 6px;
+}
+/* En pantallas pequeñas se apilan, que desplazar seis columnas en un móvil
+   no lo hace nadie. */
+@media (max-width: 1100px) {
+  .pb-cols { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr); overflow-x: visible; }
+}
+@media (max-width: 640px) {
+  .pb-cols { grid-template-columns: 1fr; }
+}
 
 .pb-col {
   background: var(--surface); border: 1px solid var(--border);

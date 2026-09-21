@@ -7,6 +7,8 @@
  *   2. Backend y frontend declaran los mismos permisos para cada rol.
  *   3. `db/schema.full.sql` cubre todo lo que `src/db/esquema.js` crea en
  *      caliente, para que instalar de cero deje la misma base que actualizar.
+ *   4. Todo estado de proyecto que el tablero no descarta tiene su columna:
+ *      un estado sin columna hace desaparecer el proyecto sin ningún aviso.
  *
  * Sin dependencias, para poder correrlo en el servidor antes de desplegar:
  *   node scripts/verificar-coherencia.mjs
@@ -136,12 +138,44 @@ function verificarEsquema() {
   }
 }
 
+/* ── 4. Ningún estado se queda sin columna en el tablero ────────────────── */
+
+function verificarTablero() {
+  const board = leer('autotrack-frontend/src/components/ProjectBoard.jsx');
+  const rutas = leer('autotrack-backend/src/routes/projects.js');
+
+  // Los estados válidos los declara el validador del backend; es la lista que
+  // decide qué se puede guardar, así que es la que el tablero debe cubrir.
+  const m = rutas.match(/body\('status'\)\.isIn\(\[([^\]]+)\]\)/);
+  if (!m) { mal('no encuentro la lista de estados en routes/projects.js'); return; }
+  const estados = [...m[1].matchAll(/'([\w-]+)'/g)].map(x => x[1]);
+
+  // Los que el tablero descarta a propósito antes de repartir en columnas.
+  const descartados = (board.match(/\.filter\(p => !\[([^\]]+)\]\.includes\(p\.status\)\)/)?.[1] ?? '')
+    .split(',').map(x => x.trim().replace(/'/g, '')).filter(Boolean);
+
+  const i = board.indexOf('const COLUMNS');
+  if (i < 0) { mal('no encuentro COLUMNS en ProjectBoard.jsx'); return; }
+  const columnas = [...board.slice(i, board.indexOf('\n];', i)).matchAll(/key: '([\w-]+)'/g)]
+    .map(x => x[1]);
+
+  for (const e of estados) {
+    if (descartados.includes(e) || columnas.includes(e)) continue;
+    mal(`el estado «${e}» no tiene columna en el tablero ni se descarta: `
+      + 'un proyecto en ese estado no se ve por ninguna parte');
+  }
+  for (const c of columnas) {
+    if (!estados.includes(c)) mal(`el tablero tiene la columna «${c}», que no es un estado válido`);
+  }
+}
+
 /* ── */
 
 const ROLE = tablaFrontend();
 verificarNavegacion(ROLE, secciones());
 verificarPermisos(ROLE);
 verificarEsquema();
+verificarTablero();
 
 if (fallos.length) {
   console.error(`\n${fallos.length} incoherencia(s):\n`);
@@ -149,4 +183,4 @@ if (fallos.length) {
   console.error('');
   process.exit(1);
 }
-console.log('Roles, navegación y esquema son coherentes.');
+console.log('Roles, navegación, tablero y esquema son coherentes.');
