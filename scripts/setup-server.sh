@@ -285,6 +285,22 @@ location $BASE_PATH/api/ {
     client_max_body_size  12M;
 }
 
+# Los assets llevan un hash del contenido en el nombre, así que nunca cambian
+# sin cambiar de nombre: se pueden guardar para siempre sin volver a preguntar.
+location $BASE_PATH/assets/ {
+    alias $WEB_ROOT/assets/;
+    add_header Cache-Control "public, max-age=31536000, immutable";
+}
+
+# index.html es justo lo contrario: nombre fijo y contenido que cambia en cada
+# despliegue, porque es quien nombra los assets con hash. Si el navegador se
+# queda con una copia vieja pide archivos que el despliegue ya borró, y la
+# página carga sin estilos hasta que alguien recarga a mano. No se cachea.
+location = $BASE_PATH/index.html {
+    alias $WEB_ROOT/index.html;
+    add_header Cache-Control "no-cache, must-revalidate";
+}
+
 # El frontend: 'alias' en vez de 'root' porque la ruta del disco no repite
 # el prefijo de la URL. El try_files termina en el index para que el
 # enrutador del navegador resuelva las rutas internas.
@@ -333,6 +349,14 @@ server {
 
     root $WEB_ROOT;
     index index.html;
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
 
     location / {
         try_files \$uri \$uri/ /index.html;
