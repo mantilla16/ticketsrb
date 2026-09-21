@@ -946,7 +946,15 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
   cursor: pointer; user-select: none;
 }
 .pm-cluser-trigger--open { box-shadow: var(--neu-inset), var(--neu-focus); }
-.pm-cluser-placeholder { color: var(--text3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-cluser-placeholder { color: var(--text3); }
+/* Una sola línea pase lo que pase: el alto de este campo decide dónde se
+   abre el desplegable. */
+.pm-cluser-error {
+  padding: 6px 10px; font-size: 11px; font-weight: 600;
+  color: var(--rb-danger); background: var(--rb-danger-bg);
+  border-radius: var(--radius-sm);
+}
+.pm-cluser-resumen { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pm-cluser-caret { color: var(--text3); font-size: 10px; }
 .pm-cluser-panel {
   position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 50;
@@ -1954,9 +1962,26 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
 
 /* ════ ANALYTICS REPORT ════ */
 .ar-root { max-width: 100%; }
-.ar-header { margin-bottom: 20px; }
+.ar-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+}
+
+/* Selector de eje: el mismo informe mirado por cliente o por proyecto. */
+.ar-eje {
+  display: inline-flex; padding: 3px; border-radius: var(--radius-pill);
+  background: var(--bg); border: 1px solid var(--border); flex-shrink: 0;
+}
+.ar-eje-btn {
+  padding: 6px 14px; border: none; background: none; cursor: pointer;
+  border-radius: var(--radius-pill); font-family: var(--font);
+  font-size: 12px; font-weight: 700; color: var(--text3);
+  transition: background .14s, color .14s;
+}
+.ar-eje-btn:hover { color: var(--text); }
+.ar-eje-btn.is-active { background: var(--rb-navy); color: #fff; }
 .ar-title { font-size: 20px; font-weight: 800; color: var(--text); margin: 0; letter-spacing: -.02em; }
-.ar-subtitle { font-size: 13px; color: var(--text3); margin: 4px 0 0; }
+.ar-subtitle { font-size: 13px; color: var(--text3); margin: 0; }
 .ar-loading, .ar-error, .ar-empty {
   display: grid; place-items: center; padding: 48px; font-size: 13px;
   color: var(--text3); background: var(--surface); border: 1px solid var(--border);
@@ -2005,7 +2030,57 @@ select.pm-input:disabled { color: var(--text3); cursor: not-allowed; }
   background: var(--bg); border: 1px solid var(--border);
   border-radius: var(--radius-pill); padding: 1px 8px; font-family: var(--mono);
 }
+.ar-section-nota { margin-left: auto; font-size: 11px; color: var(--text3); }
+
 .ar-projects { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Fila por cliente ─────────────────────────────────────────────────── */
+.ar-cliente {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+/* Lo ya cargado se apaga un poco: no es donde hay que mirar. */
+.ar-cliente--ok { background: var(--surface); opacity: .82; }
+.ar-cliente--ok:hover { opacity: 1; }
+.ar-cliente-head {
+  width: 100%; display: flex; align-items: center; gap: 14px;
+  padding: 13px 16px; background: none; border: none; cursor: pointer; text-align: left;
+}
+.ar-cliente-head:hover { background: var(--surface2); }
+.ar-cliente-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.ar-cliente-main { flex: 1; min-width: 0; }
+.ar-cliente-nombre {
+  display: block; font-size: 14px; font-weight: 700; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ar-cliente-sub { display: block; font-size: 11.5px; color: var(--text3); margin-top: 2px; }
+
+.ar-cliente-cifras { display: flex; align-items: center; gap: 22px; flex-shrink: 0; }
+.ar-cliente-cifra { display: flex; flex-direction: column; align-items: center; min-width: 46px; }
+.ar-cliente-cifra--ancha { min-width: 78px; }
+.ar-cliente-cifra b { font-size: 13px; font-weight: 700; font-family: var(--mono); color: var(--text); }
+.ar-cliente-cifra i {
+  font-style: normal; font-size: 10px; color: var(--text3);
+  text-transform: uppercase; letter-spacing: .04em; margin-top: 2px;
+}
+.ar-cliente-caret { color: var(--text3); flex-shrink: 0; transition: transform .15s; }
+
+.ar-cliente-detalle { border-top: 1px solid var(--border); padding: 12px 16px 14px; }
+.ar-cliente-meta {
+  display: flex; gap: 24px; flex-wrap: wrap;
+  font-size: 12px; color: var(--text3); margin-bottom: 12px;
+}
+.ar-cliente-meta b { color: var(--text2); font-weight: 700; }
+
+/* En pantallas estrechas las cifras estorban más de lo que informan: se
+   quedan el nombre y el estado, y el detalle se abre igual. */
+@media (max-width: 720px) {
+  .ar-cliente-cifras { gap: 12px; }
+  .ar-cliente-cifra--ancha { display: none; }
+}
+@media (max-width: 520px) {
+  .ar-cliente-cifras { display: none; }
+}
 .ar-project {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); overflow: hidden;

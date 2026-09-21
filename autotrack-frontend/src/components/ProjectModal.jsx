@@ -74,12 +74,22 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
   // Clientes (analítica): selector múltiple + alta rápida
   const [clientOpen, setClientOpen] = useState(false);
   const [newClientText, setNewClientText] = useState('');
+  const [clientError, setClientError] = useState('');
   const [sectionTitles, setSectionTitles] = useState({});
   /* Marca de «analítica cargada» por cliente. Se guarda con el resto del
      formulario, no al pulsar: el modal tiene botón Guardar y aplicar unos
      cambios al instante y otros no es justo lo que confunde. */
   const [analyticsLoaded, setAnalyticsLoaded] = useState({});
   const clientRef = useRef(null);
+  const clientPanelRef = useRef(null);
+  /* Aunque el disparador ya no crece, el campo puede quedar al fondo del modal
+     y el desplegable abrirse por debajo del área visible. Se trae a la vista
+     al abrirlo, para que nunca haya que adivinar que está ahí. */
+  useEffect(() => {
+    if (!clientOpen) return;
+    const t = setTimeout(() => clientPanelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 30);
+    return () => clearTimeout(t);
+  }, [clientOpen]);
   useEffect(() => {
     if (!clientOpen) return;
     const onDown = (e) => { if (clientRef.current && !clientRef.current.contains(e.target)) setClientOpen(false); };
@@ -201,6 +211,15 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
     }
   }, [open, project, defStatus, defAssigneeId, defClientIds]);
 
+  /* Con pocos clientes se leen los nombres; con muchos, la cuenta dice más que
+     una lista truncada que no cabe. */
+  const seleccionados = analyticsClients.filter(c => form.clientIds.includes(String(c.id)));
+  const resumenClientes = seleccionados.length === 0
+    ? 'Selecciona uno o más clientes…'
+    : seleccionados.length <= 2
+      ? seleccionados.map(c => c.name).join(', ')
+      : `${seleccionados.length} clientes seleccionados`;
+
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
   const tipoFinal = typeSel === 'flash' ? 'asignacion_flash' : areaSel;
 
@@ -220,15 +239,21 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
     }));
   };
 
+  /* Si esto falla hay que decirlo. Callar el error hacía que un rechazo del
+     servidor —sin permiso, nombre repetido, red caída— se viera igual que si
+     el botón no hiciera nada, y no había forma de saber cuál de las dos era. */
   const quickAddClient = async () => {
     const name = newClientText.trim();
     if (!name) return;
+    setClientError('');
     try {
       const created = await analyticsReportAPI.createClient({ name, active: true });
       setAnalyticsClients(prev => (prev.some(c => c.id === created.id) ? prev : [...prev, created]));
       setForm(f => ({ ...f, clientIds: f.clientIds.includes(String(created.id)) ? f.clientIds : [...f.clientIds, String(created.id)] }));
       setNewClientText('');
-    } catch { /* error silencioso */ }
+    } catch (err) {
+      setClientError(err?.error || 'No se pudo crear el cliente. Inténtalo de nuevo.');
+    }
   };
 
   const addLocalTask = () => {
@@ -413,14 +438,18 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                   Clientes / Áreas
                 </label>
                 <div className="pm-cluser" ref={clientRef}>
+                  {/* El resumen se mantiene en una línea a propósito. Escribir
+                      los veinte nombres hacía crecer el disparador hasta 165 px,
+                      y como el desplegable se ancla debajo, acababa fuera del
+                      modal —que recorta— y parecía que no se podía abrir. */}
                   <div className={`pm-input pm-cluser-trigger${clientOpen ? ' pm-cluser-trigger--open' : ''}`} onClick={() => !lockCore && setClientOpen(o => !o)}>
-                    {form.clientIds.length === 0
-                      ? <span className="pm-cluser-placeholder">Selecciona uno o más clientes…</span>
-                      : (analyticsClients.filter(c => form.clientIds.includes(String(c.id))).map(c => c.name).join(', ') || 'Selecciona…')}
+                    <span className={`pm-cluser-resumen${seleccionados.length ? '' : ' pm-cluser-placeholder'}`}>
+                      {resumenClientes}
+                    </span>
                     <span className="pm-cluser-caret">▾</span>
                   </div>
                   {clientOpen && !lockCore && (
-                    <div className="pm-cluser-panel">
+                    <div className="pm-cluser-panel" ref={clientPanelRef}>
                       {analyticsClients.filter(c => c.active).map(c => {
                         const active = form.clientIds.includes(String(c.id));
                         return (
@@ -438,7 +467,9 @@ export default function ProjectModal({ open, project, defStatus, defAssigneeId, 
                           placeholder="Nuevo cliente…" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); quickAddClient(); } }} />
                         <button type="button" className="pm-cluser-add" onClick={quickAddClient} disabled={!newClientText.trim()}>Agregar</button>
                       </div>
-                      <div className="pm-cluser-hint">Selecciona los clientes o áreas que aplican a este proyecto.</div>
+                      {clientError
+                        ? <div className="pm-cluser-error">{clientError}</div>
+                        : <div className="pm-cluser-hint">Selecciona los clientes o áreas que aplican a este proyecto.</div>}
                     </div>
                   )}
                 </div>
