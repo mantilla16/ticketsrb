@@ -1,5 +1,5 @@
 /* Reporte Analítica — vista operativa de seguimiento por proyecto y cliente.
-   Muestra qué se hace, quién lo hace, progreso y estado de carga en plataforma. */
+   Muestra qué se hace, quién lo hace y cómo va, por cliente y por proyecto. */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { analyticsReportAPI } from '../services/api';
@@ -54,7 +54,6 @@ function ProjectRow({ project, users, allClients }) {
   const pr = PR_BADGE[project.priority] || PR_BADGE.mid;
   const tasks = project.tasks || [];
   const done = tasks.filter(t => t.done).length;
-  const uploaded = tasks.filter(t => t.platformUploaded).length;
   const total = tasks.length;
   const pct = project.progress || 0;
 
@@ -81,10 +80,6 @@ function ProjectRow({ project, users, allClients }) {
           <div className="ar-project-stat">
             <span className="ar-project-stat-val">{done}/{total}</span>
             <span className="ar-project-stat-lbl">Tareas</span>
-          </div>
-          <div className="ar-project-stat">
-            <span className={`ar-project-stat-val${uploaded === total && total > 0 ? ' ar-project-stat-val--success' : ''}`}>{uploaded}/{total}</span>
-            <span className="ar-project-stat-lbl">Cargadas</span>
           </div>
           {nextTask && (
             <div className="ar-project-stat">
@@ -117,7 +112,6 @@ function ProjectRow({ project, users, allClients }) {
                 <th>Prioridad</th>
                 <th>Vence</th>
                 <th>Estado</th>
-                <th style={{ textAlign: 'center' }}>Plataforma</th>
               </tr>
             </thead>
             <tbody>
@@ -154,16 +148,6 @@ function ProjectRow({ project, users, allClients }) {
                     <td>
                       <span className={`ar-task-check${t.done ? ' ar-task-check--done' : ''}`}>
                         {t.done ? 'Completada' : 'Pendiente'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span className={`ar-task-platform${t.platformUploaded ? ' ar-task-platform--done' : ''}`}>
-                        {t.platformUploaded ? (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        ) : (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/></svg>
-                        )}
-                        {t.platformUploaded ? 'Sí' : 'No'}
                       </span>
                     </td>
                   </tr>
@@ -253,7 +237,7 @@ function ClientRow({ cliente, users }) {
               <thead>
                 <tr>
                   <th>Tarea</th><th>Responsable</th><th>Prioridad</th>
-                  <th>Vence</th><th>Estado</th><th style={{ textAlign: 'center' }}>Plataforma</th>
+                  <th>Vence</th><th>Estado</th>
                 </tr>
               </thead>
               <tbody>
@@ -273,11 +257,6 @@ function ClientRow({ cliente, users }) {
                         ? <span className={`ar-task-due${t._vencida ? ' ar-task-due--overdue' : ''}`}>{fmtShort(t.dueDate)}</span>
                         : <span className="ar-task-none">—</span>}</td>
                       <td><span className={`ar-task-check${t.done ? ' ar-task-check--done' : ''}`}>{t.done ? 'Completada' : 'Pendiente'}</span></td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className={`ar-task-platform${t.platformUploaded ? ' ar-task-platform--done' : ''}`}>
-                          {t.platformUploaded ? 'Sí' : 'No'}
-                        </span>
-                      </td>
                     </tr>
                   );
                 })}
@@ -399,13 +378,12 @@ export default function AnalyticsReportView({ users }) {
   const pctCobertura = enCurso.length ? Math.round((cargados.length / enCurso.length) * 100) : 0;
 
   /* Cifras globales de tarea, para el eje de proyecto. */
-  let totalTasks = 0, doneTasks = 0, uploadedTasks = 0, overdueTasks = 0;
+  let totalTasks = 0, doneTasks = 0, overdueTasks = 0;
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   projects.forEach(p => {
     (p.tasks || []).forEach(t => {
       totalTasks++;
       if (t.done) doneTasks++;
-      if (t.platformUploaded) uploadedTasks++;
       if (!t.done && t.dueDate && new Date(`${t.dueDate}T00:00:00`) < hoy) overdueTasks++;
     });
   });
@@ -418,7 +396,6 @@ export default function AnalyticsReportView({ users }) {
     reloj: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>,
     alerta: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
     caja: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>,
-    subir: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
   };
 
   return (
@@ -494,28 +471,10 @@ export default function AnalyticsReportView({ users }) {
               color="var(--rb-navy)" bg="var(--rb-navy-tint)" />
             <SummaryCard icon={ICO.ok} label="Completadas" value={doneTasks} unit="tareas"
               color="var(--rb-success)" bg="var(--rb-success-bg)" />
-            {/* «Subidas a plataforma» es por tarea y no es lo mismo que la
-                analítica cargada de un cliente; el nombre lo dice para que no
-                se lean como la misma cifra. */}
-            <SummaryCard icon={ICO.subir} label="Tareas subidas a plataforma" value={uploadedTasks} unit={`de ${totalTasks}`}
-              color="var(--rb-teal)" bg="var(--rb-teal-tint)" />
             <SummaryCard icon={ICO.alerta} label="Vencidas" value={overdueTasks} unit="tareas"
               color={overdueTasks > 0 ? 'var(--rb-danger)' : 'var(--rb-text-3)'}
               bg={overdueTasks > 0 ? 'var(--rb-danger-bg)' : 'var(--rb-neutral-bg)'} />
           </div>
-
-          {totalTasks > 0 && (
-            <div className="ar-platform-bar">
-              <div className="ar-platform-bar-header">
-                <span>Tareas subidas a plataforma</span>
-                <span className="ar-platform-bar-pct">{Math.round((uploadedTasks / totalTasks) * 100)}%</span>
-              </div>
-              <div className="ar-platform-bar-track">
-                <div className="ar-platform-bar-fill" style={{ width: `${(uploadedTasks / totalTasks) * 100}%` }} />
-              </div>
-              <div className="ar-platform-bar-detail">{uploadedTasks} de {totalTasks} tareas con información cargada</div>
-            </div>
-          )}
 
           <div className="ar-section-header">
             <span className="ar-section-title">Proyectos</span>
