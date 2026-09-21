@@ -313,6 +313,50 @@ export default function TicketReports({ projects = [] }) {
 
   const analitica = useMemo(() => coberturaAnalitica(projects), [projects]);
 
+  /* Trabajo por proyecto: para dirección, «5 abiertos» no responde nada; lo
+     que se pregunta es cuánto queda por hacer dentro de cada uno.
+     Solo se cuentan proyectos vivos (backlog, progress, standby, testing,
+     soporte); los cerrados no arrastran su lista al panorama. Y solo tareas
+     pendientes: las completadas no reclaman atención. */
+  const trabajoPorProyecto = useMemo(() => {
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const vencida = (d) => d && new Date(String(d).slice(0, 10) + 'T00:00:00') < hoy;
+
+    return projects
+      .filter(p => TRABAJO_ABIERTO.includes(p.status))
+      .map(p => {
+        const tareas = p.tasks || [];
+        const pendientes = tareas.filter(t => !t.done);
+        const vencidas = pendientes.filter(t => vencida(t.dueDate)).length;
+        const proxima = pendientes
+          .filter(t => t.dueDate)
+          .map(t => t.dueDate)
+          .sort()[0] || null;
+        return {
+          id: p.id,
+          nombre: p.name,
+          responsable: (p.assignees?.[0] || p.assignee)?.name || null,
+          totalTareas: tareas.length,
+          pendientes: pendientes.length,
+          vencidas,
+          proxima,
+          proximaVencida: vencida(proxima),
+        };
+      })
+      /* Primero lo que reclama atención: vencidas arriba, después las que
+         están más cerca de vencer, después el resto. */
+      .sort((a, b) => {
+        if (a.vencidas !== b.vencidas) return b.vencidas - a.vencidas;
+        if (a.proxima && b.proxima) return a.proxima.localeCompare(b.proxima);
+        if (a.proxima) return -1;
+        if (b.proxima) return 1;
+        return a.nombre.localeCompare(b.nombre, 'es');
+      });
+  }, [projects]);
+
+  const totalPendientes = trabajoPorProyecto.reduce((s, x) => s + x.pendientes, 0);
+  const totalVencidas   = trabajoPorProyecto.reduce((s, x) => s + x.vencidas, 0);
+
   if (loading) return <div className="rb-skeleton" style={{ height: 320 }} />;
 
   if (!todo.length) {
@@ -496,7 +540,40 @@ export default function TicketReports({ projects = [] }) {
           </Panel>
         )}
 
-        {/* 6 ── De dónde viene y cómo se reparte */}
+        {/* 6 ── Qué queda por hacer, proyecto a proyecto ── */}
+        {trabajoPorProyecto.length > 0 && (
+          <Panel
+            title="Trabajo por proyecto"
+            sub="Cuántas tareas pendientes tiene cada proyecto abierto y cuál es la próxima entrega"
+            nota={totalVencidas > 0
+              ? `${totalPendientes} tareas pendientes en total, ${totalVencidas} ya vencidas.`
+              : `${totalPendientes} tareas pendientes en total.`}
+          >
+            <div className="tk-review">
+              {trabajoPorProyecto.map(x => (
+                <div key={x.id} className="tk-review-row"
+                  style={{ gridTemplateColumns: 'minmax(0,1fr) auto auto auto' }}>
+                  <span className="rb-truncate">
+                    <b>{x.nombre}</b>
+                    {x.responsable && <span className="rb-hint"> · {x.responsable}</span>}
+                  </span>
+                  <span className="rb-hint" style={{ fontFamily: 'var(--mono)' }}>
+                    {x.pendientes}/{x.totalTareas}
+                  </span>
+                  <Badge tone={x.vencidas ? 'danger' : x.proximaVencida ? 'danger' : 'neutral'}>
+                    {x.vencidas
+                      ? `${x.vencidas} vencida${x.vencidas > 1 ? 's' : ''}`
+                      : x.proxima
+                        ? `Próxima ${fmtDate(x.proxima)}`
+                        : 'Sin fecha'}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        )}
+
+        {/* 7 ── De dónde viene y cómo se reparte */}
         <Panel title="Demanda por línea de servicio" sub="De dónde viene el trabajo">
           <Bars rows={porLinea} />
         </Panel>
