@@ -106,6 +106,80 @@ function MarcaAnalitica({ cliente, canEdit, guardando, onToggle }) {
   );
 }
 
+/**
+ * Comentarios de seguimiento de un cliente dentro del proyecto.
+ *
+ * Reutiliza los `project_logs` que ya existían para el seguimiento general,
+ * añadiendo `client_id`: si viene, el avance queda atado a ese cliente y
+ * aparece aquí y en el detalle del reporte; si no, va al seguimiento general.
+ * Un solo formato, dos vistas: sin tablas nuevas y sin dos historiales que
+ * mantener sincronizados.
+ *
+ * Compacto a propósito: cada cliente tiene su propia sección, y una caja de
+ * avance del tamaño de la del proyecto ocuparía media pantalla por cliente.
+ */
+function ComentariosCliente({ clientId, project, canEdit, onAddLog }) {
+  const [texto, setTexto] = useState('');
+  const [abriendo, setAbriendo] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+
+  const propios = (project.logs || []).filter(l => l.clientId === clientId);
+
+  const guardar = async () => {
+    if (!texto.trim()) return;
+    setGuardando(true); setError('');
+    try {
+      await onAddLog(project.id, { text: texto.trim(), clientId });
+      setTexto(''); setAbriendo(false);
+    } catch (err) {
+      setError(err.error || 'No se pudo guardar el avance');
+    } finally { setGuardando(false); }
+  };
+
+  return (
+    <div className="dp-cliente-coments">
+      {propios.length > 0 && (
+        <ul className="dp-cliente-log-lista">
+          {propios.map(l => (
+            <li key={l.id} className="dp-cliente-log">
+              <div className="dp-cliente-log-cab">
+                <b>{l.author?.name || 'Sistema'}</b>
+                <span>{fmtLogDate(l.createdAt)}</span>
+              </div>
+              <p>{l.text}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {canEdit && (
+        abriendo ? (
+          <div className="dp-cliente-log-form">
+            {error && <div className="dp-cliente-log-error">{error}</div>}
+            <textarea className="rb-textarea" rows={2} value={texto} autoFocus
+              placeholder={`Avance sobre ${project.clients?.find(c => c.id === clientId)?.name || 'este cliente'}…`}
+              onChange={e => setTexto(e.target.value)} />
+            <div className="dp-cliente-log-acciones">
+              <button className="rb-btn rb-btn--sm rb-btn--ghost"
+                onClick={() => { setAbriendo(false); setTexto(''); setError(''); }}
+                disabled={guardando}>Cancelar</button>
+              <button className="rb-btn rb-btn--sm rb-btn--primary"
+                onClick={guardar} disabled={guardando || !texto.trim()}>
+                {guardando ? 'Guardando…' : 'Registrar'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="dp-cliente-log-boton" onClick={() => setAbriendo(true)}>
+            + Añadir un comentario para este cliente
+          </button>
+        )
+      )}
+    </div>
+  );
+}
+
 /* Renderiza una lista de tareas (usada tanto para General como por cliente) */
 function TaskList({ tasks, canEdit, busyTaskIds, taskAssigneePool, analyticsClients, project, tipo,
                     onToggle, onDelete, onEdit, editingTaskId, setEditingTaskId,
@@ -454,6 +528,8 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
                         onAdd={handleAddTaskInSection(c.id)} taskAssigneePool={taskAssigneePool}
                         tipo={tipo} analyticsClients={analyticsClients} project={project} />
                     )}
+                    <ComentariosCliente clientId={c.id} project={project}
+                      canEdit={canEdit} onAddLog={onAddLog} />
                   </Section>
                 );
               })}
@@ -498,11 +574,14 @@ export default function ProjectDetailPanel({ open, project, onClose, onEdit, onA
             </Section>
           )}
 
-          {/* Seguimiento */}
-          <Section title="Seguimiento" count={project.logs?.length || 0} defaultOpen={false}>
-            {project.logs?.length > 0 ? (
+          {/* Seguimiento general del proyecto.
+              Los avances atados a un cliente concreto salen en la sección de
+              ese cliente; aquí solo los que se registraron sin cliente. */}
+          <Section title="Seguimiento" count={(project.logs || []).filter(l => !l.clientId).length}
+            defaultOpen={false}>
+            {(project.logs || []).filter(l => !l.clientId).length > 0 ? (
               <div className="dp-logs">
-                {project.logs.map(l => (
+                {(project.logs || []).filter(l => !l.clientId).map(l => (
                   <div key={l.id} className="dp-log">
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--rb-text)' }}>{l.author?.name || 'Sistema'}</span>

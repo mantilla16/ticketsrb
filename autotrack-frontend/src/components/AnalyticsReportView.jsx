@@ -170,7 +170,7 @@ function ProjectRow({ project, users, allClients }) {
  */
 function ClientRow({ cliente, users }) {
   const [abierto, setAbierto] = useState(false);
-  const { nombre, cargada, quien, cuando, tareas, hechas, vencidas, proxima, responsables, proyectos } = cliente;
+  const { nombre, cargada, quien, cuando, tareas, hechas, vencidas, proxima, responsables, proyectos, comentarios = [] } = cliente;
   const pct = tareas.length ? Math.round((hechas / tareas.length) * 100) : 0;
   const sinTrabajo = tareas.length === 0;
 
@@ -227,6 +227,26 @@ function ClientRow({ cliente, users }) {
             <span><b>Proyecto{proyectos.length > 1 ? 's' : ''}:</b> {proyectos.join(' · ') || '—'}</span>
             <span><b>Responsable{responsables.length > 1 ? 's' : ''}:</b> {responsables.join(', ') || 'Sin asignar'}</span>
           </div>
+
+          {comentarios.length > 0 && (
+            <div className="ar-cliente-comentarios">
+              <div className="ar-cliente-comentarios-titulo">Comentarios de seguimiento</div>
+              <ul>
+                {comentarios.map((l, i) => (
+                  <li key={i}>
+                    <div className="ar-cliente-comentario-cab">
+                      <b>{l.author || 'Sistema'}</b>
+                      <span>{l.createdAt ? fmtShort(l.createdAt) : ''}</span>
+                      {/* Solo aparece el proyecto cuando el cliente está en
+                          varios: si no, es ruido —siempre el mismo nombre—. */}
+                      {proyectos.length > 1 && <em>· {l.proyecto}</em>}
+                    </div>
+                    <p>{l.text}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {tareas.length === 0 ? (
             <div className="ar-empty" style={{ padding: 14 }}>
@@ -286,13 +306,24 @@ function porCliente(clientes) {
     const responsables = new Set();
     const proyectos = [];
 
+    // Un cliente puede estar en varios proyectos: los comentarios se juntan
+    // pero se etiquetan con el proyecto de origen, porque lo que dice cada
+    // uno solo tiene sentido en su contexto.
+    const comentarios = [];
+
     (c.projects || []).forEach(p => {
       proyectos.push(p.name);
       (p.tasks || [])
         .filter(t => t.clientId === c.id)
         .forEach(t => tareas.push({ ...t, _vencida: estaVencida(t) }));
       (p.assignees || []).forEach(a => { if (a?.name) responsables.add(a.name); });
+      // Los logs del cliente ya vienen del reciente al antiguo dentro de cada
+      // proyecto; al mezclar hay que reordenar por fecha.
+      (p.clients || [])
+        .filter(pc => pc.id === c.id)
+        .forEach(pc => (pc.logs || []).forEach(l => comentarios.push({ ...l, proyecto: p.name })));
     });
+    comentarios.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
     const pendientesConFecha = tareas
       .filter(t => !t.done && t.dueDate)
@@ -312,6 +343,7 @@ function porCliente(clientes) {
         : null,
       responsables: [...responsables],
       proyectos: [...new Set(proyectos)],
+      comentarios,
     };
   })
   /* Arriba lo que reclama atención —pendientes con trabajo en marcha—, después

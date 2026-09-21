@@ -6,7 +6,7 @@ const { body, validationResult } = require('express-validator');
 const { notify } = require('../utils/notify');
 const escapeHtml = require('../utils/escapeHtml');
 const { asegurarResponsables, asegurarClientesDeProyecto, asegurarColumnasDeTarea,
-        asegurarColumnasDeProyecto } = require('../db/esquema');
+        asegurarColumnasDeProyecto, asegurarColumnasDeLog } = require('../db/esquema');
 
 const STATUS_LABEL = {
   backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
@@ -231,6 +231,9 @@ function fmtProject(p, logs = [], tasks = [], extraAssignees = [], clients = [])
       id: l.id,
       text: l.text,
       progress: l.progress,
+      // null si es un avance general del proyecto; un id si es de un cliente
+      // concreto de ese proyecto.
+      clientId: l.client_id ?? null,
       createdAt: l.created_at,
       author: { name: l.author_name, initials: l.author_initials },
     })),
@@ -270,6 +273,7 @@ async function fetchProject(id) {
   await asegurarColumnasDeProyecto();
   const { rows } = await pool.query(`${PROJECT_JOIN} WHERE p.id = $1`, [id]);
   if (!rows.length) return null;
+  await asegurarColumnasDeLog();
   const logs = await pool.query(`
     SELECT pl.*, u.name AS author_name, u.initials AS author_initials
     FROM project_logs pl
@@ -310,6 +314,7 @@ router.get('/', auth, async (req, res) => {
     if (!rows.length) return res.json([]);
 
     const ids = rows.map(p => p.id);
+    await asegurarColumnasDeLog();
     const logsRes = await pool.query(`
       SELECT pl.*, u.name AS author_name, u.initials AS author_initials
       FROM project_logs pl
@@ -536,12 +541,18 @@ router.post('/:id/logs', auth, [
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
   const { text } = req.body;
+  /* `clientId` puede venir o no: sin él el avance queda en el seguimiento
+     general del proyecto —como estaba antes—; con él se ata a ese cliente y
+     aparece en su ficha y en su detalle del reporte. `null` explícito equivale
+     a no mandarlo. */
+  const clientId = req.body.clientId ? Number(req.body.clientId) : null;
   try {
     if (!(await assertProjectAccess(req, res, req.params.id))) return;
+    await asegurarColumnasDeLog();
     const progress = await recalcProgress(req.params.id);
     await pool.query(
-      'INSERT INTO project_logs (project_id, author_id, text, progress) VALUES ($1,$2,$3,$4)',
-      [req.params.id, req.user.id, text, progress]
+      'INSERT INTO project_logs (project_id, author_id, text, progress, client_id) VALUES ($1,$2,$3,$4,$5)',
+      [req.params.id, req.user.id, text, progress, clientId]
     );
     const project = await fetchProject(req.params.id);
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });

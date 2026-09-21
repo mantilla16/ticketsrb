@@ -3,7 +3,7 @@ const pool = require('../config/database');
 const auth = require('../middleware/auth');
 const { requierePermiso } = require('../config/roles');
 const { asegurarResponsables, asegurarClientes, asegurarClientesDeProyecto,
-        asegurarColumnasDeProyecto } = require('../db/esquema');
+        asegurarColumnasDeProyecto, asegurarColumnasDeLog } = require('../db/esquema');
 
 // ── Clientes semilla (insertados solo si la tabla queda vacía) ─────────
 const SEED_CLIENTS = [
@@ -245,6 +245,36 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
       });
     }
 
+    // 4b. Comentarios de seguimiento por cliente
+    // Solo los que tienen client_id: los generales del proyecto pertenecen a
+    // «Seguimiento» y no forman parte del hilo de un cliente concreto.
+    const logsByPair = new Map();  // clave "projectId|clientId" → [log, …]
+    if (projectIds.length) {
+      try {
+        await asegurarColumnasDeLog();
+        const { rows: logs } = await pool.query(`
+          SELECT pl.project_id, pl.client_id, pl.text, pl.created_at,
+                 u.name AS author_name, u.initials AS author_initials
+          FROM project_logs pl
+          LEFT JOIN users u ON u.id = pl.author_id
+          WHERE pl.project_id = ANY($1) AND pl.client_id IS NOT NULL
+          ORDER BY pl.created_at DESC
+        `, [projectIds]);
+        logs.forEach(l => {
+          const k = `${l.project_id}|${l.client_id}`;
+          if (!logsByPair.has(k)) logsByPair.set(k, []);
+          logsByPair.get(k).push({
+            text: l.text,
+            createdAt: l.created_at,
+            author: l.author_name || 'Sistema',
+            authorInitials: l.author_initials || '',
+          });
+        });
+      } catch (err) {
+        console.warn('analytics-report: logs por cliente no disponibles', err.message);
+      }
+    }
+
     // 5. Responsables múltiples
     let assigneesByProject = {};
     if (projectIds.length) {
@@ -315,6 +345,9 @@ router.get('/', auth, requierePermiso('verReporteAnalitica'), async (req, res) =
             analyticsLoaded: carga.loaded || false,
             analyticsLoadedAt: carga.at || null,
             analyticsLoadedBy: carga.by || null,
+            // Comentarios que se escribieron atados a este cliente en este
+            // proyecto. Ya vienen del más reciente al más antiguo.
+            logs: logsByPair.get(`${p.id}|${c.id}`) || [],
           };
         }),
         sectionTitle: targets[0]?.sectionTitle || null,

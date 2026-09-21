@@ -85,6 +85,13 @@ CREATE TABLE IF NOT EXISTS project_logs (
   created_at   TIMESTAMP DEFAULT NOW()
 );
 
+-- Los avances (project_logs) pueden ir a un cliente concreto (client_id no
+-- nulo) o al proyecto en general (client_id null). Los del cliente salen en
+-- su sección del panel y en el detalle del reporte; los generales, en
+-- «Seguimiento» del proyecto donde estaban antes.
+ALTER TABLE project_logs
+  ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES analytics_clients(id) ON DELETE SET NULL;
+
 -- ─────────────────────────── project_tasks ───────────────────────────
 -- El código solo hace ALTER TABLE ... ADD COLUMN IF NOT EXISTS sobre esta tabla
 -- (ensureTaskColumns), nunca la crea. En producción existe porque se creó a mano.

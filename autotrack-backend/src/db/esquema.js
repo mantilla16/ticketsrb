@@ -117,6 +117,22 @@ const asegurarColumnasDeProyecto = unaVez(async () => {
   `);
 });
 
+/* ── Comentarios de seguimiento por cliente ────────────────────────────── */
+
+/* Los avances (project_logs) se pueden atribuir a un cliente concreto del
+   proyecto (client_id no nulo) o al proyecto en general (client_id null).
+   Los del cliente se muestran en su sección del panel y en el detalle del
+   reporte; los generales, en «Seguimiento» del proyecto —donde estaban antes—
+   para no romper el sitio donde ya se registraban avances. */
+const asegurarColumnasDeLog = unaVez(async () => {
+  await asegurarClientes();
+  await pool.query(`
+    ALTER TABLE project_logs
+      ADD COLUMN IF NOT EXISTS client_id INTEGER REFERENCES analytics_clients(id) ON DELETE SET NULL
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_logs_client ON project_logs(client_id)');
+});
+
 /* ── Columnas de las tareas ────────────────────────────────────────────── */
 
 /* `client_id` referencia analytics_clients, así que el catálogo tiene que
@@ -141,4 +157,5 @@ module.exports = {
   asegurarClientes,
   asegurarClientesDeProyecto,
   asegurarColumnasDeTarea,
+  asegurarColumnasDeLog,
 };
