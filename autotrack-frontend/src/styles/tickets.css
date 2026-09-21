@@ -257,3 +257,209 @@
   .tk-review-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .tk-steps-bar .tk-sb span { display: none; }
 }
+
+/* ══════════════════════ PANORAMA — layout rediseñado ══════════════════════
+
+   El panorama ya no es una parrilla plana de 12 paneles. Tres capas de
+   lectura, en orden de urgencia:
+     .tk-report-hero    — fila destacada: trabajo por proyecto + entregas
+     .tk-report-band    — banda ancha para analítica por cliente
+     .tk-report-group   — bloques con encabezado gris pequeño
+   Cada uno respira lo que le corresponde: la fila hero pide más ancho, los
+   grupos van al fondo con densidad uniforme.
+*/
+
+.tk-report-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+@media (max-width: 1100px) { .tk-report-hero { grid-template-columns: 1fr; } }
+
+.tk-report-band { margin-bottom: 18px; }
+
+.tk-report-group { margin-bottom: 18px; }
+.tk-group-title {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 4px 10px;
+  font-size: 11px; font-weight: 900; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--rb-text-3);
+}
+.tk-group-title::after {
+  content: ''; flex: 1; height: 1px; background: var(--rb-line-soft);
+}
+
+.tk-report-grid--four { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+/* Badge auxiliar dentro de la cabecera de un panel: cifra con contexto,
+   sin repetir el subtítulo. */
+.tk-panel-badge {
+  flex-shrink: 0;
+  padding: 4px 10px; border-radius: var(--rb-r-pill);
+  font-size: var(--rb-fs-xs); font-weight: 700;
+  background: var(--rb-n-100); color: var(--rb-text-3);
+  font-variant-numeric: tabular-nums;
+}
+.tk-panel-badge--danger {
+  background: var(--rb-danger-bg); color: var(--rb-danger);
+}
+
+
+/* ── Trabajo por proyecto: tarjeta con tareas visibles ─────────────────
+   Cada proyecto es una tarjeta con dos partes: cabecera (nombre,
+   responsable, contador, estado) y sus 2-3 tareas más urgentes debajo.
+   El color de acento (rojo/naranja/gris) codifica la urgencia y se lee sin
+   detenerse a mirar la pastilla. */
+
+.tk-proj-list { display: flex; flex-direction: column; gap: 2px; }
+
+.tk-proj {
+  padding: 12px 14px 12px;
+  border-radius: var(--rb-r-md);
+  border: 1px solid transparent;
+  transition: background var(--rb-t) var(--rb-ease);
+}
+.tk-proj--danger {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rb-danger-bg) 70%, #fff) 0%, #fff 60%);
+  border-color: color-mix(in srgb, var(--rb-danger) 25%, #fff);
+}
+.tk-proj--warning { background: transparent; }
+.tk-proj--neutral { background: transparent; }
+.tk-proj:hover { background: color-mix(in srgb, var(--rb-navy) 4%, #fff); }
+
+.tk-proj-head {
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr) auto auto;
+  gap: 14px; align-items: center;
+}
+.tk-proj-rail { width: 6px; height: 32px; border-radius: 3px; }
+.tk-proj-rail--danger  { background: var(--rb-danger); }
+.tk-proj-rail--warning { background: var(--rb-orange); }
+.tk-proj-rail--neutral { background: var(--rb-n-300); }
+
+.tk-proj-main { min-width: 0; }
+.tk-proj-name { font-size: var(--rb-fs-sm); font-weight: 700; color: var(--rb-text); }
+.tk-proj-meta { font-size: var(--rb-fs-xs); color: var(--rb-text-3); margin-top: 2px; }
+
+.tk-proj-count { font-family: var(--rb-mono); font-size: var(--rb-fs-sm); font-weight: 700; color: var(--rb-text-2); }
+.tk-proj-count b { color: var(--rb-text); }
+.tk-proj-count span { color: var(--rb-text-3); font-weight: 400; }
+
+.tk-proj-tag {
+  padding: 4px 10px; border-radius: var(--rb-r-pill);
+  font-size: var(--rb-fs-xs); font-weight: 700;
+  white-space: nowrap;
+}
+.tk-proj-tag--danger  { background: var(--rb-danger-bg); color: var(--rb-danger); }
+.tk-proj-tag--warning { background: var(--rb-orange-tint); color: var(--rb-orange-ink); }
+.tk-proj-tag--neutral { background: var(--rb-n-100); color: var(--rb-text-3); }
+
+/* Bloque de tareas: separado con línea punteada del color del proyecto. */
+.tk-proj-tasks {
+  margin: 10px 0 0 20px; padding-top: 8px;
+  border-top: 1px dashed var(--rb-n-200);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.tk-proj-tasks--danger { border-top-color: color-mix(in srgb, var(--rb-danger) 30%, transparent); }
+
+.tk-proj-task {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  gap: 10px; align-items: center;
+  padding: 4px 2px;
+}
+.tk-proj-task-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--rb-n-300); background: transparent;
+}
+.tk-proj-task-dot--danger  { border-color: var(--rb-danger); }
+.tk-proj-task-title { font-size: var(--rb-fs-sm); color: var(--rb-text); }
+.tk-proj-task-when {
+  font-family: var(--rb-mono); font-size: var(--rb-fs-xs); font-weight: 700;
+  white-space: nowrap;
+}
+.tk-proj-task-when--danger { color: var(--rb-danger); }
+.tk-proj-task-when--muted  { color: var(--rb-text-3); font-weight: 400; }
+
+.tk-proj-mas {
+  padding: 4px 0 0 24px;
+  font-size: var(--rb-fs-xs); color: var(--rb-text-3); font-style: italic;
+}
+.tk-proj-empty {
+  padding: 2px 4px;
+  font-size: var(--rb-fs-xs); color: var(--rb-text-3); font-style: italic;
+}
+
+
+/* ── Entregas comprometidas: horizontes en lugar de barras horizontales ── */
+.tk-horizonte { display: flex; flex-direction: column; }
+.tk-horizonte-row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 10px; align-items: center;
+  padding: 10px 4px;
+  border-top: 1px solid var(--rb-line-soft);
+}
+.tk-horizonte-row:first-child { border-top: 0; }
+.tk-horizonte-punto { width: 8px; height: 8px; border-radius: 50%; }
+.tk-horizonte-label { font-size: var(--rb-fs-sm); color: var(--rb-text-2); }
+.tk-horizonte-val {
+  font-family: var(--rb-mono); font-size: var(--rb-fs-sm); font-weight: 700;
+  color: var(--rb-text); font-variant-numeric: tabular-nums;
+}
+.tk-horizonte-row--alerta .tk-horizonte-label,
+.tk-horizonte-row--alerta .tk-horizonte-val { color: var(--rb-danger); font-weight: 700; }
+
+
+/* ── Analítica por cliente: banda destacada con lectura visual ────────── */
+.tk-analitica-hero {
+  display: flex; align-items: center; gap: 32px;
+  padding: 4px 0 18px;
+  flex-wrap: wrap;
+}
+.tk-analitica-pct {
+  font-family: var(--rb-mono);
+  font-size: 56px; font-weight: 900; line-height: 1;
+  letter-spacing: -.03em;
+  color: var(--rb-teal-ink);
+}
+.tk-analitica-pct span { font-size: 24px; color: var(--rb-text-2); margin-left: 4px; }
+.tk-analitica-cifras { display: flex; align-items: center; gap: 20px; }
+.tk-analitica-cifras > div { display: flex; flex-direction: column; }
+.tk-analitica-cifras b {
+  font-family: var(--rb-mono);
+  font-size: 22px; font-weight: 900; line-height: 1; color: var(--rb-text);
+}
+.tk-analitica-cifras span {
+  font-size: var(--rb-fs-xs); color: var(--rb-text-3); margin-top: 4px;
+}
+.tk-analitica-sep { width: 1px; height: 32px; background: var(--rb-line-soft); }
+
+.tk-analitica-bar {
+  display: flex; height: 32px;
+  border-radius: var(--rb-r-sm); overflow: hidden;
+  background: var(--rb-n-100);
+}
+.tk-analitica-bar-fill {
+  display: flex; align-items: center; padding: 0 12px;
+  font-size: var(--rb-fs-xs); font-weight: 700;
+  white-space: nowrap;
+  transition: width var(--rb-t) var(--rb-ease);
+}
+.tk-analitica-bar-fill--ok     { background: var(--rb-teal);   color: #fff; }
+.tk-analitica-bar-fill--faltan { background: var(--rb-orange); color: #fff; }
+
+.tk-analitica-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+  margin-top: 22px;
+}
+
+@media (max-width: 700px) {
+  .tk-analitica-hero { gap: 20px; }
+  .tk-analitica-pct { font-size: 44px; }
+  .tk-proj-head { grid-template-columns: 6px minmax(0, 1fr) auto; }
+  .tk-proj-count { display: none; }
+}
