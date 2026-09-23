@@ -1,14 +1,60 @@
-name: Desplegar a producción
+# Despliegue de la Mesa de Servicio al servidor de la oficina.
+#
+# Mismo patrón que analitica-puc: un runner self-hosted instalado EN el
+# propio servidor se conecta HACIA GitHub por salida. El servidor no se
+# expone a internet: no hay puerto abierto ni credencial de Tailscale
+# guardada en GitHub.
+#
+# ─── Instalación del runner (una vez, en el servidor) ────────────────────
+#
+#   1. En GitHub: Settings → Actions → Runners → New self-hosted runner
+#      → Linux x64, y seguir los comandos que muestra la página.
+#      Instalar en un directorio propio para no chocar con el de analítica:
+#        mkdir ~/actions-runner-mesa && cd ~/actions-runner-mesa
+#        (…comandos de la página…)
+#
+#   2. Añadir la etiqueta `mesa` cuando pregunte los labels: así este
+#      workflow lo elige a él y no al de analítica-puc si comparten runner
+#      por accidente.
+#
+#   3. Instalarlo como servicio para que sobreviva a los reinicios:
+#        cd ~/actions-runner-mesa && sudo ./svc.sh install rbbaq && sudo ./svc.sh start
+#      El usuario importa: tiene que ser dueño de /var/www/mesa-servicio,
+#      o al menos con permiso de lectura sobre él.
+#
+#   4. Permitir correr deploy.sh sin contraseña, y SOLO ese comando:
+#        echo 'rbbaq ALL=(root) NOPASSWD: /bin/bash /var/www/mesa-servicio/scripts/deploy.sh, /bin/bash /var/www/mesa-servicio/scripts/arreglar-cache-nginx.sh' \
+#          | sudo tee /etc/sudoers.d/mesa-despliegue
+#        sudo chmod 440 /etc/sudoers.d/mesa-despliegue
+#
+# ADVERTENCIA que conviene releer: un runner en el propio servidor ejecuta
+# el código del repositorio con el usuario que lo corre. Mientras
+# `mantilla16/ticketsrb` sea privado y solo escriba gente de la firma es
+# aceptable. Si se hace público, o se aceptan pull requests de fuera, hay
+# que apagarlo: cualquiera podría ejecutar lo que quisiera con solo abrir
+# un PR.
 
-# Se dispara solo con un push a master, o a mano desde la pestaña Actions.
+name: Desplegar
+
 on:
+  workflow_dispatch:        # a mano, desde la pestaña Actions
   push:
     branches: [master]
-  workflow_dispatch:
+
+concurrency:
+  # Dos despliegues a la vez dejarían el servidor a medio camino entre dos
+  # versiones. El segundo espera; no se cancela, porque cancelar a mitad
+  # de un `npm ci` deja el frontend sin construir.
+  group: despliegue-mesa
+  cancel-in-progress: false
 
 jobs:
+
+  # ─── 1) Verificaciones en un runner de GitHub ──────────────────────────
+  # Corre en ubuntu-latest y no toca el servidor: si algo no compila o las
+  # coherencias fallan, se para aquí y el despliegue ni se intenta.
   verificar:
-    name: Verificar que compila
+    name: Comprobaciones
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,42 +63,39 @@ jobs:
         with:
           node-version: '20'
 
-      # Antes que nada: incoherencias entre archivos que compilan por separado
-      # pero rompen la aplicación juntos (un rol sin pantalla, permisos que
-      # difieren entre backend y frontend, columnas fuera del esquema).
-      - name: Comprobar coherencia
+      # Coherencias entre archivos que compilan por separado pero rompen
+      # la aplicación juntos (un rol sin pantalla, permisos que difieren
+      # entre backend y frontend, columnas fuera del esquema, un estado
+      # de proyecto sin columna en el tablero).
+      - name: Coherencia de roles, navegación y esquema
         run: node scripts/verificar-coherencia.mjs
 
-      - name: Probar la cobertura de analítica
+      - name: Cobertura de analítica (cálculo por cliente)
         run: node scripts/probar-cobertura.mjs
 
-      - name: Comprobar sintaxis del backend
+      - name: Sintaxis del backend
         run: |
           cd autotrack-backend
           for f in $(find src db -name '*.js'); do node --check "$f"; done
 
-      - name: Compilar el frontend
+      - name: Compila el frontend
         run: |
           cd autotrack-frontend
           npm install
           VITE_API_URL=/api npx vite build --base=/
 
+
+  # ─── 2) Despliegue real en el servidor ─────────────────────────────────
   desplegar:
     name: Desplegar en el servidor
     needs: verificar
-    runs-on: ubuntu-latest
-    # Sin las credenciales del servidor el despliegue se salta en vez de
-    # fallar: así un push sigue verificando que el proyecto compila aunque
-    # todavía no haya servidor configurado.
-    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    # `mesa` es la etiqueta que se le puso al runner al instalarlo, para
+    # distinguirlo del de analítica-puc si convivieran.
+    runs-on: [self-hosted, mesa]
     steps:
-      - name: Actualizar el servidor por SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            set -e
-            sudo bash /var/www/mesa-servicio/scripts/deploy.sh
+      - name: Correr deploy.sh
+        # No se hace checkout: el script trabaja sobre el clon del propio
+        # servidor —el que systemd ejecuta— y hace su propio `git fetch`
+        # + `reset --hard`. Un checkout aquí dejaría los archivos del
+        # runner por medio y no serían los que la mesa está corriendo.
+        run: sudo bash /var/www/mesa-servicio/scripts/deploy.sh
