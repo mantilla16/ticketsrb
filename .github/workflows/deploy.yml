@@ -13,16 +13,12 @@
 #        mkdir ~/actions-runner-mesa && cd ~/actions-runner-mesa
 #        (…comandos de la página…)
 #
-#   2. Añadir la etiqueta `mesa` cuando pregunte los labels: así este
-#      workflow lo elige a él y no al de analítica-puc si comparten runner
-#      por accidente.
-#
-#   3. Instalarlo como servicio para que sobreviva a los reinicios:
+#   2. Instalarlo como servicio para que sobreviva a los reinicios:
 #        cd ~/actions-runner-mesa && sudo ./svc.sh install rbbaq && sudo ./svc.sh start
 #      El usuario importa: tiene que ser dueño de /var/www/mesa-servicio,
 #      o al menos con permiso de lectura sobre él.
 #
-#   4. Permitir correr deploy.sh sin contraseña, y SOLO ese comando:
+#   3. Permitir correr deploy.sh sin contraseña, y SOLO ese comando:
 #        echo 'rbbaq ALL=(root) NOPASSWD: /bin/bash /var/www/mesa-servicio/scripts/deploy.sh, /bin/bash /var/www/mesa-servicio/scripts/arreglar-cache-nginx.sh' \
 #          | sudo tee /etc/sudoers.d/mesa-despliegue
 #        sudo chmod 440 /etc/sudoers.d/mesa-despliegue
@@ -89,9 +85,12 @@ jobs:
   desplegar:
     name: Desplegar en el servidor
     needs: verificar
-    # `mesa` es la etiqueta que se le puso al runner al instalarlo, para
-    # distinguirlo del de analítica-puc si convivieran.
-    runs-on: [self-hosted, mesa]
+    # Este repo tiene un único runner self-hosted: no hace falta filtrar
+    # con etiqueta. Si algún día conviven varios en el servidor, añadir aquí
+    # y en el runner (Settings → Actions → Runners) una etiqueta propia
+    # —GitHub ya no permite editarlas desde la UI: hay que reconfigurar el
+    # runner con `./config.sh remove` y `./config.sh --labels …`—.
+    runs-on: self-hosted
     steps:
       - name: Correr deploy.sh
         # No se hace checkout: el script trabaja sobre el clon del propio
