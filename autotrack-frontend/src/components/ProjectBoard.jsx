@@ -1,49 +1,66 @@
-/* ProjectBoard — kanban unificado por estado.
-   Todos los proyectos (automatización, analítica, compartido, flash) se ven
-   en un solo tablero con columnas: Por hacer → En proceso → Testing → Finalizado.
-   Click en una tarjeta abre el panel lateral de detalle. */
+/* Tablero de proyectos: kanban por estado.
+ *
+ * Rediseño con jerarquía:
+ *   - Barra de pulso arriba (reemplaza el panel «Resumen/Calendario» aislado)
+ *   - Columnas de ancho flexible: las llenas respiran, las vacías se
+ *     comprimen a un mensaje discreto en cursiva
+ *   - Un solo botón «Nuevo proyecto» (el que viene de arriba); en Backlog
+ *     un «+» pequeño en la cabecera
+ *   - Tarjetas con borde-izquierdo por urgencia (rojo vencida · naranja
+ *     alta · gris normal), pastilla de cliente coloreada por tipo, y
+ *     barra de progreso solo cuando aporta información (progreso > 0)
+ *   - Tira inferior «Próximas entregas» con fecha, urgencia y color
+ *
+ * Y las tarjetas se arrastran entre columnas: el estado cambia al soltar,
+ * respetando el flujo permitido a ejecutores (progress → testing → done).
+ * Las columnas a las que un usuario no puede mover un proyecto no ofrecen
+ * indicador de drop y rechazan el suelto sin ruido: no queremos «no
+ * puedes hacer eso» por sorpresa a mitad del gesto.
+ */
 
 import { useState } from 'react';
-import { colorClass } from '../utils/helpers';
+import { can, roleOf } from '../lib/tickets';
 
 const PR = {
-  high: { l: 'Alta',  bg: 'var(--rb-danger-bg)', c: 'var(--rb-danger)' },
-  mid:  { l: 'Media', bg: 'var(--rb-navy-tint)', c: 'var(--rb-navy)' },
-  low:  { l: 'Baja',  bg: 'var(--rb-success-bg)', c: 'var(--rb-success)' },
+  high: { l: 'Alta',  bg: 'var(--rb-danger-bg)',  c: 'var(--rb-danger)',   rail: 'var(--rb-danger)' },
+  mid:  { l: 'Media', bg: 'var(--rb-orange-tint)',c: 'var(--rb-orange-ink)', rail: 'var(--rb-orange)' },
+  low:  { l: 'Baja',  bg: 'var(--rb-n-100)',      c: 'var(--rb-text-3)',    rail: 'var(--rb-n-300)' },
 };
 
-const STATUS_L = {
-  backlog: 'Por hacer', progress: 'En proceso', standby: 'En standby',
-  testing: 'Testing', done: 'Finalizado', soporte: 'Soporte', cancelado: 'Cancelado',
-};
-const STATUS_BG = {
-  backlog: 'var(--rb-neutral-bg)', progress: 'var(--rb-navy-tint)', standby: 'var(--rb-n-100)',
-  testing: 'var(--rb-warning-bg)', done: 'var(--rb-success-bg)', soporte: '#e0f2fe', cancelado: 'var(--rb-danger-bg)',
-};
-const STATUS_C = {
-  backlog: 'var(--rb-neutral)', progress: 'var(--rb-navy)', standby: 'var(--rb-n-400)',
-  testing: 'var(--rb-warning)', done: 'var(--rb-success)', soporte: '#0B6E80', cancelado: 'var(--rb-danger)',
+/* Cada estado tiene su color propio en el punto de la cabecera. Estos son
+   los mismos tonos del manual RB (navy/cyan/teal/orange/gray). */
+const STATUS = {
+  backlog:  { l: 'Por hacer',  dot: 'var(--rb-n-400)', chip: 'var(--rb-n-100)',   chipC: 'var(--rb-text-3)' },
+  progress: { l: 'En proceso', dot: 'var(--rb-navy)',  chip: 'var(--rb-navy-tint)', chipC: 'var(--rb-navy)' },
+  standby:  { l: 'En standby', dot: 'var(--rb-n-400)', chip: 'var(--rb-n-100)',   chipC: 'var(--rb-text-3)' },
+  soporte:  { l: 'En soporte', dot: 'var(--rb-cyan)',  chip: '#E0F2FE',            chipC: '#0B6E80' },
+  testing:  { l: 'En testing', dot: 'var(--rb-orange)',chip: 'var(--rb-orange-tint)', chipC: 'var(--rb-orange-ink)' },
+  done:     { l: 'Finalizado', dot: 'var(--rb-teal)',  chip: 'var(--rb-teal-tint)', chipC: 'var(--rb-teal-ink)' },
 };
 
 /* Toda situación en la que puede estar un trabajo vivo necesita su columna:
-   un estado sin columna no sale por ningún lado —el proyecto desaparece del
-   tablero sin aviso— aunque siga contando como activo en el resumen.
-   `cancelado` es la excepción y no está por eso: se descarta antes. */
+   un estado sin columna hace desaparecer el proyecto sin aviso. `cancelado`
+   es la excepción y por eso no está: se descarta antes. */
 const COLUMNS = [
-  { key: 'backlog',  label: 'Por hacer' },
-  { key: 'progress', label: 'En proceso' },
-  { key: 'standby',  label: 'En standby' },
-  { key: 'soporte',  label: 'Soporte' },
-  { key: 'testing',  label: 'Testing' },
-  { key: 'done',     label: 'Finalizado' },
+  { key: 'backlog' },
+  { key: 'progress' },
+  { key: 'standby' },
+  { key: 'soporte' },
+  { key: 'testing' },
+  { key: 'done' },
 ];
 
 const TABS = [
   { key: 'all',  label: 'Todos' },
-  { key: 'auto', label: 'Automatización' },
-  { key: 'ana',  label: 'Analítica' },
-  { key: 'comp', label: 'Compartidos' },
+  { key: 'auto', label: 'Automatización', tipo: 'automatizacion' },
+  { key: 'ana',  label: 'Analítica',      tipo: 'analitica' },
+  { key: 'comp', label: 'Compartidos',    tipo: 'compartido' },
 ];
+
+/* Flujo permitido a quien ejecuta (no líder): En proceso → Testing → Finalizado/Soporte.
+   Coincide con la regla del handler en App.jsx; se replica aquí para poder
+   dar feedback visual antes de intentar la petición. */
+const ENGINEER_FLOW = { progress: ['testing'], testing: ['done', 'soporte'] };
 
 const fmtShort = (d) => {
   if (!d) return null;
@@ -56,200 +73,333 @@ const isOverdue = (d) => {
   return new Date(d + 'T00:00:00') < new Date(new Date().toDateString());
 };
 
-function ProjectCard({ project: p, onClick }) {
-  const pr  = PR[p.priority] || PR.mid;
-  const pct = p.progress || 0;
-  const dm  = fmtShort(p.dueDate);
-  const overdue = isOverdue(p.dueDate);
-  const pending = (p.tasks || []).filter(t => !t.done).length;
-  const total   = (p.tasks || []).length;
-  const people  = p.assignees?.length ? p.assignees : (p.assignee ? [p.assignee] : []);
+/* Un cliente se colorea por tipo de proyecto: los de analítica van en
+   magenta (identidad de esa línea), los de RB en cyan, el resto en navy. */
+const clientChip = (p) => {
+  if (p.tipo === 'analitica')  return { bg: 'var(--rb-magenta-tint)', c: 'var(--rb-magenta-ink)' };
+  if (p.tipo === 'compartido') return { bg: '#E0F2FE',                c: '#0B6E80' };
+  return { bg: 'var(--rb-navy-tint)', c: 'var(--rb-navy)' };
+};
+
+
+/* ── Tarjeta ─────────────────────────────────────────────────────────── */
+
+function ProjectCard({ project: p, onClick, onDragStart, onDragEnd, dragging }) {
+  const dm       = fmtShort(p.dueDate);
+  const overdue  = isOverdue(p.dueDate);
+  const pending  = (p.tasks || []).filter(t => !t.done).length;
+  const total    = (p.tasks || []).length;
+  const overdueTareas = (p.tasks || []).filter(t => !t.done && isOverdue(t.dueDate)).length;
+  const people   = p.assignees?.length ? p.assignees : (p.assignee ? [p.assignee] : []);
+  const pct      = p.progress || 0;
+  const cli      = clientChip(p);
+  const pr       = PR[p.priority] || PR.mid;
+
+  /* El borde izquierdo cuenta la urgencia de un vistazo: rojo si algo
+     está vencido (proyecto o tarea), naranja si es prioridad alta, gris
+     si va normal. Es la señal que antes había que buscar en las pastillas. */
+  const rail = (overdue || overdueTareas > 0) ? 'var(--rb-danger)'
+             : p.priority === 'high' ? 'var(--rb-orange)'
+             : 'var(--rb-n-300)';
 
   return (
-    <div className="pb-card" onClick={() => onClick(p.id)}>
+    <article
+      className={`pb-card${dragging ? ' pb-card--dragging' : ''}`}
+      style={{ borderLeftColor: rail }}
+      draggable
+      onDragStart={(e) => onDragStart(e, p)}
+      onDragEnd={onDragEnd}
+      onClick={() => onClick(p.id)}
+    >
+      {/* Fila superior: alarma primero si aplica, después cliente y prioridad. */}
       <div className="pb-card-top">
-        <span className="pill-mini" style={{ background: pr.bg, color: pr.c }}>{pr.l}</span>
-        {p.client && <span className="pb-card-client">{p.client}</span>}
-      </div>
-      <div className="pb-card-title">{p.name}</div>
-      <div className="pb-card-meta">
-        {people.length > 0 && (
-          <div className="rb-avatar-stack" style={{ marginRight: 6 }}>
-            {people.slice(0, 3).map(u => (
-              <span key={u.id} className={`rb-avatar rb-avatar--sm`} data-c={(u.colorIndex ?? 0) % 8}
-                title={u.name}>{u.initials}</span>
-            ))}
-          </div>
-        )}
-        {dm && (
-          <span className="pb-card-date" style={overdue ? { color: 'var(--rb-danger)' } : undefined}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            {dm.day} {dm.mon}
+        {(overdue || overdueTareas > 0) && (
+          <span className="pb-card-tag pb-card-tag--danger">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            {overdue ? 'Vencido' : `${overdueTareas} vencida${overdueTareas > 1 ? 's' : ''}`}
           </span>
         )}
-        <span className="pb-card-bar">
-          <span style={{ width: `${pct}%`, background: pct >= 80 ? 'var(--rb-success)' : 'var(--accent)' }} />
-        </span>
-        <span className="pb-card-pct" style={{ color: pct >= 80 ? 'var(--rb-success)' : 'var(--accent)' }}>{pct}%</span>
+        {p.priority === 'high' && !(overdue || overdueTareas > 0) && (
+          <span className="pb-card-tag" style={{ background: pr.bg, color: pr.c }}>Alta</span>
+        )}
+        {p.client && (
+          <span className="pb-card-chip rb-truncate" style={{ background: cli.bg, color: cli.c }}>{p.client}</span>
+        )}
       </div>
-      {total > 0 && (
-        <div className={`pb-card-tasks${pending === 0 ? ' pb-card-tasks--done' : ''}`}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-          {pending === 0 ? 'Completado' : `${pending} pendiente${pending !== 1 ? 's' : ''}`}
-          <span>{total - pending}/{total}</span>
+
+      <div className="pb-card-title">{p.name}</div>
+
+      {/* Progreso solo si > 0 — al 0% ocupa espacio sin decir nada. */}
+      {pct > 0 && (
+        <div className="pb-card-progress">
+          <span className="pb-card-progress-track">
+            <span className="pb-card-progress-fill" style={{
+              width: `${pct}%`,
+              background: pct >= 100 ? 'var(--rb-teal)' : 'var(--rb-navy)',
+            }} />
+          </span>
+          <span className="pb-card-progress-pct">{pct}%</span>
         </div>
       )}
-    </div>
+
+      <div className="pb-card-foot">
+        {people.length > 0 && (
+          <div className="pb-card-people">
+            {people.slice(0, 3).map(u => (
+              <span key={u.id} className="pb-card-avatar" data-c={(u.colorIndex ?? 0) % 8} title={u.name}>{u.initials}</span>
+            ))}
+            {people.length > 3 && <span className="pb-card-avatar pb-card-avatar--more">+{people.length - 3}</span>}
+          </div>
+        )}
+        <div className="pb-card-meta">
+          {dm ? (
+            <span className={`pb-card-date${overdue ? ' pb-card-date--overdue' : ''}`}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              {dm.day} {dm.mon}
+            </span>
+          ) : (
+            <span className="pb-card-date pb-card-date--none">Sin fecha</span>
+          )}
+          {total > 0 && (
+            <span className="pb-card-tasks" title={`${total - pending} de ${total} tareas`}>
+              {total - pending}<span>/{total}</span>
+            </span>
+          )}
+        </div>
+      </div>
+    </article>
   );
 }
 
-export default function ProjectBoard({ projects, users, allUsers, onCardClick, onNewProject }) {
+
+/* ── Tablero ─────────────────────────────────────────────────────────── */
+
+export default function ProjectBoard({ projects, users, allUsers, onCardClick, onNewProject, onMoveCard, currentUser }) {
   const [tab, setTab] = useState('all');
+  const [dragging, setDragging] = useState(null);  // proyecto siendo arrastrado
+  const [dragOver, setDragOver] = useState(null);  // columna que responde al hover
+
+  const isLeader = can(currentUser, 'gestionarProyectos');
+
+  /* Reglas de drop: qué estados puede aceptar cada usuario cuando arrastra
+     un proyecto que hoy está en `from`. Un líder puede mover a cualquier
+     otro estado; un ejecutor solo dentro de su flujo, y solo si el proyecto
+     es suyo. */
+  const puedeSoltar = (proj, hacia) => {
+    if (!proj || proj.status === hacia) return false;
+    if (isLeader) return true;
+    const owns = [...(proj.assigneeIds || [proj.assigneeId]), proj.coAssigneeId, proj.generalAssigneeId]
+      .filter(v => v != null).map(Number).includes(Number(currentUser?.id));
+    if (!owns) return false;
+    return (ENGINEER_FLOW[proj.status] || []).includes(hacia);
+  };
 
   const tipoOf = (p) => p.tipo || 'automatizacion';
-  const filtered = projects.filter(p => {
-    if (tab === 'all') return true;
-    if (tab === 'auto') return tipoOf(p) === 'automatizacion';
-    if (tab === 'ana') return tipoOf(p) === 'analitica';
-    if (tab === 'comp') return tipoOf(p) === 'compartido';
-    return true;
-  }).filter(p => !['done', 'cancelado'].includes(p.status));
+  const porTab = (p) => tab === 'all'
+    || (tab === 'auto' && tipoOf(p) === 'automatizacion')
+    || (tab === 'ana'  && tipoOf(p) === 'analitica')
+    || (tab === 'comp' && tipoOf(p) === 'compartido');
 
-  const allProjects = projects.filter(p => !['done', 'cancelado'].includes(p.status));
-  const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const today  = new Date(); today.setHours(0, 0, 0, 0);
-  const week   = new Date(today.getTime() + weekMs);
+  const filtered = projects.filter(porTab).filter(p => !['cancelado'].includes(p.status));
+  const activos  = projects.filter(p => !['done', 'cancelado'].includes(p.status));
 
-  const overdueCount = allProjects.filter(p => isOverdue(p.dueDate)).length;
-  const weekCount    = allProjects.filter(p => p.dueDate && new Date(p.dueDate) >= today && new Date(p.dueDate) <= week).length;
+  /* Conteos por tab, mostrados junto a cada pestaña. */
+  const conteo = (t) => (t.tipo
+    ? projects.filter(p => !['done', 'cancelado'].includes(p.status) && tipoOf(p) === t.tipo).length
+    : activos.length);
 
-  const upcoming = allProjects
+  /* Pulso: se prefiere sobre el panel «Resumen» aislado que teníamos.
+     Cuatro cifras accionables en una línea, no un cuadro flotante a la
+     derecha. */
+  const enProceso  = activos.filter(p => p.status === 'progress').length;
+  const enSoporte  = activos.filter(p => p.status === 'soporte').length;
+  const tareasVencidas = activos.reduce(
+    (s, p) => s + (p.tasks || []).filter(t => !t.done && isOverdue(t.dueDate)).length, 0);
+
+  const proxima = activos
+    .filter(p => p.dueDate && !isOverdue(p.dueDate))
+    .map(p => p.dueDate).sort()[0] || null;
+
+  /* Próximas entregas (barra inferior): las cinco más urgentes de todo
+     lo activo, vencidas primero. */
+  const upcoming = activos
     .filter(p => p.dueDate)
-    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-    .slice(0, 6);
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .slice(0, 5);
+
+  /* ── Drag & drop ───────────────────────────────────────────────────── */
+
+  const handleDragStart = (e, p) => {
+    setDragging(p);
+    e.dataTransfer.effectAllowed = 'move';
+    // Firefox exige que se ponga algo en el dataTransfer para que el drag arranque.
+    e.dataTransfer.setData('text/plain', String(p.id));
+  };
+
+  const handleDragEnd = () => { setDragging(null); setDragOver(null); };
+
+  const handleColDragOver = (e, colKey) => {
+    if (!dragging || !puedeSoltar(dragging, colKey)) return;
+    e.preventDefault();  // permitir el drop
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOver !== colKey) setDragOver(colKey);
+  };
+
+  const handleColDragLeave = (colKey) => {
+    if (dragOver === colKey) setDragOver(null);
+  };
+
+  const handleColDrop = (e, colKey) => {
+    e.preventDefault();
+    if (dragging && puedeSoltar(dragging, colKey) && onMoveCard) {
+      onMoveCard(dragging.id, colKey);
+    }
+    setDragging(null); setDragOver(null);
+  };
 
   return (
-    <div>
-      {/* Tabs */}
-      <div className="pb-tabs">
-        {TABS.map(t => (
-          <button key={t.key} className={`pb-tab${tab === t.key ? ' pb-tab--active' : ''}`}
-            onClick={() => setTab(t.key)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+    <div className="pb-root">
 
-      <div className="pb-layout">
-        {/* Columnas */}
-        <div className="pb-cols">
-          {COLUMNS.map(col => {
-            const colProjects = filtered.filter(p => p.status === col.key);
-            return (
-              <div key={col.key} className="pb-col">
-                <div className="pb-col-head">
-                  <span className="pb-col-label">{col.label}</span>
-                  <span className="pb-col-count">{colProjects.length}</span>
-                </div>
-                <div className="pb-col-body">
-                  {colProjects.map(p => (
-                    <ProjectCard key={p.id} project={p} onClick={onCardClick} />
-                  ))}
-                  {colProjects.length === 0 && (
-                    <div className="pb-col-empty">
-                      {col.key === 'backlog' && onNewProject ? (
-                        <button className="pb-add-btn" onClick={onNewProject}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                          Nuevo proyecto
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: 12, color: 'var(--rb-text-4)' }}>Sin proyectos</span>
-                      )}
-                    </div>
-                  )}
-                  {col.key === 'backlog' && colProjects.length > 0 && onNewProject && (
-                    <button className="pb-add-btn" onClick={onNewProject}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                      Nuevo proyecto
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      {/* ── Filtros + pulso ───────────────────────────────────────────── */}
+      <section className="pb-toolbar">
+        <div className="pb-tabs" role="tablist">
+          {TABS.map(t => (
+            <button key={t.key} role="tab" aria-selected={tab === t.key}
+              className={`pb-tab${tab === t.key ? ' pb-tab--active' : ''}`}
+              onClick={() => setTab(t.key)}>
+              {t.label}
+              <span className="pb-tab-count">{conteo(t)}</span>
+            </button>
+          ))}
         </div>
 
-        {/* Sidebar */}
-        <aside className="pb-side">
-          <div className="pb-side-box">
-            <div className="pb-side-title">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--rb-text-2)" strokeWidth="2" strokeLinecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-              Resumen
-            </div>
-            <div className="pb-sum-row">
-              <span className="pb-sum-icon" style={{ background: 'var(--rb-navy-tint)', color: 'var(--rb-navy)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        <div className="pb-pulse">
+          <span className="pb-pulse-item">
+            <i className="pb-dot" style={{ background: 'var(--rb-navy)' }} />
+            <b>{enProceso}</b> en proceso
+          </span>
+          <span className="pb-pulse-item">
+            <i className="pb-dot" style={{ background: 'var(--rb-cyan)' }} />
+            <b>{enSoporte}</b> en soporte
+          </span>
+          {tareasVencidas > 0 && (
+            <>
+              <span className="pb-pulse-sep" />
+              <span className="pb-pulse-item pb-pulse-item--danger">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+                <b>{tareasVencidas}</b> tarea{tareasVencidas !== 1 ? 's' : ''} vencida{tareasVencidas !== 1 ? 's' : ''}
               </span>
-              <div>
-                <div className="pb-sum-label">Total activos</div>
-                <div className="pb-sum-num">{allProjects.length} <span>proyectos</span></div>
-              </div>
-            </div>
-            {overdueCount > 0 && (
-              <div className="pb-sum-row">
-                <span className="pb-sum-icon" style={{ background: 'var(--rb-danger-bg)', color: 'var(--rb-danger)' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                </span>
-                <div>
-                  <div className="pb-sum-label">Vencidos</div>
-                  <div className="pb-sum-num" style={{ color: 'var(--rb-danger)' }}>{overdueCount} <span>proyectos</span></div>
-                </div>
-              </div>
-            )}
-            {weekCount > 0 && (
-              <div className="pb-sum-row">
-                <span className="pb-sum-icon" style={{ background: 'var(--rb-success-bg)', color: 'var(--rb-success)' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><polyline points="8.5 12.5 11 15 15.5 9.5"/></svg>
-                </span>
-                <div>
-                  <div className="pb-sum-label">Próximas entregas</div>
-                  <div className="pb-sum-num">{weekCount} <span>esta semana</span></div>
-                </div>
-              </div>
-            )}
-          </div>
+            </>
+          )}
+          {proxima && (
+            <span className="pb-pulse-item">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Próxima entrega <b>{fmtShort(proxima).day} {fmtShort(proxima).mon}</b>
+            </span>
+          )}
+        </div>
+      </section>
 
-          <div className="pb-side-box">
-            <div className="pb-side-title">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--rb-text-2)" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              Calendario
+
+      {/* ── Kanban ────────────────────────────────────────────────────── */}
+      <div className="pb-cols">
+        {COLUMNS.map(({ key: colKey }) => {
+          const st = STATUS[colKey];
+          const colProjects = filtered.filter(p => p.status === colKey);
+          const puede = dragging ? puedeSoltar(dragging, colKey) : false;
+          const isDragOver = dragOver === colKey;
+          const dimmed = dragging && !puede && dragging.status !== colKey;
+
+          return (
+            <div
+              key={colKey}
+              className={`pb-col${colProjects.length === 0 ? ' pb-col--empty' : ''}${isDragOver ? ' pb-col--dropping' : ''}${dimmed ? ' pb-col--dimmed' : ''}`}
+              onDragOver={(e) => handleColDragOver(e, colKey)}
+              onDragLeave={() => handleColDragLeave(colKey)}
+              onDrop={(e) => handleColDrop(e, colKey)}
+            >
+              <header className="pb-col-head">
+                <span className="pb-col-dot" style={{ background: st.dot }} />
+                <span className="pb-col-label">{st.l}</span>
+                <span className="pb-col-count" style={{ background: st.chip, color: st.chipC }}>
+                  {colProjects.length}
+                </span>
+                <span style={{ flex: 1 }} />
+                {colKey === 'backlog' && onNewProject && (
+                  <button className="pb-col-add" aria-label="Nuevo proyecto en Por hacer"
+                    onClick={onNewProject}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                )}
+              </header>
+
+              <div className="pb-col-body">
+                {colProjects.length === 0 ? (
+                  <div className="pb-col-empty-msg">
+                    {colKey === 'backlog'  && 'Sin trabajos en el backlog'}
+                    {colKey === 'progress' && 'Nada en curso'}
+                    {colKey === 'standby'  && 'Nada en pausa'}
+                    {colKey === 'soporte'  && 'Nada en soporte'}
+                    {colKey === 'testing'  && 'Nada en pruebas'}
+                    {colKey === 'done'     && (
+                      <>
+                        Nada finalizado
+                        <a href="#" onClick={(e) => e.preventDefault()} className="pb-col-empty-link">Ver historial →</a>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  colProjects.map(p => (
+                    <ProjectCard
+                      key={p.id} project={p} onClick={onCardClick}
+                      onDragStart={handleDragStart} onDragEnd={handleDragEnd}
+                      dragging={dragging?.id === p.id}
+                    />
+                  ))
+                )}
+              </div>
             </div>
-            {upcoming.length === 0 && (
-              <div style={{ fontSize: 12, color: 'var(--rb-text-4)', padding: '6px 0 10px' }}>Sin entregas programadas</div>
-            )}
+          );
+        })}
+      </div>
+
+
+      {/* ── Próximas entregas ─────────────────────────────────────────── */}
+      {upcoming.length > 0 && (
+        <section className="pb-upcoming">
+          <div className="pb-upcoming-head">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Próximas entregas</span>
+            <span className="pb-upcoming-hint">— ordenadas por urgencia</span>
+          </div>
+          <div className="pb-upcoming-grid">
             {upcoming.map(p => {
               const dm = fmtShort(p.dueDate);
-              const pr = PR[p.priority] || PR.mid;
               const overdue = isOverdue(p.dueDate);
+              const dias = Math.round((new Date(p.dueDate + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000);
               return (
-                <div key={p.id} className="pb-due-row" onClick={() => onCardClick(p.id)}>
-                  <div className="pb-due-date" style={overdue ? { color: 'var(--rb-danger)' } : undefined}>
+                <button key={p.id} className={`pb-upcoming-item${overdue ? ' pb-upcoming-item--overdue' : dias <= 7 ? ' pb-upcoming-item--soon' : ''}`}
+                  onClick={() => onCardClick(p.id)}>
+                  <div className="pb-upcoming-date">
                     <b>{dm.day}</b>
                     <span>{dm.mon}</span>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="pb-due-name">{p.name}</div>
-                    {p.client && <div className="pb-due-client">{p.client}</div>}
+                  <div className="pb-upcoming-body">
+                    <div className="pb-upcoming-name rb-truncate">{p.name}</div>
+                    <div className="pb-upcoming-when">
+                      {overdue ? `Vencida hace ${Math.abs(dias)} día${Math.abs(dias) !== 1 ? 's' : ''}` :
+                       dias === 0 ? 'Hoy' :
+                       dias === 1 ? 'Mañana' :
+                       dias <= 7 ? `En ${dias} días` :
+                       `En ${Math.round(dias / 7)} semana${Math.round(dias / 7) !== 1 ? 's' : ''}`}
+                    </div>
                   </div>
-                  <span className="pill-mini" style={{ background: pr.bg, color: pr.c }}>{pr.l}</span>
-                </div>
+                </button>
               );
             })}
           </div>
-        </aside>
-      </div>
+        </section>
+      )}
     </div>
   );
 }

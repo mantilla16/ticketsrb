@@ -448,8 +448,10 @@ function Workspace({ user, users, setUsers, logout, showToast, toasts, removeToa
               <ProjectBoard
                 projects={visibleProjects}
                 users={users} allUsers={users}
+                currentUser={vistaUser}
                 onCardClick={openDetail}
                 onNewProject={() => openNewProject('backlog')}
+                onMoveCard={handleMoveCard}
               />
             )}
 
